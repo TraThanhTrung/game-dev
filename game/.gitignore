@@ -1,3 +1,44 @@
+# Unity / Rider / VS
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+.vs/
+.idea/
+
+# Auto-generated
+MemoryCaptures/
+SysInfo.txt
+*.csproj
+*.sln
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+
+# Crash / reports
+*.stacktrace
+*.crash
+*.dmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Packages cache
+Packages/packages-lock.json
+
+# Render/Streaming
+[Aa]ssets/StreamingAssets/aa/
+
+# Generated meta backups
+*.meta~
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
