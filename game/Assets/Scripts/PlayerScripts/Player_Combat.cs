@@ -16,7 +16,7 @@ public class Player_Combat : MonoBehaviour
 
     private void Update()
     {
-        if(timer > 0)
+        if (timer > 0)
         {
             timer -= Time.deltaTime;
         }
@@ -25,7 +25,7 @@ public class Player_Combat : MonoBehaviour
 
     public void Attack()
     {
-        if(timer <= 0)
+        if (timer <= 0)
         {
             anim.SetBool("isAttacking", true);
 
@@ -53,5 +53,11 @@ public class Player_Combat : MonoBehaviour
     public void FinishAttacking()
     {
         anim.SetBool("isAttacking", false);
+    }
+    private void OnDrawGizmosSelected()
+    {
+        if (attackPoint == null) return;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint.position, StatsManager.Instance.weaponRange);
     }
 }
