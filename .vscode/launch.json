@@ -5,11 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C#: Run GameServer",
-            "type": "dotnet",
+            "name": ".NET Launch GameServer",
+            "type": "coreclr",
             "request": "launch",
-            "projectPath": "g:/game-dev/server/GameServer.csproj",
-            "preLaunchTask": "build-server"
+            "preLaunchTask": "build-server",
+            "program": "g:/game-dev/server/bin/Debug/net10.0/GameServer.dll",
+            "args": [],
+            "cwd": "g:/game-dev/server",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
         }
     ]
 }
