@@ -37,7 +37,6 @@ public class Player_Combat : MonoBehaviour
 
     public void DealDamage()
     {
-        Debug.Log("Deal Damage was called");
         Collider2D[] enemies = Physics2D.OverlapCircleAll(attackPoint.position, StatsManager.Instance.weaponRange, enemyLayer);
 
         if (enemies.Length > 0)

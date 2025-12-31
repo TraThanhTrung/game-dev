@@ -6,12 +6,12 @@ using UnityEngine.UI;
 public class MultiplayerUIManager : MonoBehaviour
 {
     #region Private Fields
-    [SerializeField] private TMP_InputField m_ServerUrlInput;
     [SerializeField] private TMP_InputField m_PlayerNameInput;
-    [SerializeField] private Button m_RegisterButton;
     [SerializeField] private Button m_JoinButton;
     [SerializeField] private TMP_Text m_StatusText;
     [SerializeField] private float m_PollIntervalSeconds = 0.2f;
+    [SerializeField] private StateLogger m_StateLogger;
+    [SerializeField] private string m_NextSceneName = "RPG";
     #endregion
 
     #region Unity Lifecycle
@@ -26,41 +26,54 @@ public class MultiplayerUIManager : MonoBehaviour
 
     private void Start()
     {
-        m_RegisterButton.onClick.AddListener(OnRegisterClicked);
-        m_JoinButton.onClick.AddListener(OnJoinClicked);
+        m_JoinButton.onClick.AddListener(ConnectViaLoginButton);
     }
     #endregion
 
     #region Private Methods
-    private void OnRegisterClicked()
-    {
-        var name = m_PlayerNameInput != null ? m_PlayerNameInput.text : "Player";
-        var url = m_ServerUrlInput != null ? m_ServerUrlInput.text : string.Empty;
-
-        NetClient.Instance.ConfigureBaseUrl(url);
-        StartCoroutine(NetClient.Instance.RegisterPlayer(name, () =>
-        {
-            SetStatus("Registered");
-        },
-        error => SetStatus($"Register error: {error}")));
-    }
-
-    private void OnJoinClicked()
-    {
-        var name = m_PlayerNameInput != null ? m_PlayerNameInput.text : "Player";
-        StartCoroutine(NetClient.Instance.JoinSession(name, () =>
-        {
-            SetStatus("Joined session");
-            NetClient.Instance.StartPolling(null, m_PollIntervalSeconds, _ => { }, err => SetStatus($"Poll error: {err}"));
-        },
-        error => SetStatus($"Join error: {error}")));
-    }
 
     private void SetStatus(string text)
     {
         if (m_StatusText != null)
         {
             m_StatusText.text = text;
+        }
+    }
+
+    private void OnStateReceived(StateResponse state)
+    {
+        if (m_StateLogger != null)
+        {
+            m_StateLogger.OnState(state);
+        }
+    }
+    public void ConnectViaLoginButton()
+    {
+        var name = m_PlayerNameInput ? m_PlayerNameInput.text : "Player";
+
+        StartCoroutine(NetClient.Instance.RegisterPlayer(name, () =>
+        {
+            SetStatus("Registered");
+            StartCoroutine(NetClient.Instance.JoinSession(name, () =>
+            {
+                SetStatus("Joined session");
+                NetClient.Instance.StartPolling(null, m_PollIntervalSeconds, OnStateReceived, err => SetStatus($"Poll error: {err}"));
+                TryLoadNextScene();
+            },
+            err => SetStatus($"Join error: {err}")));
+        },
+        err => SetStatus($"Register error: {err}")));
+    }
+
+    private void TryLoadNextScene()
+    {
+        if (string.IsNullOrWhiteSpace(m_NextSceneName))
+            return;
+
+        var active = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (active != m_NextSceneName)
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(m_NextSceneName);
         }
     }
     #endregion

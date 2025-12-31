@@ -24,6 +24,19 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+// Simple request logging
+app.Use(async (ctx, next) =>
+{
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    await next();
+    sw.Stop();
+    app.Logger.LogInformation("{method} {path} -> {status} in {ms} ms",
+        ctx.Request.Method,
+        ctx.Request.Path,
+        ctx.Response.StatusCode,
+        sw.ElapsedMilliseconds);
+});
+
 app.MapControllers();
 
 app.Run();

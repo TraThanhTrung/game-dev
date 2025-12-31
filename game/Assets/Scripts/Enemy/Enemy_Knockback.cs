@@ -17,7 +17,6 @@ public class Enemy_Knockback : MonoBehaviour
 
     public void Knockback(Transform forceTransform, float knockbackForce, float knockbackTime, float stunTime)
     {
-        Debug.Log("Knockback was called");
         enemy_Movement.ChangeState(EnemyState.Knockback);
         StartCoroutine(StunTimer(knockbackTime, stunTime));
         Vector2 direction = (transform.position - forceTransform.position).normalized;

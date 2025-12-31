@@ -11,7 +11,7 @@ public class NetClient : MonoBehaviour
     #endregion
 
     #region Private Fields
-    [SerializeField] private string m_BaseUrl = "http://localhost:5000";
+    [SerializeField] private string m_BaseUrl = "http://localhost:5220";
     [SerializeField] private string m_DefaultSessionId = "default";
 
     private Coroutine pollRoutine;
@@ -51,20 +51,42 @@ public class NetClient : MonoBehaviour
 
     public IEnumerator RegisterPlayer(string playerName, Action onSuccess, Action<string> onError)
     {
-        var payload = JsonUtility.ToJson(new RegisterRequest { PlayerName = playerName });
+        var payload = JsonUtility.ToJson(new RegisterRequest { playerName = playerName });
         using var req = BuildPost("/auth/register", payload);
         yield return req.SendWebRequest();
 
         if (req.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(req.error);
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
             yield break;
         }
 
-        var result = JsonUtility.FromJson<RegisterResponse>(req.downloadHandler.text);
-        PlayerId = Guid.Parse(result.PlayerId);
-        Token = result.Token;
-        SessionId = string.IsNullOrEmpty(result.SessionId) ? m_DefaultSessionId : result.SessionId;
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        RegisterResponse result;
+        try
+        {
+            result = JsonUtility.FromJson<RegisterResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid register response JSON");
+            yield break;
+        }
+
+        if (result == null || string.IsNullOrEmpty(result.playerId) || !Guid.TryParse(result.playerId, out var pid))
+        {
+            onError?.Invoke("Missing/invalid PlayerId in register response");
+            yield break;
+        }
+
+        PlayerId = pid;
+        Token = result.token;
+        SessionId = string.IsNullOrEmpty(result.sessionId) ? m_DefaultSessionId : result.sessionId;
         onSuccess?.Invoke();
     }
 
@@ -78,10 +100,10 @@ public class NetClient : MonoBehaviour
 
         var payload = JsonUtility.ToJson(new JoinSessionRequest
         {
-            PlayerId = PlayerId.ToString(),
-            PlayerName = playerName,
-            SessionId = SessionId,
-            Token = Token
+            playerId = PlayerId.ToString(),
+            playerName = playerName,
+            sessionId = SessionId,
+            token = Token
         });
 
         using var req = BuildPost("/sessions/join", payload);
@@ -89,12 +111,12 @@ public class NetClient : MonoBehaviour
 
         if (req.result != UnityWebRequest.Result.Success)
         {
-            onError?.Invoke(req.error);
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
             yield break;
         }
 
         var result = JsonUtility.FromJson<JoinSessionResponse>(req.downloadHandler.text);
-        SessionId = string.IsNullOrEmpty(result.SessionId) ? SessionId : result.SessionId;
+        SessionId = string.IsNullOrEmpty(result.sessionId) ? SessionId : result.sessionId;
         onSuccess?.Invoke();
     }
 
@@ -102,9 +124,9 @@ public class NetClient : MonoBehaviour
     {
         if (!IsConnected) yield break;
 
-        input.PlayerId = PlayerId.ToString();
-        input.SessionId = SessionId;
-        input.Token = Token;
+        input.playerId = PlayerId.ToString();
+        input.sessionId = SessionId;
+        input.token = Token;
 
         var payload = JsonUtility.ToJson(input);
         using var req = BuildPost("/sessions/input", payload);
@@ -140,9 +162,9 @@ public class NetClient : MonoBehaviour
         {
             yield return PollState(version, state =>
             {
-                if (state.Version > 0)
+                if (state.version > 0)
                 {
-                    version = state.Version;
+                    version = state.version;
                     onState?.Invoke(state);
                 }
             }, onError);
@@ -189,91 +211,91 @@ public class NetClient : MonoBehaviour
 [Serializable]
 public class RegisterRequest
 {
-    public string PlayerName;
+    public string playerName;
 }
 
 [Serializable]
 public class RegisterResponse
 {
-    public string PlayerId;
-    public string Token;
-    public string SessionId;
+    public string playerId;
+    public string token;
+    public string sessionId;
 }
 
 [Serializable]
 public class JoinSessionRequest
 {
-    public string PlayerId;
-    public string PlayerName;
-    public string SessionId;
-    public string Token;
+    public string playerId;
+    public string playerName;
+    public string sessionId;
+    public string token;
 }
 
 [Serializable]
 public class JoinSessionResponse
 {
-    public string SessionId;
+    public string sessionId;
 }
 
 [Serializable]
 public class InputPayload
 {
-    public string PlayerId;
-    public string SessionId;
-    public float MoveX;
-    public float MoveY;
-    public float AimX;
-    public float AimY;
-    public bool Attack;
-    public bool Shoot;
-    public int Sequence;
-    public string Token;
+    public string playerId;
+    public string sessionId;
+    public float moveX;
+    public float moveY;
+    public float aimX;
+    public float aimY;
+    public bool attack;
+    public bool shoot;
+    public int sequence;
+    public string token;
 }
 
 [Serializable]
 public class StateResponse
 {
-    public string SessionId;
-    public int Version;
-    public PlayerSnapshot[] Players;
-    public EnemySnapshot[] Enemies;
-    public ProjectileSnapshot[] Projectiles;
+    public string sessionId;
+    public int version;
+    public PlayerSnapshot[] players;
+    public EnemySnapshot[] enemies;
+    public ProjectileSnapshot[] projectiles;
 }
 
 [Serializable]
 public class PlayerSnapshot
 {
-    public string Id;
-    public string Name;
-    public float X;
-    public float Y;
-    public int Hp;
-    public int MaxHp;
-    public int Sequence;
+    public string id;
+    public string name;
+    public float x;
+    public float y;
+    public int hp;
+    public int maxHp;
+    public int sequence;
 }
 
 [Serializable]
 public class EnemySnapshot
 {
-    public string Id;
-    public string TypeId;
-    public float X;
-    public float Y;
-    public int Hp;
-    public int MaxHp;
-    public string Status;
+    public string id;
+    public string typeId;
+    public float x;
+    public float y;
+    public int hp;
+    public int maxHp;
+    public string status;
 }
 
 [Serializable]
 public class ProjectileSnapshot
 {
-    public string Id;
-    public string OwnerId;
-    public float X;
-    public float Y;
-    public float DirX;
-    public float DirY;
-    public float Radius;
+    public string id;
+    public string ownerId;
+    public float x;
+    public float y;
+    public float dirX;
+    public float dirY;
+    public float radius;
 }
 #endregion
 
