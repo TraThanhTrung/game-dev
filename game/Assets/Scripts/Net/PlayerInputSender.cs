@@ -1,6 +1,10 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// Sends player input to the server at a fixed interval.
+/// Captures attack/shoot button presses immediately to avoid missing inputs.
+/// </summary>
 public class PlayerInputSender : MonoBehaviour
 {
     #region Constants
@@ -11,10 +15,14 @@ public class PlayerInputSender : MonoBehaviour
     #endregion
 
     #region Private Fields
-    [SerializeField] private float m_SendInterval = 0.1f;
+    [SerializeField] private float m_SendInterval = 0.05f; // 20 Hz to match server tick
 
     private int sequence;
     private Coroutine sendRoutine;
+
+    // Event-based: capture button presses immediately
+    private bool pendingAttack;
+    private bool pendingShoot;
     #endregion
 
     #region Unity Lifecycle
@@ -26,6 +34,13 @@ public class PlayerInputSender : MonoBehaviour
     private void OnDisable()
     {
         StopSending();
+    }
+
+    private void Update()
+    {
+        // Capture button presses every frame to avoid missing inputs
+        if (Input.GetButtonDown(ButtonSlash)) pendingAttack = true;
+        if (Input.GetButtonDown(ButtonShoot)) pendingShoot = true;
     }
     #endregion
 
@@ -62,12 +77,13 @@ public class PlayerInputSender : MonoBehaviour
             var aimX = moveX;
             var aimY = moveY;
 
-            bool attack = Input.GetButtonDown(ButtonSlash);
-            bool shoot = Input.GetButtonDown(ButtonShoot);
+            // Use pending flags for attack/shoot (captured in Update)
+            bool attack = pendingAttack;
+            bool shoot = pendingShoot;
+            pendingAttack = false;
+            pendingShoot = false;
 
             sequence++;
-
-            Debug.Log($"[InputSender] send move=({moveX},{moveY}) aim=({aimX},{aimY}) atk={attack} shoot={shoot} seq={sequence}");
 
             var payload = new InputPayload
             {
@@ -85,4 +101,3 @@ public class PlayerInputSender : MonoBehaviour
     }
     #endregion
 }
-

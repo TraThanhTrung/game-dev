@@ -8,6 +8,9 @@ public class NetClient : MonoBehaviour
 {
     #region Constants
     private const string ContentTypeJson = "application/json";
+    private const string c_PrefKeyPlayerId = "mp_player_id";
+    private const string c_PrefKeyToken = "mp_token";
+    private const string c_PrefKeySessionId = "mp_session_id";
     #endregion
 
     #region Private Fields
@@ -37,6 +40,9 @@ public class NetClient : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        
+        // Clear any old saved session to avoid stale data
+        ClearSavedSession();
     }
     #endregion
 
@@ -87,6 +93,7 @@ public class NetClient : MonoBehaviour
         PlayerId = pid;
         Token = result.token;
         SessionId = string.IsNullOrEmpty(result.sessionId) ? m_DefaultSessionId : result.sessionId;
+        // Session persistence disabled - server handles player data
         onSuccess?.Invoke();
     }
 
@@ -152,9 +159,54 @@ public class NetClient : MonoBehaviour
             pollRoutine = null;
         }
     }
+
+    /// <summary>
+    /// Clears the current session data (playerId, token, sessionId).
+    /// Also clears the saved session from PlayerPrefs.
+    /// Call after disconnecting or logging out.
+    /// </summary>
+    public void ClearSession()
+    {
+        PlayerId = Guid.Empty;
+        Token = string.Empty;
+        SessionId = m_DefaultSessionId;
+        ClearSavedSession();
+    }
     #endregion
 
     #region Private Methods
+    private void LoadSession()
+    {
+        var savedId = PlayerPrefs.GetString(c_PrefKeyPlayerId, "");
+        var savedToken = PlayerPrefs.GetString(c_PrefKeyToken, "");
+        var savedSession = PlayerPrefs.GetString(c_PrefKeySessionId, "");
+
+        if (Guid.TryParse(savedId, out var pid) && !string.IsNullOrEmpty(savedToken))
+        {
+            PlayerId = pid;
+            Token = savedToken;
+            SessionId = string.IsNullOrEmpty(savedSession) ? m_DefaultSessionId : savedSession;
+            Debug.Log($"[NetClient] Loaded saved session: PlayerId={PlayerId}");
+        }
+    }
+
+    private void SaveSession()
+    {
+        PlayerPrefs.SetString(c_PrefKeyPlayerId, PlayerId.ToString());
+        PlayerPrefs.SetString(c_PrefKeyToken, Token);
+        PlayerPrefs.SetString(c_PrefKeySessionId, SessionId);
+        PlayerPrefs.Save();
+        Debug.Log($"[NetClient] Saved session: PlayerId={PlayerId}");
+    }
+
+    private void ClearSavedSession()
+    {
+        PlayerPrefs.DeleteKey(c_PrefKeyPlayerId);
+        PlayerPrefs.DeleteKey(c_PrefKeyToken);
+        PlayerPrefs.DeleteKey(c_PrefKeySessionId);
+        PlayerPrefs.Save();
+    }
+
     private IEnumerator PollLoop(int? sinceVersion, float intervalSeconds, Action<StateResponse> onState, Action<string> onError)
     {
         int? version = sinceVersion;
@@ -204,6 +256,64 @@ public class NetClient : MonoBehaviour
         req.SetRequestHeader("Content-Type", ContentTypeJson);
         return req;
     }
+
+    /// <summary>
+    /// Save current progress to database on the server.
+    /// </summary>
+    public IEnumerator SaveProgress(Action onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new SaveProgressRequest { playerId = PlayerId.ToString(), token = Token });
+        using var req = BuildPost("/sessions/save", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("[NetClient] Progress saved to server.");
+            onSuccess?.Invoke();
+        }
+        else
+        {
+            Debug.LogWarning($"[NetClient] SaveProgress failed: {req.error}");
+            onError?.Invoke(req.error);
+        }
+    }
+
+    /// <summary>
+    /// Disconnect from server (saves progress and cleans up).
+    /// </summary>
+    public IEnumerator Disconnect(Action onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onSuccess?.Invoke();
+            yield break;
+        }
+
+        StopPolling();
+
+        var payload = JsonUtility.ToJson(new DisconnectRequest { playerId = PlayerId.ToString(), token = Token });
+        using var req = BuildPost("/sessions/disconnect", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("[NetClient] Disconnected and progress saved.");
+        }
+        else
+        {
+            Debug.LogWarning($"[NetClient] Disconnect failed: {req.error}");
+        }
+
+        // Clear local session
+        ClearSession();
+        onSuccess?.Invoke();
+    }
     #endregion
 }
 
@@ -235,6 +345,20 @@ public class JoinSessionRequest
 public class JoinSessionResponse
 {
     public string sessionId;
+}
+
+[Serializable]
+public class SaveProgressRequest
+{
+    public string playerId;
+    public string token;
+}
+
+[Serializable]
+public class DisconnectRequest
+{
+    public string playerId;
+    public string token;
 }
 
 [Serializable]
@@ -272,6 +396,9 @@ public class PlayerSnapshot
     public int hp;
     public int maxHp;
     public int sequence;
+    public int level;
+    public int exp;
+    public int gold;
 }
 
 [Serializable]

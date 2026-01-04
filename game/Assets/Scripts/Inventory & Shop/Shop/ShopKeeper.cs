@@ -25,6 +25,9 @@ public class ShopKeeper : MonoBehaviour
 
     void Update()
     {
+        // Skip if CanvasGroup has been destroyed
+        if (shopCanvasGroup == null) return;
+
         if (playerInRange)
         {
             if (Input.GetButtonDown("Interact"))

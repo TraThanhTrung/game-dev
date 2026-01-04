@@ -19,6 +19,9 @@ public class StatsUI : MonoBehaviour
 
     private void Update()
     {
+        // Skip if canvas has been destroyed
+        if (statsCanvas == null) return;
+
         if (Input.GetButtonDown("ToggleStats"))
             if (statsOpen)
             {
@@ -41,19 +44,33 @@ public class StatsUI : MonoBehaviour
 
     public void UpdateDamage()
     {
-        int currentDamage = StatsManager.Instance.GetDamageWithBonus();
-        statsSlots[0].GetComponentInChildren<TMP_Text>().text = "Damage: " + currentDamage;
+        if (statsSlots.Length > 0 && statsSlots[0] != null)
+        {
+            int currentDamage = StatsManager.Instance.GetDamageWithBonus();
+            statsSlots[0].GetComponentInChildren<TMP_Text>().text = "Damage: " + currentDamage;
+        }
     }
 
     public void UpdateSpeed()
     {
-        statsSlots[1].GetComponentInChildren<TMP_Text>().text = "Speed: " + StatsManager.Instance.speed;
+        if (statsSlots.Length > 1 && statsSlots[1] != null)
+        {
+            statsSlots[1].GetComponentInChildren<TMP_Text>().text = "Speed: " + StatsManager.Instance.speed;
+        }
     }
 
+    public void UpdateHealth()
+    {
+        if (statsSlots.Length > 2 && statsSlots[2] != null)
+        {
+            statsSlots[2].GetComponentInChildren<TMP_Text>().text = "HP: " + StatsManager.Instance.currentHealth + " / " + StatsManager.Instance.maxHealth;
+        }
+    }
 
     public void UpdateAllStats()
     {
         UpdateDamage();
         UpdateSpeed();
+        UpdateHealth();
     }
 }

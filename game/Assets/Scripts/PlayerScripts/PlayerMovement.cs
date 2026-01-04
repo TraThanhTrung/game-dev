@@ -17,7 +17,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetButtonDown("Slash") && player_Combat.enabled == true)
+        if (player_Combat != null && player_Combat.enabled && Input.GetButtonDown("Slash"))
         {
             player_Combat.Attack();
         }
@@ -27,11 +27,13 @@ public class PlayerMovement : MonoBehaviour
     // Fixed Update is called 50x second
     void FixedUpdate()
     {
-        if(isShooting == true)
+        // Skip if dependencies not ready
+        if (rb == null || StatsManager.Instance == null) return;
+
+        if (isShooting == true)
         {
             rb.velocity = Vector2.zero;
         }
-
         else if (isKnockedBack == false)
         {
             float horizontal = Input.GetAxis("Horizontal");
@@ -43,8 +45,11 @@ public class PlayerMovement : MonoBehaviour
                 Flip();
             }
 
-            anim.SetFloat("horizontal", Mathf.Abs(horizontal));
-            anim.SetFloat("vertical", Mathf.Abs(vertical));
+            if (anim != null)
+            {
+                anim.SetFloat("horizontal", Mathf.Abs(horizontal));
+                anim.SetFloat("vertical", Mathf.Abs(vertical));
+            }
 
             rb.velocity = new Vector2(horizontal, vertical) * StatsManager.Instance.speed;
         }

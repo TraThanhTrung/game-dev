@@ -2,7 +2,18 @@ using GameServer.Models.States;
 
 namespace GameServer.Models.Dto;
 
-public record PlayerSnapshot(Guid Id, string Name, float X, float Y, int Hp, int MaxHp, int Sequence);
+public record PlayerSnapshot(
+    Guid Id, 
+    string Name, 
+    float X, 
+    float Y, 
+    int Hp, 
+    int MaxHp, 
+    int Sequence,
+    int Level,
+    int Exp,
+    int Gold
+);
 
 public record EnemySnapshot(Guid Id, string TypeId, float X, float Y, int Hp, int MaxHp, string Status);
 

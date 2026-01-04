@@ -13,5 +13,10 @@ public class PlayerState
     public float Speed { get; set; }
     public int Sequence { get; set; }
     public bool IsDead => Hp <= 0;
+
+    // Progression
+    public int Level { get; set; } = 1;
+    public int Exp { get; set; }
+    public int Gold { get; set; }
 }
 

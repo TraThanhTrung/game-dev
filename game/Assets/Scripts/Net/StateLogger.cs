@@ -1,6 +1,9 @@
-using System.Text;
 using UnityEngine;
 
+/// <summary>
+/// Logs game state snapshots to the console.
+/// Focused on logging only the local player's state to reduce spam.
+/// </summary>
 public class StateLogger : MonoBehaviour
 {
     #region Private Fields
@@ -12,19 +15,29 @@ public class StateLogger : MonoBehaviour
     {
         if (!m_LogToConsole || state == null) return;
 
-        var sb = new StringBuilder();
-        sb.Append($"State v{state.version} players:{state.players?.Length ?? 0} enemies:{state.enemies?.Length ?? 0} projectiles:{state.projectiles?.Length ?? 0}");
+        var myId = NetClient.Instance?.PlayerId.ToString();
+        PlayerSnapshot me = null;
 
-        if (state.players != null)
+        if (state.players != null && !string.IsNullOrEmpty(myId))
         {
             foreach (var p in state.players)
             {
-                sb.Append($"\nP {p.name} pos=({p.x:0.0},{p.y:0.0}) hp={p.hp}/{p.maxHp} seq={p.sequence}");
+                if (p.id == myId)
+                {
+                    me = p;
+                    break;
+                }
             }
         }
 
-        Debug.Log(sb.ToString());
+        if (me != null)
+        {
+            Debug.Log($"v{state.version} | Me: pos=({me.x:0.0},{me.y:0.0}) hp={me.hp}/{me.maxHp} seq={me.sequence} | P:{state.players?.Length ?? 0} E:{state.enemies?.Length ?? 0}");
+        }
+        else
+        {
+            Debug.Log($"v{state.version} | Me not found | P:{state.players?.Length ?? 0} E:{state.enemies?.Length ?? 0}");
+        }
     }
     #endregion
 }
-

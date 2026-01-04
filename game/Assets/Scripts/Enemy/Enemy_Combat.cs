@@ -18,11 +18,16 @@ public class Enemy_Combat : MonoBehaviour
     {
         Collider2D[] hits = Physics2D.OverlapCircleAll(attackPoint.position, weaponRange, playerLayer);
 
-        if(hits.Length > 0)
+        if (hits.Length > 0)
         {
+            var playerGO = hits[0].gameObject;
             hits[0].GetComponent<PlayerHealth>().ChangeHealth(-damage);
-            hits[0].GetComponent<PlayerMovement>().Knockback(transform, knockbackForce, stunTime);
 
+            // Only apply knockback if player is still active (not dead)
+            if (playerGO.activeInHierarchy)
+            {
+                hits[0].GetComponent<PlayerMovement>().Knockback(transform, knockbackForce, stunTime);
+            }
         }
     }
 }

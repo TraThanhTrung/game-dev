@@ -11,6 +11,9 @@ public class ToggleSkillTree : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Skip if canvas has been destroyed
+        if (statsCanvas == null) return;
+
         if (Input.GetButtonDown("ToggleSkillTree"))
         {
             if (skillTreeOpen)              //Close menu now
@@ -28,7 +31,5 @@ public class ToggleSkillTree : MonoBehaviour
                 skillTreeOpen = true;
             }
         }
-
-
     }
 }
