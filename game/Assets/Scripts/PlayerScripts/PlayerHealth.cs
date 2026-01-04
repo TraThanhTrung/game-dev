@@ -18,7 +18,15 @@ public class PlayerHealth : MonoBehaviour
 
     public void ChangeHealth(int amount)
     {
-        StatsManager.Instance.currentHealth += amount;
+        int finalAmount = amount;
+        if (amount < 0)
+        {
+            int incomingDamage = Mathf.Abs(amount);
+            int reducedDamage = StatsManager.Instance.CalculateDamageTaken(incomingDamage);
+            finalAmount = -reducedDamage;
+        }
+
+        StatsManager.Instance.currentHealth += finalAmount;
         healthTextAnim.Play("TextUpdate");
 
         healthText.text = "HP: " + StatsManager.Instance.currentHealth + " / " + StatsManager.Instance.maxHealth;

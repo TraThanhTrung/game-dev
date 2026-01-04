@@ -41,7 +41,8 @@ public class Player_Combat : MonoBehaviour
 
         if (enemies.Length > 0)
         {
-            enemies[0].GetComponent<Enemy_Health>().ChangeHealth(-StatsManager.Instance.damage);
+            int damageToDeal = StatsManager.Instance.GetDamageWithBonus();
+            enemies[0].GetComponent<Enemy_Health>().ChangeHealth(-damageToDeal);
             enemies[0].GetComponent<Enemy_Knockback>().Knockback(transform, StatsManager.Instance.knockbackForce, StatsManager.Instance.knockbackTime, StatsManager.Instance.stunTime);
         }
     }

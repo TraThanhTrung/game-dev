@@ -15,6 +15,9 @@ public class StatsManager : MonoBehaviour
     public float knockbackForce;
     public float knockbackTime;
     public float stunTime;
+    [Header("Combat Modifiers")]
+    public float bonusDamagePercent;
+    public float damageReductionPercent;
 
     [Header("Movement Stats")]
     public int speed;
@@ -55,6 +58,30 @@ public class StatsManager : MonoBehaviour
     {
         speed += amount;
         statsUI.UpdateAllStats();
+    }
+
+    public int GetDamageWithBonus()
+    {
+        float multiplier = 1f + Mathf.Max(0f, bonusDamagePercent);
+        return Mathf.Max(1, Mathf.RoundToInt(damage * multiplier));
+    }
+
+    public int CalculateDamageTaken(int rawDamage)
+    {
+        float reduction = Mathf.Clamp01(damageReductionPercent);
+        float reducedDamage = rawDamage * (1f - reduction);
+        return Mathf.Max(1, Mathf.CeilToInt(reducedDamage));
+    }
+
+    public void AddDamagePercentBonus(float amount)
+    {
+        bonusDamagePercent = Mathf.Max(0f, bonusDamagePercent + amount);
+        statsUI.UpdateDamage();
+    }
+
+    public void AddDamageReductionPercent(float amount)
+    {
+        damageReductionPercent = Mathf.Clamp01(damageReductionPercent + amount);
     }
 
 }

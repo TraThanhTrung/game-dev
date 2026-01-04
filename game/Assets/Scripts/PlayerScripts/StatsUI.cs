@@ -41,7 +41,8 @@ public class StatsUI : MonoBehaviour
 
     public void UpdateDamage()
     {
-        statsSlots[0].GetComponentInChildren<TMP_Text>().text = "Damage: " + StatsManager.Instance.damage;
+        int currentDamage = StatsManager.Instance.GetDamageWithBonus();
+        statsSlots[0].GetComponentInChildren<TMP_Text>().text = "Damage: " + currentDamage;
     }
 
     public void UpdateSpeed()

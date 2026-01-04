@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Elevation_Exit : MonoBehaviour
 {
-
+    
     public Collider2D[] mountainColliders;
     public Collider2D[] boundaryColliders;
 

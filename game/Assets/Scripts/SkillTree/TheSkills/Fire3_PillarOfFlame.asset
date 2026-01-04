@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be487148de1c94bf1a87a914af06900c, type: 3}
   m_Name: Fire3_PillarOfFlame
   m_EditorClassIdentifier: 
-  skillName: Pillar Of Flame
-  maxLevel: 1
+  skillName: Power Strike
+  maxLevel: 5
   skillIcon: {fileID: 21300000, guid: 5b79567315847489d9574e1a8777a071, type: 3}

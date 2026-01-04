@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be487148de1c94bf1a87a914af06900c, type: 3}
   m_Name: Ice4_IceBoost
   m_EditorClassIdentifier: 
-  skillName: Ice Boost
+  skillName: Tough Skin
   maxLevel: 5
   skillIcon: {fileID: 21300000, guid: 707723462a26e4a9aaaf3fcc6a0baca0, type: 3}

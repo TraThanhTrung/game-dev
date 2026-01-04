@@ -32,6 +32,14 @@ public class SkillManager : MonoBehaviour
                 combat.enabled = true;
                 break;
 
+            case "Power Strike":
+                StatsManager.Instance.AddDamagePercentBonus(0.05f);
+                break;
+
+            case "Tough Skin":
+                StatsManager.Instance.AddDamageReductionPercent(0.03f);
+                break;
+
             default:
                 Debug.LogWarning("Unknown skill: " + skillName);
                 break;
