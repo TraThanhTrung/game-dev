@@ -125,5 +125,92 @@ public class SessionsController : ControllerBase
 
         return Ok(new { disconnected = true });
     }
+
+    /// <summary>
+    /// Report a kill so the server can grant rewards based on enemy type.
+    /// </summary>
+    [HttpPost("kill")]
+    public IActionResult ReportKill([FromBody] KillReportRequest request)
+    {
+        if (request.PlayerId == Guid.Empty)
+            return BadRequest("PlayerId required");
+
+        HttpContext.Items["playerId"] = request.PlayerId.ToString();
+
+        var granted = _world.ReportKill(request.PlayerId, request.EnemyTypeId);
+        if (!granted)
+        {
+            return NotFound(new { granted = false, message = "Kill not applied" });
+        }
+
+        var playerState = _world.GetPlayerState(request.PlayerId);
+        if (playerState == null)
+        {
+            return NotFound(new { granted = false, message = "Player state missing" });
+        }
+
+        return Ok(new KillReportResponse
+        {
+            Granted = true,
+            Level = playerState.Level,
+            Exp = playerState.Exp,
+            Gold = playerState.Gold
+        });
+    }
+
+    /// <summary>
+    /// Report damage taken from enemy so server can update HP authoritatively.
+    /// </summary>
+    [HttpPost("damage")]
+    public IActionResult ReportDamage([FromBody] DamageReportRequest request)
+    {
+        if (request.PlayerId == Guid.Empty)
+            return BadRequest("PlayerId required");
+
+        if (request.DamageAmount <= 0)
+            return BadRequest("DamageAmount must be positive");
+
+        HttpContext.Items["playerId"] = request.PlayerId.ToString();
+
+        var result = _world.ApplyDamage(request.PlayerId, request.DamageAmount);
+        if (result == null)
+        {
+            return NotFound(new { accepted = false, message = "Player not found" });
+        }
+
+        return Ok(new DamageReportResponse
+        {
+            Accepted = true,
+            CurrentHp = result.Value.hp,
+            MaxHp = result.Value.maxHp
+        });
+    }
+
+    /// <summary>
+    /// Respawn player at spawn position with 50% health.
+    /// </summary>
+    [HttpPost("respawn")]
+    public IActionResult Respawn([FromBody] RespawnRequest request)
+    {
+        if (request.PlayerId == Guid.Empty)
+            return BadRequest("PlayerId required");
+
+        HttpContext.Items["playerId"] = request.PlayerId.ToString();
+
+        var result = _world.RespawnPlayer(request.PlayerId);
+        if (result == null)
+        {
+            return NotFound(new { accepted = false, message = "Player not found" });
+        }
+
+        return Ok(new RespawnResponse
+        {
+            Accepted = true,
+            X = result.Value.x,
+            Y = result.Value.y,
+            CurrentHp = result.Value.hp,
+            MaxHp = result.Value.maxHp
+        });
+    }
 }
 

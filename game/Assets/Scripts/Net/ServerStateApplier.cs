@@ -39,6 +39,12 @@ public class ServerStateApplier : MonoBehaviour
     private float autoSaveTimer;
     private bool isSavingOnQuit;
     private bool saveCompleted;
+    private ExpManager expManager;
+    private Vector3 lastAppliedPosition;
+    private float positionChangeThreshold = 0.01f; // Only apply position if change is significant
+
+    // SmoothDamp for smoother interpolation (better than Lerp for network sync)
+    private Vector3 velocity = Vector3.zero;
     #endregion
 
     #region Public Properties
@@ -55,6 +61,31 @@ public class ServerStateApplier : MonoBehaviour
         {
             StartCoroutine(DevModeConnect());
             return;
+        }
+
+        expManager = FindObjectOfType<ExpManager>();
+
+        // Load polling settings from config
+        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
+        {
+            var pollingConfig = GameConfigLoader.Instance.Config.polling;
+
+            // Apply polling interval
+            if (NetClient.Instance != null)
+            {
+                NetClient.Instance.SetPollInterval(pollingConfig.stateIntervalSeconds);
+            }
+
+            // Apply lerp speed from config
+            m_LerpSpeed = pollingConfig.lerpSpeed;
+
+            // Apply position change threshold from config
+            positionChangeThreshold = pollingConfig.positionChangeThreshold;
+
+            if (m_EnableLogging)
+            {
+                Debug.Log($"[StateApplier] Loaded polling config: interval={pollingConfig.stateIntervalSeconds}s, lerpSpeed={m_LerpSpeed}, threshold={positionChangeThreshold}");
+            }
         }
 
         // Log status on start for debugging
@@ -91,6 +122,7 @@ public class ServerStateApplier : MonoBehaviour
         {
             var go = new GameObject("NetClient");
             go.AddComponent<NetClient>();
+            // KillReporter will be added in NetClient.Awake()
             yield return null; // Wait a frame for Awake
         }
 
@@ -245,7 +277,28 @@ public class ServerStateApplier : MonoBehaviour
 
         if (hasTargetPosition)
         {
-            transform.position = Vector3.Lerp(transform.position, targetPosition, m_LerpSpeed * Time.deltaTime);
+            // Use SmoothDamp for smoother interpolation (better than Lerp for network sync)
+            float distance = Vector3.Distance(transform.position, targetPosition);
+            if (distance > positionChangeThreshold)
+            {
+                // Calculate smooth time based on lerp speed (lower smooth time = faster interpolation)
+                float smoothTime = 1f / m_LerpSpeed;
+                // Clamp smooth time to reasonable range (0.01s to 0.2s)
+                smoothTime = Mathf.Clamp(smoothTime, 0.01f, 0.2f);
+
+                transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime, Mathf.Infinity, Time.deltaTime);
+            }
+            else if (distance > 0.001f)
+            {
+                // Snap to target if very close to reduce micro-jitter
+                transform.position = targetPosition;
+                velocity = Vector3.zero; // Reset velocity when snapping
+            }
+            else
+            {
+                // Very close, reset velocity to prevent drift
+                velocity = Vector3.zero;
+            }
         }
 
         // Auto-save timer
@@ -354,10 +407,17 @@ public class ServerStateApplier : MonoBehaviour
         if (isPolling) return;
         isPolling = true;
 
-        if (m_EnableLogging)
-            Debug.Log("[StateApplier] Starting state polling...");
+        // Use polling interval from config if available
+        float pollInterval = m_PollInterval;
+        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
+        {
+            pollInterval = GameConfigLoader.Instance.Config.polling.stateIntervalSeconds;
+        }
 
-        NetClient.Instance.StartPolling(null, m_PollInterval, OnStateReceived, OnPollError);
+        if (m_EnableLogging)
+            Debug.Log($"[StateApplier] Starting state polling with interval: {pollInterval}s");
+
+        NetClient.Instance.StartPolling(null, pollInterval, OnStateReceived, OnPollError);
     }
 
     private void StopPolling()
@@ -409,9 +469,32 @@ public class ServerStateApplier : MonoBehaviour
     {
         if (snapshot == null) return;
 
+        if (snapshot.sequence < Sequence)
+        {
+            return; // Skip stale state to reduce jitter
+        }
+
         var oldPos = targetPosition;
-        targetPosition = new Vector3(snapshot.x, snapshot.y, 0);
-        hasTargetPosition = true;
+        var newPos = new Vector3(snapshot.x, snapshot.y, 0);
+
+        // Only update target position if it changed significantly
+        float posDelta = Vector3.Distance(oldPos, newPos);
+        if (posDelta > positionChangeThreshold || !hasTargetPosition)
+        {
+            targetPosition = newPos;
+            hasTargetPosition = true;
+
+            // If position changed significantly, adjust velocity to match direction
+            if (posDelta > 0.5f && hasTargetPosition)
+            {
+                Vector3 currentPos = transform.position;
+                Vector3 direction = (newPos - currentPos).normalized;
+                float currentSpeed = velocity.magnitude;
+                // Scale velocity to match expected speed based on distance
+                float expectedSpeed = posDelta / (1f / m_LerpSpeed);
+                velocity = direction * Mathf.Min(currentSpeed, expectedSpeed);
+            }
+        }
         CurrentHp = snapshot.hp;
         MaxHp = snapshot.maxHp;
         Sequence = snapshot.sequence;
@@ -419,16 +502,20 @@ public class ServerStateApplier : MonoBehaviour
         // Sync with StatsManager if available
         if (StatsManager.Instance != null)
         {
-            StatsManager.Instance.currentHealth = snapshot.hp;
-            StatsManager.Instance.maxHealth = snapshot.maxHp;
-            // Sync Level, Exp, Gold if StatsManager has these fields
+            StatsManager.Instance.ApplySnapshot(snapshot.hp, snapshot.maxHp);
+        }
+
+        // Sync progression
+        if (expManager != null)
+        {
+            expManager.SyncFromServer(snapshot.level, snapshot.exp, snapshot.expToLevel);
         }
 
         // Log when position or HP changes
         if (m_EnableLogging && snapshot.sequence != lastLoggedSequence)
         {
-            var posDelta = Vector3.Distance(oldPos, targetPosition);
-            Debug.Log($"[StateApplier] Applied: pos=({snapshot.x:F1},{snapshot.y:F1}) Δ={posDelta:F2} hp={snapshot.hp}/{snapshot.maxHp} seq={snapshot.sequence}");
+            var logPosDelta = Vector3.Distance(oldPos, targetPosition);
+            Debug.Log($"[StateApplier] Applied: pos=({snapshot.x:F1},{snapshot.y:F1}) Δ={logPosDelta:F2} hp={snapshot.hp}/{snapshot.maxHp} seq={snapshot.sequence}");
             lastLoggedSequence = snapshot.sequence;
         }
     }
@@ -451,6 +538,22 @@ public class ServerStateApplier : MonoBehaviour
     public void ManualStartPolling()
     {
         StartPolling();
+    }
+
+    /// <summary>
+    /// Force snap position immediately (used for respawn to skip interpolation).
+    /// </summary>
+    public void ForceSnapPosition(Vector3 position)
+    {
+        transform.position = position;
+        targetPosition = position;
+        hasTargetPosition = true;
+        velocity = Vector3.zero; // Reset velocity to prevent interpolation drift
+
+        if (m_EnableLogging)
+        {
+            Debug.Log($"[StateApplier] Force snapped position to ({position.x:F1}, {position.y:F1})");
+        }
     }
     #endregion
 }

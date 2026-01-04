@@ -7,63 +7,50 @@ using System;
 
 public class ExpManager : MonoBehaviour
 {
+    #region Events
+    public static event Action<int> OnLevelUp;
+    #endregion
+
+    #region Public Fields
     public int level;
     public int currentExp;
     public int expToLevel = 10;
-    public float expGrowthMultiplier = 1.2f;    //Add 20% more EXP to level each new level
     public Slider expSlider;
     public TMP_Text currentLevelText;
-
-    public static event Action<int> OnLevelUp;
-
+    #endregion
 
     private void Start()
     {
         UpdateUI();
     }
 
-    private void Update()
+    public void SyncFromServer(int newLevel, int newExp, int newExpToLevel)
     {
-        if (Input.GetKeyDown(KeyCode.Return))
+        int oldLevel = level;
+        level = newLevel;
+        currentExp = newExp;
+        expToLevel = newExpToLevel;
+
+        // Fire level up event if level increased
+        if (level > oldLevel)
         {
-            GainExperience(2);
-        }
-    }
-
-
-    private void OnEnable()
-    {
-        Enemy_Health.OnMonsterDefeated += GainExperience;
-    }
-    private void OnDisable()
-    {
-        Enemy_Health.OnMonsterDefeated -= GainExperience;
-    }
-
-    public void GainExperience(int amount)
-    {
-        currentExp += amount;
-        if(currentExp >= expToLevel)
-        {
-            LevelUp();
+            OnLevelUp?.Invoke(level - oldLevel);
         }
 
         UpdateUI();
-        Debug.Log("Update UI called");
-    }
-
-    private void LevelUp()
-    {
-        level++;
-        currentExp -= expToLevel;
-        expToLevel = Mathf.RoundToInt(expToLevel * expGrowthMultiplier);
-        OnLevelUp?.Invoke(1);
     }
 
     public void UpdateUI()
     {
-        expSlider.maxValue = expToLevel;
-        expSlider.value = currentExp;
-        currentLevelText.text = "Level: " + level;
+        if (expSlider != null)
+        {
+            expSlider.maxValue = expToLevel;
+            expSlider.value = currentExp;
+        }
+
+        if (currentLevelText != null)
+        {
+            currentLevelText.text = "Level: " + level;
+        }
     }
 }

@@ -9,6 +9,7 @@ namespace GameServer.Services;
 public class WorldService
 {
     private readonly ILogger<WorldService> _logger;
+    private readonly GameConfigService _config;
 
     private readonly ConcurrentDictionary<string, SessionState> _sessions = new();
     private readonly ConcurrentDictionary<Guid, string> _playerToSession = new();
@@ -16,11 +17,11 @@ public class WorldService
     private readonly object _sessionLock = new();
 
     private const float TickDeltaTime = 0.05f; // 20Hz
-    private const int MaxProjectilesPerPlayer = 5;
 
-    public WorldService(ILogger<WorldService> logger)
+    public WorldService(ILogger<WorldService> logger, GameConfigService config)
     {
         _logger = logger;
+        _config = config;
     }
 
     #region Public API
@@ -86,12 +87,13 @@ public class WorldService
             else
             {
                 // Create player state from database profile
+                var defaults = _config.PlayerDefaults;
                 var playerState = new PlayerState
                 {
                     Id = profile.Id,
                     Name = profile.Name,
-                    X = 0,
-                    Y = 0,
+                    X = defaults.SpawnX,
+                    Y = defaults.SpawnY,
                     Hp = isNew ? profile.Stats.MaxHealth : profile.Stats.CurrentHealth,
                     MaxHp = profile.Stats.MaxHealth,
                     Damage = profile.Stats.Damage,
@@ -99,6 +101,7 @@ public class WorldService
                     Speed = profile.Stats.Speed,
                     Level = profile.Level,
                     Exp = profile.Exp,
+                    ExpToLevel = profile.ExpToLevel > 0 ? profile.ExpToLevel : _config.GetExpForNextLevel(profile.Level),
                     Gold = profile.Gold,
                     Sequence = 0
                 };
@@ -108,7 +111,7 @@ public class WorldService
         }
 
         _logger.LogInformation("{Action} player: {Name} (ID: {Id}) Level={Level} Exp={Exp} Gold={Gold}",
-            isNew ? "Created" : "Loaded", profile.Name, profile.Id.ToString()[..8], 
+            isNew ? "Created" : "Loaded", profile.Name, profile.Id.ToString()[..8],
             profile.Level, profile.Exp, profile.Gold);
 
         return new RegisterResponse
@@ -127,11 +130,13 @@ public class WorldService
             if (session.Players.TryGetValue(request.PlayerId, out var existing))
             {
                 // Reset HP/pos instead of creating duplicate
+                var defaults = _config.PlayerDefaults;
                 existing.Hp = existing.MaxHp;
-                existing.X = 0;
-                existing.Y = 0;
+                existing.X = defaults.SpawnX;
+                existing.Y = defaults.SpawnY;
                 existing.Sequence = 0;
-                _logger.LogInformation("Player {PlayerId} rejoined, reset HP/pos", request.PlayerId);
+                _logger.LogInformation("Player {PlayerId} rejoined, reset HP/pos to spawn ({X}, {Y})",
+                    request.PlayerId, defaults.SpawnX, defaults.SpawnY);
             }
             else
             {
@@ -159,9 +164,7 @@ public class WorldService
                 session.Enemies.Clear();
                 session.Projectiles.Clear();
 
-                // Re-spawn default enemy
-                var enemy = CreateDefaultEnemy();
-                session.Enemies[enemy.Id] = enemy;
+                // Note: Enemies are now client-side only; server doesn't simulate them
                 session.Version++;
                 _logger.LogInformation("Session {SessionId} reset", sessionId);
             }
@@ -209,13 +212,7 @@ public class WorldService
             SessionId = session.SessionId,
             Version = session.Version,
             Players = session.Players.Values
-                .Select(p => new PlayerSnapshot(p.Id, p.Name, p.X, p.Y, p.Hp, p.MaxHp, p.Sequence, p.Level, p.Exp, p.Gold))
-                .ToList(),
-            Enemies = session.Enemies.Values
-                .Select(e => new EnemySnapshot(e.Id, e.TypeId, e.X, e.Y, e.Hp, e.MaxHp, e.Status.ToString()))
-                .ToList(),
-            Projectiles = session.Projectiles.Values
-                .Select(pr => new ProjectileSnapshot(pr.Id, pr.OwnerId, pr.X, pr.Y, pr.DirX, pr.DirY, pr.Radius))
+                .Select(p => new PlayerSnapshot(p.Id, p.Name, p.X, p.Y, p.Hp, p.MaxHp, p.Sequence, p.Level, p.Exp, p.ExpToLevel, p.Gold))
                 .ToList()
         };
 
@@ -227,8 +224,6 @@ public class WorldService
         foreach (var session in _sessions.Values)
         {
             ProcessInputs(session);
-            UpdateProjectiles(session);
-            UpdateEnemies(session);
             session.Version++;
         }
 
@@ -254,266 +249,158 @@ public class WorldService
             player.X += dir.x * player.Speed * TickDeltaTime;
             player.Y += dir.y * player.Speed * TickDeltaTime;
             player.Sequence = Math.Max(player.Sequence, cmd.Sequence);
-
-            if (cmd.Attack)
-            {
-                DoMeleeAttack(session, player);
-            }
-
-            if (cmd.Shoot)
-            {
-                SpawnProjectile(session, player, cmd);
-            }
         }
     }
 
-    private void DoMeleeAttack(SessionState session, PlayerState player)
+    public bool ReportKill(Guid playerId, string enemyTypeId)
     {
-        foreach (var enemy in session.Enemies.Values)
+        if (!_playerToSession.TryGetValue(playerId, out var sessionId) || !_sessions.TryGetValue(sessionId, out var session))
         {
-            if (enemy.IsDead) continue;
-            float dx = enemy.X - player.X;
-            float dy = enemy.Y - player.Y;
-            float distSqr = dx * dx + dy * dy;
-            float range = player.Range;
-            if (distSqr <= range * range)
-            {
-                enemy.Hp -= player.Damage;
-                _logger.LogDebug("{Player} melee hit {Enemy} for {Dmg} dmg (HP: {Hp}/{MaxHp})",
-                    player.Name, enemy.TypeId, player.Damage, enemy.Hp, enemy.MaxHp);
+            _logger.LogWarning("ReportKill: Player {PlayerId} not in session", playerId);
+            return false;
+        }
 
-                if (enemy.Hp <= 0)
-                {
-                    enemy.Hp = 0;
-                    // Award Exp and Gold to player
-                    AwardKillRewards(player, enemy);
-                    _logger.LogInformation("{Player} killed {Enemy}! +{Exp} Exp, +{Gold} Gold (Total: Exp={TotalExp}, Gold={TotalGold})", 
-                        player.Name, enemy.TypeId, enemy.ExpReward, enemy.GoldReward, player.Exp, player.Gold);
-                }
-                session.Version++;
-                break;
+        if (!session.Players.TryGetValue(playerId, out var player))
+        {
+            _logger.LogWarning("ReportKill: Player {PlayerId} state missing", playerId);
+            return false;
+        }
+
+        var enemyCfg = _config.GetEnemy(enemyTypeId);
+        if (enemyCfg == null)
+        {
+            _logger.LogWarning("ReportKill: Enemy type {Type} not found in config", enemyTypeId);
+            return false;
+        }
+
+        AwardKillRewards(player, enemyCfg);
+        session.Version++;
+        return true;
+    }
+
+    /// <summary>
+    /// Apply damage to player from enemy. Returns (hp, maxHp) if successful, null if player not found.
+    /// </summary>
+    public (int hp, int maxHp)? ApplyDamage(Guid playerId, int damageAmount)
+    {
+        if (!_playerToSession.TryGetValue(playerId, out var sessionId))
+        {
+            _logger.LogWarning("ApplyDamage: Player {PlayerId} not in any session", playerId);
+            return null;
+        }
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            _logger.LogWarning("ApplyDamage: Session {SessionId} not found", sessionId);
+            return null;
+        }
+
+        lock (_sessionLock)
+        {
+            if (!session.Players.TryGetValue(playerId, out var player))
+            {
+                _logger.LogWarning("ApplyDamage: Player {PlayerId} state missing", playerId);
+                return null;
             }
+
+            player.Hp = Math.Max(0, player.Hp - damageAmount);
+            session.Version++;
+
+            _logger.LogDebug("Applied {Damage} damage to {Player}. HP: {Hp}/{MaxHp}",
+                damageAmount, player.Name, player.Hp, player.MaxHp);
+
+            return (player.Hp, player.MaxHp);
         }
     }
 
-    private void AwardKillRewards(PlayerState player, EnemyState enemy)
+    /// <summary>
+    /// Respawn player at spawn position with 50% health. Returns (x, y, hp, maxHp) if successful, null if player not found.
+    /// </summary>
+    public (float x, float y, int hp, int maxHp)? RespawnPlayer(Guid playerId)
+    {
+        if (!_playerToSession.TryGetValue(playerId, out var sessionId))
+        {
+            _logger.LogWarning("RespawnPlayer: Player {PlayerId} not in any session", playerId);
+            return null;
+        }
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            _logger.LogWarning("RespawnPlayer: Session {SessionId} not found", sessionId);
+            return null;
+        }
+
+        lock (_sessionLock)
+        {
+            if (!session.Players.TryGetValue(playerId, out var player))
+            {
+                _logger.LogWarning("RespawnPlayer: Player {PlayerId} state missing", playerId);
+                return null;
+            }
+
+            // Get spawn position from config
+            var defaults = _config.PlayerDefaults;
+            player.X = defaults.SpawnX;
+            player.Y = defaults.SpawnY;
+
+            // Respawn with 50% health
+            player.Hp = player.MaxHp / 2;
+
+            session.Version++;
+
+            _logger.LogInformation("Respawned {Player} at ({X}, {Y}) with {Hp}/{MaxHp} HP",
+                player.Name, player.X, player.Y, player.Hp, player.MaxHp);
+
+            return (player.X, player.Y, player.Hp, player.MaxHp);
+        }
+    }
+
+    private void AwardKillRewards(PlayerState player, EnemyConfig enemy)
     {
         player.Exp += enemy.ExpReward;
         player.Gold += enemy.GoldReward;
 
-        // Check for level up
-        int expNeeded = GetExpForNextLevel(player.Level);
-        while (player.Exp >= expNeeded && player.Level < 100) // Cap at level 100
+        int expNeeded = _config.GetExpForNextLevel(player.Level);
+        while (player.Exp >= expNeeded && player.Level < _config.ExpCurve.LevelCap)
         {
             player.Exp -= expNeeded;
             player.Level++;
             _logger.LogInformation("{Player} leveled up to {Level}!", player.Name, player.Level);
-            expNeeded = GetExpForNextLevel(player.Level);
-        }
-    }
-
-    private int GetExpForNextLevel(int currentLevel)
-    {
-        // Simple formula: 100 * level
-        return 100 * currentLevel;
-    }
-
-    private void SpawnProjectile(SessionState session, PlayerState player, InputCommand cmd)
-    {
-        // Limit projectiles per player
-        var count = session.Projectiles.Values.Count(p => p.OwnerId == player.Id);
-        if (count >= MaxProjectilesPerPlayer) return;
-
-        var dir = Normalize(cmd.AimX, cmd.AimY);
-        if (dir.x == 0 && dir.y == 0)
-        {
-            dir = Normalize(cmd.MoveX, cmd.MoveY);
-            if (dir.x == 0 && dir.y == 0)
-            {
-                dir = (1, 0);
-            }
+            expNeeded = _config.GetExpForNextLevel(player.Level);
         }
 
-        var projectile = new ProjectileState
-        {
-            Id = Guid.NewGuid(),
-            OwnerId = player.Id,
-            X = player.X,
-            Y = player.Y,
-            DirX = dir.x,
-            DirY = dir.y,
-            Speed = 6f,
-            Damage = player.Damage,
-            Radius = 0.2f,
-            TimeToLive = 3f
-        };
-
-        session.Projectiles[projectile.Id] = projectile;
-        session.Version++;
-    }
-
-    private void UpdateProjectiles(SessionState session)
-    {
-        var toRemove = new List<Guid>();
-        foreach (var pr in session.Projectiles.Values)
-        {
-            pr.X += pr.DirX * pr.Speed * TickDeltaTime;
-            pr.Y += pr.DirY * pr.Speed * TickDeltaTime;
-            pr.TimeToLive -= TickDeltaTime;
-
-            foreach (var enemy in session.Enemies.Values)
-            {
-                if (enemy.IsDead) continue;
-                float dx = enemy.X - pr.X;
-                float dy = enemy.Y - pr.Y;
-                float distSqr = dx * dx + dy * dy;
-                if (distSqr <= pr.Radius * pr.Radius + 0.25f)
-                {
-                    enemy.Hp -= pr.Damage;
-                    if (enemy.Hp <= 0)
-                    {
-                        enemy.Hp = 0;
-                        // Award rewards to projectile owner
-                        if (session.Players.TryGetValue(pr.OwnerId, out var owner))
-                        {
-                            AwardKillRewards(owner, enemy);
-                            _logger.LogInformation("{Player} killed {Enemy} with projectile! +{Exp} Exp, +{Gold} Gold", 
-                                owner.Name, enemy.TypeId, enemy.ExpReward, enemy.GoldReward);
-                        }
-                    }
-                    toRemove.Add(pr.Id);
-                    session.Version++;
-                    break;
-                }
-            }
-
-            if (pr.TimeToLive <= 0)
-            {
-                toRemove.Add(pr.Id);
-            }
-        }
-
-        foreach (var id in toRemove)
-        {
-            session.Projectiles.Remove(id);
-        }
-    }
-
-    private void UpdateEnemies(SessionState session)
-    {
-        foreach (var enemy in session.Enemies.Values)
-        {
-            // Handle dead enemies: respawn after delay
-            if (enemy.IsDead)
-            {
-                enemy.RespawnTimer -= TickDeltaTime;
-                if (enemy.RespawnTimer <= 0)
-                {
-                    // Respawn at spawn position
-                    enemy.Hp = enemy.MaxHp;
-                    enemy.X = enemy.SpawnX;
-                    enemy.Y = enemy.SpawnY;
-                    enemy.RespawnTimer = enemy.RespawnDelay;
-                    enemy.Status = EnemyStatus.Idle;
-                    session.Version++;
-                }
-                continue;
-            }
-
-            var target = session.Players.Values.FirstOrDefault(p => !p.IsDead);
-            if (target == null)
-            {
-                enemy.Status = EnemyStatus.Idle;
-                continue;
-            }
-
-            float dx = target.X - enemy.X;
-            float dy = target.Y - enemy.Y;
-            float dist = MathF.Sqrt(dx * dx + dy * dy);
-
-            if (dist <= enemy.AttackRange)
-            {
-                enemy.Status = EnemyStatus.Attacking;
-                enemy.AttackTimer -= TickDeltaTime;
-                if (enemy.AttackTimer <= 0)
-                {
-                    target.Hp -= enemy.Damage;
-                    if (target.Hp < 0) target.Hp = 0;
-                    enemy.AttackTimer = enemy.AttackCooldown;
-                    session.Version++;
-                }
-                continue;
-            }
-
-            if (dist <= enemy.DetectRange)
-            {
-                enemy.Status = EnemyStatus.Chasing;
-                var dir = (x: dx / dist, y: dy / dist);
-                enemy.X += dir.x * enemy.Speed * TickDeltaTime;
-                enemy.Y += dir.y * enemy.Speed * TickDeltaTime;
-            }
-            else
-            {
-                enemy.Status = EnemyStatus.Idle;
-            }
-        }
+        // Update ExpToLevel after potential level changes
+        player.ExpToLevel = _config.GetExpForNextLevel(player.Level);
     }
 
     private SessionState CreateDefaultSession(string sessionId)
     {
-        var session = new SessionState
+        return new SessionState
         {
             SessionId = sessionId,
             Version = 1
-        };
-
-        // Spawn one dummy enemy
-        var enemy = CreateDefaultEnemy();
-        session.Enemies[enemy.Id] = enemy;
-
-        return session;
-    }
-
-    private EnemyState CreateDefaultEnemy()
-    {
-        return new EnemyState
-        {
-            Id = Guid.NewGuid(),
-            TypeId = "slime",
-            X = 2f,
-            Y = 2f,
-            SpawnX = 2f,
-            SpawnY = 2f,
-            MaxHp = 30,
-            Hp = 30,
-            DetectRange = 6f,
-            AttackRange = 1.2f,
-            Speed = 2f,
-            Damage = 5,
-            AttackCooldown = 1.5f,
-            AttackTimer = 0f,
-            RespawnDelay = 5f,
-            RespawnTimer = 5f
         };
     }
 
     private PlayerState CreateDefaultPlayer(Guid playerId, string playerName)
     {
+        var defaults = _config.PlayerDefaults;
+        var stats = defaults.Stats;
         return new PlayerState
         {
             Id = playerId,
             Name = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName,
-            X = 0,
-            Y = 0,
-            Hp = 50,
-            MaxHp = 50,
-            Damage = 10,
-            Range = 1.5f,
-            Speed = 4f,
+            X = defaults.SpawnX,
+            Y = defaults.SpawnY,
+            Hp = stats.CurrentHealth,
+            MaxHp = stats.MaxHealth,
+            Damage = stats.Damage,
+            Range = stats.WeaponRange,
+            Speed = stats.Speed,
             Sequence = 0,
-            Level = 1,
-            Exp = 0,
-            Gold = 100
+            Level = defaults.Level,
+            Exp = defaults.Exp,
+            Gold = defaults.Gold
         };
     }
 

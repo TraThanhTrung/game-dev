@@ -18,18 +18,19 @@ builder.Services.AddOpenApi();
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
 builder.Services.AddDbContext<GameDbContext>(options => options.UseSqlite(connectionString));
 
+builder.Services.AddSingleton<GameConfigService>();
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddHostedService<GameLoopService>();
 
 var app = builder.Build();
 
-// Ensure database is created
+// Apply database migrations
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
-    db.Database.EnsureCreated();
-    app.Logger.LogInformation("Database ready: {db}", connectionString);
+    db.Database.Migrate();
+    app.Logger.LogInformation("Database migrations applied: {db}", connectionString);
 }
 
 // Log startup info

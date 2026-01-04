@@ -36,6 +36,21 @@ public class PlayerHealth : MonoBehaviour
             int incomingDamage = Mathf.Abs(amount);
             int reducedDamage = StatsManager.Instance.CalculateDamageTaken(incomingDamage);
             finalAmount = -reducedDamage;
+
+            // Report damage to server for authoritative HP management
+            if (NetClient.Instance != null && NetClient.Instance.IsConnected)
+            {
+                StartCoroutine(NetClient.Instance.ReportDamage(reducedDamage,
+                    res =>
+                    {
+                        if (res != null && res.accepted)
+                        {
+                            // Server HP is authoritative - will be synced via state polling
+                            // Don't update local HP here to avoid conflicts
+                        }
+                    },
+                    err => Debug.LogWarning($"Damage report failed: {err}")));
+            }
         }
 
         StatsManager.Instance.currentHealth += finalAmount;
@@ -58,11 +73,12 @@ public class PlayerHealth : MonoBehaviour
     }
 
     /// <summary>
-    /// Called to respawn the player with full health.
+    /// Called to respawn the player with half health.
     /// </summary>
     public void Respawn()
     {
-        StatsManager.Instance.currentHealth = StatsManager.Instance.maxHealth;
+        // Respawn with 50% health instead of full health
+        StatsManager.Instance.currentHealth = StatsManager.Instance.maxHealth / 2;
         gameObject.SetActive(true);
         UpdateHealthUI();
         OnPlayerRespawned?.Invoke();

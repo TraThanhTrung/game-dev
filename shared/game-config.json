@@ -1,0 +1,48 @@
+{
+  "playerDefaults": {
+    "level": 0,
+    "exp": 0,
+    "gold": 0,
+    "spawnX": -16,
+    "spawnY": 12,
+    "stats": {
+      "damage": 1,
+      "weaponRange": 0.5,
+      "knockbackForce": 6.5,
+      "knockbackTime": 0.2,
+      "stunTime": 0.3,
+      "speed": 4.0,
+      "maxHealth": 25,
+      "currentHealth": 25,
+      "bonusDamagePercent": 0.0,
+      "damageReductionPercent": 0.0
+    }
+  },
+  "expCurve": {
+    "basePerLevel": 10,
+    "growthMultiplier": 0.2,
+    "levelCap": 100
+  },
+  "polling": {
+    "stateIntervalSeconds": 0.08,
+    "lerpSpeed": 30.0,
+    "positionChangeThreshold": 0.005
+  },
+  "enemyStats": [
+    {
+      "typeId": "slime",
+      "expReward": 3,
+      "goldReward": 10,
+      "maxHealth": 5,
+      "damage": 3,
+      "speed": 2.0,
+      "detectRange": 6.0,
+      "attackRange": 1.2,
+      "attackCooldown": 2.0,
+      "weaponRange": 1.2,
+      "knockbackForce": 3.5,
+      "stunTime": 0.25,
+      "respawnDelay": 5.0
+    }
+  ]
+}

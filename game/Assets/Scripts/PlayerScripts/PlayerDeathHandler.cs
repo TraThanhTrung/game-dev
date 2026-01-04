@@ -18,7 +18,6 @@ public class PlayerDeathHandler : MonoBehaviour
     [Tooltip("If true, player respawns after delay. If false, shows Game Over UI.")]
     [SerializeField] private bool m_UseRespawn = true;
     [SerializeField] private float m_RespawnDelay = c_DefaultRespawnDelay;
-    [SerializeField] private Vector3 m_RespawnPosition = Vector3.zero;
 
     [Header("Game Over UI (if not using respawn)")]
     [SerializeField] private CanvasGroup m_GameOverCanvas;
@@ -138,10 +137,22 @@ public class PlayerDeathHandler : MonoBehaviour
             return;
         }
 
-        // Reset position before activating
-        m_PlayerObject.transform.position = m_RespawnPosition;
+        // Get spawn position from config
+        Vector3 spawnPosition = Vector3.zero;
+        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
+        {
+            var defaults = GameConfigLoader.Instance.Config.playerDefaults;
+            spawnPosition = new Vector3(defaults.spawnX, defaults.spawnY, 0);
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerDeathHandler] GameConfigLoader not found, using default spawn (0,0,0)");
+        }
 
-        // Get PlayerHealth and call Respawn
+        // Reset position to spawn position before activating
+        m_PlayerObject.transform.position = spawnPosition;
+
+        // Get PlayerHealth and call Respawn (will set HP to 50% MaxHealth)
         var playerHealth = m_PlayerObject.GetComponent<PlayerHealth>();
         if (playerHealth != null)
         {
@@ -149,12 +160,43 @@ public class PlayerDeathHandler : MonoBehaviour
         }
         else
         {
-            // Fallback: just activate and reset health manually
-            StatsManager.Instance.currentHealth = StatsManager.Instance.maxHealth;
+            // Fallback: just activate and reset health manually to 50%
+            StatsManager.Instance.currentHealth = StatsManager.Instance.maxHealth / 2;
             m_PlayerObject.SetActive(true);
         }
 
-        Debug.Log("[PlayerDeathHandler] Player respawned!");
+        // Request respawn from server to sync position and HP
+        if (NetClient.Instance != null && NetClient.Instance.IsConnected)
+        {
+            StartCoroutine(NetClient.Instance.RequestRespawn(
+                res =>
+                {
+                    if (res != null && res.accepted)
+                    {
+                        // Server has authoritative position - force snap immediately
+                        Vector3 serverPosition = new Vector3(res.x, res.y, 0);
+                        
+                        // Find ServerStateApplier on player object and force snap position
+                        var stateApplier = m_PlayerObject.GetComponent<ServerStateApplier>();
+                        if (stateApplier != null)
+                        {
+                            stateApplier.ForceSnapPosition(serverPosition);
+                        }
+                        else
+                        {
+                            // Fallback: set position directly if ServerStateApplier not found
+                            m_PlayerObject.transform.position = serverPosition;
+                            Debug.LogWarning("[PlayerDeathHandler] ServerStateApplier not found, setting position directly");
+                        }
+
+                        Debug.Log($"[PlayerDeathHandler] Server respawned player at ({res.x}, {res.y}) with {res.currentHp}/{res.maxHp} HP");
+                    }
+                },
+                err => Debug.LogWarning($"[PlayerDeathHandler] Respawn request failed: {err}")
+            ));
+        }
+
+        Debug.Log($"[PlayerDeathHandler] Player respawned at ({spawnPosition.x}, {spawnPosition.y}) with {StatsManager.Instance.currentHealth}/{StatsManager.Instance.maxHealth} HP!");
     }
 
     private void ShowGameOver()

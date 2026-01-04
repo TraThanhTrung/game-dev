@@ -26,8 +26,6 @@ public class StatsManager : MonoBehaviour
     public int maxHealth;
     public int currentHealth;
 
-
-
     private void Awake()
     {
         if (Instance == null)
@@ -36,8 +34,36 @@ public class StatsManager : MonoBehaviour
             Destroy(gameObject);
     }
 
+    private void Start()
+    {
+        // Initialize from shared config if available
+        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
+        {
+            ApplyConfig(GameConfigLoader.Instance.Config.playerDefaults.stats);
+        }
+    }
 
+    public void ApplyConfig(PlayerStatBlockData stats)
+    {
+        damage = stats.damage;
+        weaponRange = stats.weaponRange;
+        knockbackForce = stats.knockbackForce;
+        knockbackTime = stats.knockbackTime;
+        stunTime = stats.stunTime;
+        speed = (int)stats.speed;
+        maxHealth = stats.maxHealth;
+        currentHealth = stats.currentHealth;
+        bonusDamagePercent = stats.bonusDamagePercent;
+        damageReductionPercent = stats.damageReductionPercent;
+        UpdateHealth(0);
+    }
 
+    public void ApplySnapshot(int hp, int maxHp)
+    {
+        currentHealth = hp;
+        maxHealth = maxHp;
+        UpdateHealth(0);
+    }
 
     public void UpdateMaxHealth(int amount)
     {

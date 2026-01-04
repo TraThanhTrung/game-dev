@@ -18,6 +18,7 @@ public class NetClient : MonoBehaviour
     [SerializeField] private string m_DefaultSessionId = "default";
 
     private Coroutine pollRoutine;
+    private float m_PollInterval = 0.2f; // Default polling interval
     #endregion
 
     #region Public Properties
@@ -40,7 +41,14 @@ public class NetClient : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        
+
+        // Ensure KillReporter component exists
+        if (GetComponent<KillReporter>() == null)
+        {
+            gameObject.AddComponent<KillReporter>();
+            Debug.Log("[NetClient] Added KillReporter component");
+        }
+
         // Clear any old saved session to avoid stale data
         ClearSavedSession();
     }
@@ -149,6 +157,14 @@ public class NetClient : MonoBehaviour
     {
         StopPolling();
         pollRoutine = StartCoroutine(PollLoop(sinceVersion, intervalSeconds, onState, onError));
+    }
+
+    public void SetPollInterval(float intervalSeconds)
+    {
+        if (intervalSeconds > 0f)
+        {
+            m_PollInterval = intervalSeconds;
+        }
     }
 
     public void StopPolling()
@@ -314,6 +330,131 @@ public class NetClient : MonoBehaviour
         ClearSession();
         onSuccess?.Invoke();
     }
+
+    /// <summary>
+    /// Report a kill so the server can grant rewards based on enemy type.
+    /// </summary>
+    public IEnumerator ReportKill(string enemyTypeId, Action<KillReportResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new KillReportRequest
+        {
+            playerId = PlayerId.ToString(),
+            sessionId = SessionId,
+            enemyTypeId = enemyTypeId,
+            token = Token
+        });
+
+        using var req = BuildPost("/sessions/kill", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        KillReportResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<KillReportResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid kill report response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
+    /// Report damage taken from enemy so server can update HP authoritatively.
+    /// </summary>
+    public IEnumerator ReportDamage(int damageAmount, Action<DamageReportResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new DamageReportRequest
+        {
+            playerId = PlayerId.ToString(),
+            sessionId = SessionId,
+            damageAmount = damageAmount,
+            token = Token
+        });
+
+        using var req = BuildPost("/sessions/damage", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        DamageReportResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<DamageReportResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid damage report response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
+    /// Request respawn from server (resets position to spawn and sets HP to 50%).
+    /// </summary>
+    public IEnumerator RequestRespawn(Action<RespawnResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new RespawnRequest
+        {
+            playerId = PlayerId.ToString(),
+            sessionId = SessionId,
+            token = Token
+        });
+
+        using var req = BuildPost("/sessions/respawn", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        RespawnResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<RespawnResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid respawn response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
     #endregion
 }
 
@@ -398,6 +539,7 @@ public class PlayerSnapshot
     public int sequence;
     public int level;
     public int exp;
+    public int expToLevel;
     public int gold;
 }
 
@@ -423,6 +565,59 @@ public class ProjectileSnapshot
     public float dirX;
     public float dirY;
     public float radius;
+}
+
+[Serializable]
+public class KillReportRequest
+{
+    public string playerId;
+    public string enemyTypeId;
+    public string sessionId;
+    public string token;
+}
+
+[Serializable]
+public class KillReportResponse
+{
+    public bool granted;
+    public int level;
+    public int exp;
+    public int gold;
+}
+
+[Serializable]
+public class DamageReportRequest
+{
+    public string playerId;
+    public int damageAmount;
+    public string sessionId;
+    public string token;
+}
+
+[Serializable]
+public class DamageReportResponse
+{
+    public bool accepted;
+    public int currentHp;
+    public int maxHp;
+}
+
+[Serializable]
+public class RespawnRequest
+{
+    public string playerId;
+    public string sessionId;
+    public string token;
+}
+
+[Serializable]
+public class RespawnResponse
+{
+    public bool accepted;
+    public float x;
+    public float y;
+    public int currentHp;
+    public int maxHp;
 }
 #endregion
 

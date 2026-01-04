@@ -16,6 +16,7 @@ public class PlayerProfile
 
     public int Level { get; set; }
     public int Exp { get; set; }
+    public int ExpToLevel { get; set; }
     public int Gold { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

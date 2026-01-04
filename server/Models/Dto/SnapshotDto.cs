@@ -12,6 +12,7 @@ public record PlayerSnapshot(
     int Sequence,
     int Level,
     int Exp,
+    int ExpToLevel,
     int Gold
 );
 

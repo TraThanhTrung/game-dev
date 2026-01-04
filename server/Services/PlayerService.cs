@@ -12,11 +12,13 @@ public class PlayerService
 {
     private readonly GameDbContext _db;
     private readonly ILogger<PlayerService> _logger;
+    private readonly GameConfigService _config;
 
-    public PlayerService(GameDbContext db, ILogger<PlayerService> logger)
+    public PlayerService(GameDbContext db, ILogger<PlayerService> logger, GameConfigService config)
     {
         _db = db;
         _logger = logger;
+        _config = config;
     }
 
     /// <summary>
@@ -40,24 +42,28 @@ public class PlayerService
             return (existing, false);
         }
 
-        // Create new player
+        // Create new player from config defaults
+        var defaults = _config.PlayerDefaults;
+        var stats = defaults.Stats;
+
         var newPlayer = new PlayerProfile
         {
             Id = Guid.NewGuid(),
             Name = playerName,
             TokenHash = Guid.NewGuid().ToString("N"), // Simple token for now
-            Level = 1,
-            Exp = 0,
-            Gold = 100, // Starting gold
+            Level = defaults.Level,
+            Exp = defaults.Exp,
+            ExpToLevel = _config.GetExpForNextLevel(defaults.Level),
+            Gold = defaults.Gold,
             CreatedAt = DateTime.UtcNow,
             Stats = new PlayerStats
             {
-                Damage = 10,
-                Range = 1.5f,
-                KnockbackForce = 5f,
-                Speed = 4f,
-                MaxHealth = 50,
-                CurrentHealth = 50
+                Damage = stats.Damage,
+                Range = stats.WeaponRange,
+                KnockbackForce = stats.KnockbackForce,
+                Speed = stats.Speed,
+                MaxHealth = stats.MaxHealth,
+                CurrentHealth = stats.CurrentHealth
             }
         };
         newPlayer.Stats.PlayerId = newPlayer.Id;
@@ -98,11 +104,12 @@ public class PlayerService
         player.Exp = exp;
         player.Gold = gold;
         player.Level = level;
+        player.ExpToLevel = _config.GetExpForNextLevel(level);
         player.Stats.CurrentHealth = currentHealth;
 
         await _db.SaveChangesAsync();
-        _logger.LogDebug("Saved progress for {Name}: Exp={Exp}, Gold={Gold}, Level={Level}", 
-            player.Name, exp, gold, level);
+        _logger.LogDebug("Saved progress for {Name}: Exp={Exp}, Gold={Gold}, Level={Level}, ExpToLevel={ExpToLevel}", 
+            player.Name, exp, gold, level, player.ExpToLevel);
     }
 
     /// <summary>
