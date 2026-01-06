@@ -1,7 +1,9 @@
 using GameServer.Data;
 using GameServer.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,12 +17,76 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
+// Razor Pages for Admin Area
+builder.Services.AddRazorPages(options =>
+{
+    // IMPORTANT: AllowAnonymous must be set BEFORE AuthorizeAreaFolder
+    // Allow anonymous access to Login page
+    options.Conventions.AllowAnonymousToAreaPage("Admin", "/Login");
+    // Then authorize the rest of the Admin area
+    options.Conventions.AuthorizeAreaFolder("Admin", "/");
+});
+
+// Database Contexts
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
 builder.Services.AddDbContext<GameDbContext>(options => options.UseSqlite(connectionString));
 
-builder.Services.AddSingleton<GameConfigService>();
+var identityConnectionString = builder.Configuration.GetConnectionString("IdentityDb") ?? "Data Source=identity.db";
+builder.Services.AddDbContext<AdminIdentityDbContext>(options => options.UseSqlite(identityConnectionString));
+
+// ASP.NET Core Identity
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+{
+    // Password settings
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+
+    // Lockout settings
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+
+    // User settings
+    options.User.RequireUniqueEmail = false;
+})
+.AddEntityFrameworkStores<AdminIdentityDbContext>()
+.AddDefaultTokenProviders();
+
+// Identity cookie settings
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Admin/Login";
+    options.LogoutPath = "/Admin/Logout";
+    options.AccessDeniedPath = "/Admin/Login";
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
+
+// Redis
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = ConfigurationOptions.Parse(redisConnectionString);
+    configuration.AbortOnConnectFail = false;
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+// Application Services
+// Note: GameConfigService needs to be registered after DbContext and RedisService
+builder.Services.AddSingleton<GameConfigService>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<GameConfigService>>();
+    return new GameConfigService(logger, sp);
+});
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
+builder.Services.AddScoped<RedisService>();
+builder.Services.AddScoped<EnemyConfigService>();
+builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<SessionTrackingService>();
 builder.Services.AddHostedService<GameLoopService>();
 
 var app = builder.Build();
@@ -31,6 +97,56 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
     db.Database.Migrate();
     app.Logger.LogInformation("Database migrations applied: {db}", connectionString);
+
+    var identityDb = scope.ServiceProvider.GetRequiredService<AdminIdentityDbContext>();
+    identityDb.Database.Migrate();
+    app.Logger.LogInformation("Identity database migrations applied");
+
+    // Seed default admin user
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    // Create Admin role if it doesn't exist
+    if (!await roleManager.RoleExistsAsync("Admin"))
+    {
+        await roleManager.CreateAsync(new IdentityRole("Admin"));
+    }
+
+    // Create default admin user if it doesn't exist
+    var adminUser = await userManager.FindByNameAsync("admin");
+    if (adminUser == null)
+    {
+        adminUser = new IdentityUser
+        {
+            UserName = "admin",
+            Email = "admin@game.local"
+        };
+        var result = await userManager.CreateAsync(adminUser, "Admin123!");
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, "Admin");
+            app.Logger.LogInformation("Default admin user created: admin / Admin123!");
+        }
+    }
+
+    // Migrate enemies from config.json to database
+    try
+    {
+        var configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "shared", "game-config.json");
+        if (!File.Exists(configPath))
+        {
+            configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared", "game-config.json");
+        }
+        
+        if (File.Exists(configPath))
+        {
+            await GameServer.Scripts.MigrateEnemiesFromConfig.RunAsync(db, app.Logger, configPath);
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Failed to migrate enemies from config.json");
+    }
 }
 
 // Log startup info
@@ -78,6 +194,16 @@ app.Use(async (ctx, next) =>
         "[{method}] {path}{query} -> {status} ({ms}ms) player:{pid}",
         method, path, query, status, sw.ElapsedMilliseconds, playerId);
 });
+
+// Static files for admin template
+app.UseStaticFiles();
+
+// Authentication & Authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Map Razor Pages
+app.MapRazorPages();
 
 app.MapControllers();
 

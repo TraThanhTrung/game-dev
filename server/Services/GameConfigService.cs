@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GameServer.Services;
 
@@ -8,6 +9,7 @@ public class GameConfigService
     #region Private Fields
     private readonly ILogger<GameConfigService> _logger;
     private readonly GameConfig _config;
+    private readonly EnemyConfigService? _enemyConfigService;
     #endregion
 
     #region Public Properties
@@ -17,15 +19,58 @@ public class GameConfigService
     #endregion
 
     #region Constructor
-    public GameConfigService(ILogger<GameConfigService> logger)
+    public GameConfigService(ILogger<GameConfigService> logger, IServiceProvider? serviceProvider = null)
     {
         _logger = logger;
         var path = ResolveConfigPath();
         _config = LoadConfig(path);
+
+        // Try to get EnemyConfigService if available (may not be available during initial startup)
+        if (serviceProvider != null)
+        {
+            try
+            {
+                _enemyConfigService = serviceProvider.GetService(typeof(EnemyConfigService)) as EnemyConfigService;
+            }
+            catch
+            {
+                // Service not available yet, will use config.json fallback
+            }
+        }
     }
     #endregion
 
     #region Public Methods
+    public async Task<EnemyConfig?> GetEnemyAsync(string typeId)
+    {
+        if (string.IsNullOrWhiteSpace(typeId))
+            return null;
+
+        // Try database first (via EnemyConfigService)
+        if (_enemyConfigService != null)
+        {
+            try
+            {
+                var dbEnemy = await _enemyConfigService.GetEnemyAsync(typeId);
+                if (dbEnemy != null)
+                    return dbEnemy;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get enemy {TypeId} from database, falling back to config.json", typeId);
+            }
+        }
+
+        // Fallback to config.json
+        if (_config.EnemyStats != null)
+        {
+            return _config.EnemyStats.FirstOrDefault(e => string.Equals(e.TypeId, typeId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return null;
+    }
+
+    // Keep synchronous version for backward compatibility
     public EnemyConfig? GetEnemy(string typeId)
     {
         if (string.IsNullOrWhiteSpace(typeId) || _config.EnemyStats == null)
@@ -37,13 +82,13 @@ public class GameConfigService
     public int GetExpForNextLevel(int currentLevel)
     {
         var curve = ExpCurve;
-        
+
         // Level 0 → 1: basePerLevel (no multiplier)
         if (currentLevel < 1)
         {
             return curve.BasePerLevel;
         }
-        
+
         // Level 1+: basePerLevel * (1 + growthMultiplier * currentLevel)
         var levelCap = Math.Max(1, curve.LevelCap);
         var level = Math.Clamp(currentLevel, 1, levelCap);
@@ -150,6 +195,10 @@ public class EnemyConfig
     public float Speed { get; set; } = 2f;
     public float DetectRange { get; set; } = 6f;
     public float AttackRange { get; set; } = 1.2f;
+    public float AttackCooldown { get; set; } = 2.0f;
+    public float WeaponRange { get; set; } = 1.2f;
+    public float KnockbackForce { get; set; } = 2.8f;
+    public float StunTime { get; set; } = 0.28f;
     public float RespawnDelay { get; set; } = 5f;
 }
 

@@ -8,7 +8,7 @@
     "stats": {
       "damage": 1,
       "weaponRange": 0.5,
-      "knockbackForce": 6.5,
+      "knockbackForce": 5.5,
       "knockbackTime": 0.2,
       "stunTime": 0.3,
       "speed": 4.0,
@@ -24,8 +24,8 @@
     "levelCap": 100
   },
   "polling": {
-    "stateIntervalSeconds": 0.08,
-    "lerpSpeed": 30.0,
+    "stateIntervalSeconds": 0.07,
+    "lerpSpeed": 55.0,
     "positionChangeThreshold": 0.005
   },
   "enemyStats": [
@@ -40,8 +40,8 @@
       "attackRange": 1.2,
       "attackCooldown": 2.0,
       "weaponRange": 1.2,
-      "knockbackForce": 3.5,
-      "stunTime": 0.25,
+      "knockbackForce": 2.8,
+      "stunTime": 0.28,
       "respawnDelay": 5.0
     }
   ]

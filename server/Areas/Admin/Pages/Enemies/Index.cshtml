@@ -1,0 +1,83 @@
+@page
+@model GameServer.Areas.Admin.Pages.Enemies.IndexModel
+@{
+    ViewData["Title"] = "Enemies";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Enemies Management</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Enemies</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title">Enemies List</h4>
+                    <a asp-area="Admin" asp-page="/Enemies/Create" class="btn btn-success">
+                        <i class="mdi mdi-plus"></i> Create New
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type ID</th>
+                                <th>Name</th>
+                                <th>Exp Reward</th>
+                                <th>Gold Reward</th>
+                                <th>Max Health</th>
+                                <th>Damage</th>
+                                <th>Speed</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var enemy in Model.Enemies)
+                            {
+                                <tr>
+                                    <td>@enemy.EnemyId</td>
+                                    <td>@enemy.TypeId</td>
+                                    <td>@enemy.Name</td>
+                                    <td>@enemy.ExpReward</td>
+                                    <td>@enemy.GoldReward</td>
+                                    <td>@enemy.MaxHealth</td>
+                                    <td>@enemy.Damage</td>
+                                    <td>@enemy.Speed</td>
+                                    <td>
+                                        @if (enemy.IsActive)
+                                        {
+                                            <span class="badge badge-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-area="Admin" asp-page="/Enemies/Edit" asp-route-id="@enemy.EnemyId"
+                                            class="btn btn-sm btn-primary">
+                                            <i class="mdi mdi-pencil"></i>
+                                        </a>
+                                        <a asp-area="Admin" asp-page="/Enemies/Delete" asp-route-id="@enemy.EnemyId"
+                                            class="btn btn-sm btn-danger">
+                                            <i class="mdi mdi-delete"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,82 @@
+@page
+@model GameServer.Areas.Admin.Pages.Sessions.IndexModel
+@{
+    ViewData["Title"] = "Active Sessions";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Active Sessions</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Active Sessions</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title">Active Game Sessions</h4>
+                    <span class="badge badge-warning">@Model.ActiveSessions.Count Active</span>
+                </div>
+                @if (Model.ActiveSessions.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>Start Time</th>
+                                    <th>Player Count</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var session in Model.ActiveSessions)
+                                {
+                                    var duration = (DateTime.UtcNow - session.StartTime).ToString(@"hh\:mm\:ss");
+                                    
+                                    <tr>
+                                        <td>@session.SessionId.ToString("N")[..8]...</td>
+                                        <td>@session.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td>@session.PlayerCount</td>
+                                        <td>@duration</td>
+                                        <td>
+                                            <span class="badge badge-warning">@session.Status</span>
+                                        </td>
+                                        <td>
+                                            <a asp-page="/Admin/Matches/Details" asp-route-id="@session.SessionId" class="btn btn-sm btn-primary">
+                                                <i class="mdi mdi-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="mdi mdi-information"></i> No active sessions at the moment.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh every 5 seconds
+        setTimeout(function() {
+            location.reload();
+        }, 5000);
+    </script>
+}
+

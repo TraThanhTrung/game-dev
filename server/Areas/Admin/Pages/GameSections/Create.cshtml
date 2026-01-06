@@ -1,0 +1,94 @@
+@page
+@model GameServer.Areas.Admin.Pages.GameSections.CreateModel
+@{
+    ViewData["Title"] = "Create Game Section";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Create Game Section</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Admin/GameSections/Index">Game Sections</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Game Section Information</h4>
+                <form method="post" class="forms-sample">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    
+                    <div class="form-group">
+                        <label asp-for="GameSection.Name">Name *</label>
+                        <input asp-for="GameSection.Name" class="form-control" />
+                        <span asp-validation-for="GameSection.Name" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label asp-for="GameSection.Description">Description</label>
+                        <textarea asp-for="GameSection.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="GameSection.Description" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label asp-for="GameSection.EnemyTypeId">Enemy Type ID</label>
+                        <input asp-for="GameSection.EnemyTypeId" class="form-control" />
+                        <span asp-validation-for="GameSection.EnemyTypeId" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="GameSection.EnemyCount">Enemy Count</label>
+                                <input asp-for="GameSection.EnemyCount" type="number" class="form-control" />
+                                <span asp-validation-for="GameSection.EnemyCount" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="GameSection.EnemyLevel">Enemy Level</label>
+                                <input asp-for="GameSection.EnemyLevel" type="number" class="form-control" />
+                                <span asp-validation-for="GameSection.EnemyLevel" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label asp-for="GameSection.SpawnRate">Spawn Rate</label>
+                                <input asp-for="GameSection.SpawnRate" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="GameSection.SpawnRate" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label asp-for="GameSection.Duration">Duration (seconds, leave empty for unlimited)</label>
+                        <input asp-for="GameSection.Duration" type="number" class="form-control" />
+                        <span asp-validation-for="GameSection.Duration" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <label class="form-check-label">
+                                <input type="checkbox" class="form-check-input" asp-for="GameSection.IsActive" checked>
+                                Active
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary me-2">Create</button>
+                    <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

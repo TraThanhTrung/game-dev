@@ -1,0 +1,58 @@
+@page "{id:int}"
+@model GameServer.Areas.Admin.Pages.Enemies.DeleteModel
+@{
+    ViewData["Title"] = "Delete Enemy";
+}
+
+@if (Model.Enemy == null)
+{
+    <div class="alert alert-danger">Enemy not found.</div>
+    return;
+}
+
+<div class="page-header">
+    <h3 class="page-title">Delete Enemy</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Admin/Enemies/Index">Enemies</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Delete</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title text-danger">Are you sure you want to delete this enemy?</h4>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                
+                <div class="form-group">
+                    <label>Type ID</label>
+                    <p class="form-control-static">@Model.Enemy.TypeId</p>
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <p class="form-control-static">@Model.Enemy.Name</p>
+                </div>
+                <div class="form-group">
+                    <label>Exp Reward</label>
+                    <p class="form-control-static">@Model.Enemy.ExpReward</p>
+                </div>
+                <div class="form-group">
+                    <label>Gold Reward</label>
+                    <p class="form-control-static">@Model.Enemy.GoldReward</p>
+                </div>
+                
+                <form method="post">
+                    <button type="submit" class="btn btn-danger me-2">Delete</button>
+                    <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+

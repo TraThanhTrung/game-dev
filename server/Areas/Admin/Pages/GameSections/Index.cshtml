@@ -1,0 +1,80 @@
+@page
+@model GameServer.Areas.Admin.Pages.GameSections.IndexModel
+@{
+    ViewData["Title"] = "Game Sections";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Game Sections Management</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Game Sections</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title">Game Sections List</h4>
+                    <a asp-page="/Admin/GameSections/Create" class="btn btn-success">
+                        <i class="mdi mdi-plus"></i> Create New
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Enemy Type</th>
+                                <th>Enemy Count</th>
+                                <th>Enemy Level</th>
+                                <th>Spawn Rate</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var gameSection in Model.GameSections)
+                            {
+                                <tr>
+                                    <td>@gameSection.SectionId</td>
+                                    <td>@gameSection.Name</td>
+                                    <td>@gameSection.EnemyTypeId</td>
+                                    <td>@gameSection.EnemyCount</td>
+                                    <td>@gameSection.EnemyLevel</td>
+                                    <td>@gameSection.SpawnRate</td>
+                                    <td>@(gameSection.Duration.HasValue ? $"{gameSection.Duration}s" : "Unlimited")</td>
+                                    <td>
+                                        @if (gameSection.IsActive)
+                                        {
+                                            <span class="badge badge-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-danger">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-page="/Admin/GameSections/Details" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-info">
+                                            <i class="mdi mdi-eye"></i>
+                                        </a>
+                                        <a asp-page="/Admin/GameSections/Edit" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-primary">
+                                            <i class="mdi mdi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -13,6 +13,10 @@ public class GameDbContext : DbContext
     public DbSet<PlayerStats> PlayerStats => Set<PlayerStats>();
     public DbSet<SkillUnlock> SkillUnlocks => Set<SkillUnlock>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<GameSession> GameSessions => Set<GameSession>();
+    public DbSet<SessionPlayer> SessionPlayers => Set<SessionPlayer>();
+    public DbSet<Enemy> Enemies => Set<Enemy>();
+    public DbSet<GameSection> GameSections => Set<GameSection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +39,24 @@ public class GameDbContext : DbContext
             .WithOne(i => i.Player)
             .HasForeignKey(i => i.PlayerId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GameSession>()
+            .HasMany(s => s.Players)
+            .WithOne(p => p.Session)
+            .HasForeignKey(p => p.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Enemy>()
+            .HasIndex(e => e.TypeId)
+            .IsUnique();
+
+        modelBuilder.Entity<Enemy>()
+            .Property(e => e.TypeId)
+            .IsRequired();
+
+        modelBuilder.Entity<GameSection>()
+            .Property(g => g.Name)
+            .IsRequired();
     }
 }
 

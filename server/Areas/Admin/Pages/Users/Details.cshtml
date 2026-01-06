@@ -1,0 +1,358 @@
+@page "{id}"
+@model GameServer.Areas.Admin.Pages.Users.DetailsModel
+@{
+    ViewData["Title"] = "User Details";
+}
+
+@if (Model.PlayerProfile == null)
+{
+    <div class="alert alert-danger">User not found.</div>
+    return;
+}
+
+<div class="page-header">
+    <h3 class="page-title">User Details</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Users/Index">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Details</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- Profile Overview Cards -->
+<div class="row">
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">@Model.PlayerProfile.Name</h4>
+                        <p class="text-muted mb-0">
+                            <i class="mdi mdi-identifier"></i>
+                            <small>@Model.PlayerProfile.Id.ToString("N")[..8]...</small>
+                        </p>
+                    </div>
+                    <div class="icon icon-box-primary">
+                        <span class="mdi mdi-account icon-item"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">Level @Model.PlayerProfile.Level</h4>
+                        <p class="text-muted mb-0">
+                            <i class="mdi mdi-star"></i>
+                            Experience: @Model.PlayerProfile.Exp / @Model.PlayerProfile.ExpToLevel
+                        </p>
+                        @{
+                            var expPercent = Model.PlayerProfile.ExpToLevel > 0
+                            ? (Model.PlayerProfile.Exp * 100.0 / Model.PlayerProfile.ExpToLevel)
+                            : 0;
+                        }
+                        <div class="progress mt-2" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: @expPercent%"
+                                aria-valuenow="@expPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    <div class="icon icon-box-warning">
+                        <span class="mdi mdi-trophy icon-item"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">@Model.PlayerProfile.Gold <i class="mdi mdi-currency-usd"></i></h4>
+                        <p class="text-muted mb-0">
+                            <i class="mdi mdi-clock-outline"></i>
+                            Play Time: @Model.PlayTime.ToString(@"hh\:mm\:ss")
+                        </p>
+                        <p class="text-muted mb-0 mt-1">
+                            <i class="mdi mdi-calendar"></i>
+                            @Model.PlayerProfile.CreatedAt.ToString("yyyy-MM-dd HH:mm")
+                        </p>
+                    </div>
+                    <div class="icon icon-box-success">
+                        <span class="mdi mdi-wallet icon-item"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Information -->
+<div class="row">
+    <div class="col-md-6 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="mdi mdi-account-card-details"></i>
+                    Profile Information
+                </h4>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">User ID</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Id</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Name</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">
+                            <i class="mdi mdi-account"></i>
+                            @Model.PlayerProfile.Name
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Level</label>
+                    </div>
+                    <div class="col-8">
+                        <span class="badge badge-primary badge-pill">@Model.PlayerProfile.Level</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Experience</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-1 font-weight-medium">@Model.PlayerProfile.Exp / @Model.PlayerProfile.ExpToLevel
+                        </p>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: @expPercent%"
+                                aria-valuenow="@expPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Gold</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">
+                            <i class="mdi mdi-currency-usd text-warning"></i>
+                            @Model.PlayerProfile.Gold
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Created At</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0">
+                            <i class="mdi mdi-calendar-clock"></i>
+                            @Model.PlayerProfile.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-4">
+                        <label class="text-muted small">Total Play Time</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0">
+                            <i class="mdi mdi-clock-outline"></i>
+                            @Model.PlayTime.ToString(@"hh\:mm\:ss")
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="mdi mdi-chart-line"></i>
+                    Game Stats
+                </h4>
+                @if (Model.PlayerProfile.Stats != null)
+                {
+                    <div class="row mb-3">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-sword"></i>
+                                Damage
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Stats.Damage</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-ruler"></i>
+                                Range
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Stats.Range</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-arrow-expand"></i>
+                                Knockback Force
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Stats.KnockbackForce</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-speedometer"></i>
+                                Speed
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Stats.Speed</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-heart"></i>
+                                Max Health
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Stats.MaxHealth</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-5">
+                            <label class="text-muted small">
+                                <i class="mdi mdi-heart-pulse"></i>
+                                Current Health
+                            </label>
+                        </div>
+                        <div class="col-7">
+                            @{
+                                var healthPercent = Model.PlayerProfile.Stats.MaxHealth > 0
+                                ? (Model.PlayerProfile.Stats.CurrentHealth * 100.0 / Model.PlayerProfile.Stats.MaxHealth)
+                                : 0;
+                                var healthColor = healthPercent > 50 ? "success" : healthPercent > 25 ? "warning" : "danger";
+                            }
+                            <div class="d-flex align-items-center">
+                                <span class="font-weight-medium me-2">@Model.PlayerProfile.Stats.CurrentHealth</span>
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    @{
+                                        var healthBarClass = healthPercent > 50 ? "bg-success" : healthPercent > 25 ?
+                                        "bg-warning" : "bg-danger";
+                                    }
+                                    <div class="progress-bar @healthBarClass" role="progressbar"
+                                        style="width: @healthPercent%" aria-valuenow="@healthPercent" aria-valuemin="0"
+                                        aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="mdi mdi-information"></i>
+                        No stats available for this user.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Skills Section -->
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="mdi mdi-star-circle"></i>
+                    Unlocked Skills
+                    <span class="badge badge-info badge-pill ms-2">@Model.PlayerProfile.Skills.Count</span>
+                </h4>
+                @if (Model.PlayerProfile.Skills.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <i class="mdi mdi-identifier"></i>
+                                        Skill ID
+                                    </th>
+                                    <th>
+                                        <i class="mdi mdi-star"></i>
+                                        Level
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var skill in Model.PlayerProfile.Skills)
+                                {
+                                    <tr>
+                                        <td>
+                                            <code class="text-primary">@skill.SkillId</code>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-success badge-pill">Level @skill.Level</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning">
+                        <i class="mdi mdi-alert"></i>
+                        No skills unlocked yet.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mt-3">
+    <div class="col-12">
+        <a asp-area="Admin" asp-page="/Users/Index" class="btn btn-secondary">
+            <i class="mdi mdi-arrow-left"></i>
+            Back to Users List
+        </a>
+    </div>
+</div>

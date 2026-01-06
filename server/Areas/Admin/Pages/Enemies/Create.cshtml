@@ -1,0 +1,160 @@
+@page
+@model GameServer.Areas.Admin.Pages.Enemies.CreateModel
+@{
+    ViewData["Title"] = "Create Enemy";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Create Enemy</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Admin/Enemies/Index">Enemies</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Create</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Enemy Information</h4>
+                <form method="post" class="forms-sample">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    
+                    <div class="form-group">
+                        <label asp-for="Enemy.TypeId">Type ID *</label>
+                        <input asp-for="Enemy.TypeId" class="form-control" />
+                        <span asp-validation-for="Enemy.TypeId" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label asp-for="Enemy.Name">Name</label>
+                        <input asp-for="Enemy.Name" class="form-control" />
+                        <span asp-validation-for="Enemy.Name" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.ExpReward">Exp Reward</label>
+                                <input asp-for="Enemy.ExpReward" type="number" class="form-control" />
+                                <span asp-validation-for="Enemy.ExpReward" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.GoldReward">Gold Reward</label>
+                                <input asp-for="Enemy.GoldReward" type="number" class="form-control" />
+                                <span asp-validation-for="Enemy.GoldReward" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.MaxHealth">Max Health</label>
+                                <input asp-for="Enemy.MaxHealth" type="number" class="form-control" />
+                                <span asp-validation-for="Enemy.MaxHealth" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.Damage">Damage</label>
+                                <input asp-for="Enemy.Damage" type="number" class="form-control" />
+                                <span asp-validation-for="Enemy.Damage" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.Speed">Speed</label>
+                                <input asp-for="Enemy.Speed" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.Speed" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.DetectRange">Detect Range</label>
+                                <input asp-for="Enemy.DetectRange" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.DetectRange" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.AttackRange">Attack Range</label>
+                                <input asp-for="Enemy.AttackRange" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.AttackRange" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.AttackCooldown">Attack Cooldown</label>
+                                <input asp-for="Enemy.AttackCooldown" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.AttackCooldown" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.WeaponRange">Weapon Range</label>
+                                <input asp-for="Enemy.WeaponRange" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.WeaponRange" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.KnockbackForce">Knockback Force</label>
+                                <input asp-for="Enemy.KnockbackForce" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.KnockbackForce" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.StunTime">Stun Time</label>
+                                <input asp-for="Enemy.StunTime" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.StunTime" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="Enemy.RespawnDelay">Respawn Delay</label>
+                                <input asp-for="Enemy.RespawnDelay" type="number" step="0.1" class="form-control" />
+                                <span asp-validation-for="Enemy.RespawnDelay" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <label class="form-check-label">
+                                <input type="checkbox" class="form-check-input" asp-for="Enemy.IsActive" checked>
+                                Active
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary me-2">Create</button>
+                    <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

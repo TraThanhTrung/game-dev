@@ -1,0 +1,125 @@
+@page "{id}"
+@model GameServer.Areas.Admin.Pages.Matches.DetailsModel
+@{
+    ViewData["Title"] = "Match Details";
+}
+
+@if (Model.Match == null)
+{
+    <div class="alert alert-danger">Match not found.</div>
+    return;
+}
+
+<div class="page-header">
+    <h3 class="page-title">Match Details</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-page="/Admin/Matches/Index">Match History</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Details</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-6 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Session Information</h4>
+                <div class="form-group">
+                    <label>Session ID</label>
+                    <p class="form-control-static">@Model.Match.SessionId</p>
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <p class="form-control-static">@Model.Match.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                </div>
+                <div class="form-group">
+                    <label>End Time</label>
+                    <p class="form-control-static">@(Model.Match.EndTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</p>
+                </div>
+                <div class="form-group">
+                    <label>Duration</label>
+                    <p class="form-control-static">
+                        @if (Model.Match.EndTime.HasValue)
+                        {
+                            @((Model.Match.EndTime.Value - Model.Match.StartTime).ToString(@"hh\:mm\:ss"))
+                        }
+                        else
+                        {
+                            <text>Ongoing</text>
+                        }
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Player Count</label>
+                    <p class="form-control-static">@Model.Match.PlayerCount</p>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <p class="form-control-static">
+                        @if (Model.Match.Status == "Active")
+                        {
+                            <span class="badge badge-warning">@Model.Match.Status</span>
+                        }
+                        else if (Model.Match.Status == "Completed")
+                        {
+                            <span class="badge badge-success">@Model.Match.Status</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger">@Model.Match.Status</span>
+                        }
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Players (@Model.Match.Players.Count)</h4>
+                @if (Model.Match.Players.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Player ID</th>
+                                    <th>Join Time</th>
+                                    <th>Leave Time</th>
+                                    <th>Play Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var player in Model.Match.Players)
+                                {
+                                    <tr>
+                                        <td>@player.PlayerId.ToString("N")[..8]...</td>
+                                        <td>@player.JoinTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td>@(player.LeaveTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</td>
+                                        <td>@(player.PlayDuration.HasValue ? $"{player.PlayDuration}s" : "N/A")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No players in this session</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <a asp-page="/Admin/Matches/Index" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+

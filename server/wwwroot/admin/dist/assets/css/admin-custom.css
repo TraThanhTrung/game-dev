@@ -1,0 +1,181 @@
+/* Custom styles to fix footer positioning and remove blank space */
+
+/* Ensure html and body take full viewport height - CRITICAL FIX */
+html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure container-scroller takes full height and uses flexbox */
+.container-scroller {
+    height: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+}
+
+/* Ensure page-body-wrapper takes full height */
+.page-body-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Ensure main-panel uses flexbox properly and takes full height */
+.main-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+/* Content wrapper should grow but not create extra space */
+.content-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto; /* Allow scrolling if content is too long */
+}
+
+/* Footer should be at the bottom, no extra margin */
+.footer {
+    margin-top: 0;
+    flex-shrink: 0; /* Don't shrink footer */
+    width: 100%;
+}
+
+/* Enhanced Breadcrumb Styling - High Specificity */
+.page-header .breadcrumb,
+.content-wrapper .breadcrumb,
+.breadcrumb {
+    background: transparent !important;
+    padding: 0.75rem 0 !important;
+    margin-bottom: 0 !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+}
+
+.page-header .breadcrumb-item,
+.content-wrapper .breadcrumb-item,
+.breadcrumb-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+}
+
+.page-header .breadcrumb-item a,
+.content-wrapper .breadcrumb-item a,
+.breadcrumb-item a {
+    color: #a855f7 !important;
+    transition: all 0.3s ease !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    border-bottom: none !important;
+    outline: none !important;
+}
+
+.page-header .breadcrumb-item a:hover,
+.content-wrapper .breadcrumb-item a:hover,
+.breadcrumb-item a:hover {
+    color: #9333ea !important;
+    background-color: rgba(168, 85, 247, 0.1) !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    transform: translateY(-1px) !important;
+}
+
+.page-header .breadcrumb-item a:focus,
+.content-wrapper .breadcrumb-item a:focus,
+.breadcrumb-item a:focus {
+    color: #9333ea !important;
+    background-color: rgba(168, 85, 247, 0.1) !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2) !important;
+}
+
+.page-header .breadcrumb-item a:visited,
+.content-wrapper .breadcrumb-item a:visited,
+.breadcrumb-item a:visited {
+    color: #a855f7 !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+}
+
+.page-header .breadcrumb-item.active,
+.content-wrapper .breadcrumb-item.active,
+.breadcrumb-item.active {
+    color: #9ca3af !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.25rem 0.5rem !important;
+}
+
+.page-header .breadcrumb-item + .breadcrumb-item::before,
+.content-wrapper .breadcrumb-item + .breadcrumb-item::before,
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›" !important;
+    padding: 0 0.75rem !important;
+    color: #9ca3af !important;
+    font-weight: normal !important;
+    font-size: 1.2rem !important;
+    line-height: 1 !important;
+}
+
+.page-header .breadcrumb-item i,
+.content-wrapper .breadcrumb-item i,
+.breadcrumb-item i {
+    font-size: 1.1rem !important;
+    vertical-align: middle !important;
+    margin-right: 0.35rem !important;
+    opacity: 0.9 !important;
+}
+
+.page-header .breadcrumb-item a i,
+.content-wrapper .breadcrumb-item a i,
+.breadcrumb-item a i {
+    transition: all 0.3s ease !important;
+}
+
+.page-header .breadcrumb-item a:hover i,
+.content-wrapper .breadcrumb-item a:hover i,
+.breadcrumb-item a:hover i {
+    transform: scale(1.1) !important;
+    opacity: 1 !important;
+}
+
+/* Page Header Enhancement */
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+.page-header .page-title {
+    margin-bottom: 0.5rem;
+}
+
+.page-header .page-title i {
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
