@@ -15,7 +15,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>@ViewData["Title"] - Game Dashboard</title>
+    <title>@ViewData["Title"] - Tiny World Dashboard</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -35,8 +35,8 @@
             --gaming-darker: #050811;
             --gaming-card: #0f1629;
             --gaming-border: #1a2332;
-            --gaming-text: #e0e6ed;
-            --gaming-text-muted: #8b95a6;
+            --gaming-text: #f0f4f8; /* Brighter for better readability */
+            --gaming-text-muted: #b8c5d6; /* Much brighter for better visibility */
             --neon-glow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
         }
 
@@ -57,7 +57,7 @@
             overflow-x: hidden;
         }
 
-        /* Animated Background Particles - Optimized */
+        /* Static Background - Performance Optimized (No Animation) */
         body::before {
             content: '';
             position: fixed;
@@ -66,32 +66,32 @@
             width: 100%;
             height: 100%;
             background-image: 
-                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(255, 0, 110, 0.08) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(255, 190, 11, 0.08) 0%, transparent 50%);
-            background-size: 200% 200%;
-            animation: gradientShift 20s ease infinite;
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 110, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 190, 11, 0.05) 0%, transparent 50%);
+            background-size: 100% 100%;
             z-index: 0;
             pointer-events: none;
-            will-change: background-position;
             transform: translateZ(0); /* GPU acceleration */
         }
 
-        @@keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-        /* Navbar - Gaming Style */
+        /* Navbar - Gaming Style - Performance Optimized */
         .navbar {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(255, 0, 110, 0.15) 100%);
-            backdrop-filter: blur(10px);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(255, 0, 110, 0.2) 100%);
+            /* backdrop-filter removed for performance */
             border-bottom: 2px solid var(--gaming-primary);
             box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
             padding: 1rem 0;
             position: sticky;
             top: 0;
             z-index: 1000;
+            transition: opacity 0.3s ease;
+            opacity: 1; /* Start fully visible */
+        }
+        
+        /* Navbar fade on scroll */
+        .navbar.scrolled {
+            opacity: 0.3; /* Fade to 30% when scrolled */
         }
 
         .navbar-brand {
@@ -102,11 +102,11 @@
             text-shadow: var(--neon-glow);
             letter-spacing: 2px;
             text-transform: uppercase;
-            transition: all 0.3s ease;
+            transition: text-shadow 0.2s ease;
         }
 
         .navbar-brand:hover {
-            transform: scale(1.05);
+            /* transform removed for performance */
             text-shadow: 0 0 20px var(--gaming-primary), 0 0 40px var(--gaming-primary);
         }
 
@@ -130,11 +130,11 @@
             border: 2px solid var(--gaming-primary);
             box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
             object-fit: cover;
-            transition: all 0.3s ease;
+            transition: box-shadow 0.2s ease;
         }
 
         .navbar-avatar:hover {
-            transform: scale(1.1);
+            /* transform removed for performance */
             box-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
         }
 
@@ -142,21 +142,21 @@
             border-color: var(--gaming-primary);
             color: var(--gaming-primary);
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .btn-outline-light:hover {
             background: var(--gaming-primary);
             color: var(--gaming-dark);
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
-            transform: translateY(-2px);
+            /* transform removed for performance */
         }
 
-        /* Sidebar - Gaming Style */
+        /* Sidebar - Gaming Style - Performance Optimized */
         .sidebar {
             min-height: calc(100vh - 80px);
-            background: rgba(15, 22, 41, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(15, 22, 41, 0.95);
+            /* backdrop-filter removed for performance */
             border-right: 2px solid var(--gaming-border);
             box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
             padding: 2rem 0;
@@ -168,7 +168,7 @@
             margin: 0.25rem 1rem;
             border-left: 3px solid transparent;
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
             font-weight: 500;
             font-size: 1.1rem;
             position: relative;
@@ -184,14 +184,14 @@
             width: 3px;
             background: var(--gaming-primary);
             transform: scaleY(0);
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
         }
 
         .sidebar .nav-link:hover {
             background: rgba(0, 212, 255, 0.1);
             color: var(--gaming-primary);
             border-left-color: var(--gaming-primary);
-            transform: translateX(5px);
+            /* transform removed for performance */
         }
 
         .sidebar .nav-link:hover::before {
@@ -215,21 +215,21 @@
             margin-right: 0.75rem;
         }
 
-        /* Cards - Gaming Style */
+        /* Cards - Gaming Style - Performance Optimized */
         .card {
             background: rgba(15, 22, 41, 0.95) !important;
-            backdrop-filter: blur(10px);
+            /* backdrop-filter removed for performance */
             border: 1px solid var(--gaming-border);
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             margin-bottom: 2rem;
             overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-            will-change: transform; /* GPU acceleration */
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+            /* transform removed from default, only on hover */
         }
 
         .card:hover {
-            transform: translateY(-5px) translateZ(0); /* GPU acceleration */
+            /* transform removed for performance - only visual feedback */
             box-shadow: 0 12px 40px rgba(0, 212, 255, 0.2);
             border-color: var(--gaming-primary);
         }
@@ -248,43 +248,38 @@
 
         .card-body {
             padding: 1.5rem;
-            color: var(--gaming-text);
+            color: var(--gaming-text) !important;
             background: transparent !important;
         }
+        
+        /* Ensure all text in cards is bright */
+        .card-body * {
+            color: inherit;
+        }
+        
+        .card-body .text-muted {
+            color: var(--gaming-text-muted) !important;
+        }
 
-        /* Stat Cards - Gaming Style */
+        /* Stat Cards - Gaming Style - Performance Optimized */
         .stat-card {
             background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(15, 22, 41, 0.9) 100%);
             border: 1px solid var(--gaming-primary);
             border-left: 4px solid var(--gaming-primary);
             border-radius: 12px;
             padding: 1.5rem;
-            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
             position: relative;
             overflow: hidden;
-            will-change: transform; /* GPU acceleration */
         }
 
+        /* Pulse animation removed for performance */
         .stat-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
-            animation: pulse 4s ease-in-out infinite;
-            will-change: transform, opacity;
-            transform: translateZ(0); /* GPU acceleration */
-        }
-
-        @@keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.1); opacity: 0.8; }
+            display: none; /* Disabled for performance */
         }
 
         .stat-card:hover {
-            transform: translateY(-5px) scale(1.02) translateZ(0); /* GPU acceleration */
+            /* transform removed for performance */
             box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
             border-color: var(--gaming-accent);
         }
@@ -314,20 +309,20 @@
 
         .stat-label {
             font-size: 0.85rem;
-            color: var(--gaming-text-muted);
+            color: var(--gaming-text) !important; /* Brighter for better visibility */
             text-transform: uppercase;
             letter-spacing: 2px;
             font-weight: 600;
         }
 
-        /* Buttons - Gaming Style */
+        /* Buttons - Gaming Style - Performance Optimized */
         .btn {
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
             border-radius: 8px;
             padding: 0.75rem 1.5rem;
-            transition: all 0.3s ease;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
             border: 2px solid transparent;
         }
 
@@ -339,7 +334,7 @@
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px) translateZ(0); /* GPU acceleration */
+            /* transform removed for performance */
             box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
             background: linear-gradient(135deg, #00e5ff 0%, var(--gaming-primary) 100%);
         }
@@ -370,7 +365,7 @@
 
         /* Tables - Gaming Style */
         .table {
-            color: var(--gaming-text);
+            color: var(--gaming-text) !important;
             background: transparent;
         }
 
@@ -378,6 +373,7 @@
             border-color: var(--gaming-border);
             padding: 1rem;
             background: rgba(15, 22, 41, 0.5) !important;
+            color: var(--gaming-text) !important; /* Ensure text is bright */
         }
 
         .table thead th {
@@ -390,7 +386,7 @@
         }
 
         .table tbody tr {
-            transition: all 0.3s ease;
+            transition: background-color 0.2s ease;
             background: rgba(15, 22, 41, 0.5) !important;
         }
 
@@ -400,7 +396,7 @@
 
         .table tbody tr:hover {
             background: rgba(0, 212, 255, 0.15) !important;
-            transform: scale(1.01);
+            /* transform removed for performance */
         }
 
         /* Badges - Gaming Style */
@@ -493,9 +489,24 @@
         }
 
         .form-label {
-            color: var(--gaming-text);
+            color: var(--gaming-text) !important;
             font-weight: 600;
             margin-bottom: 0.5rem;
+        }
+        
+        /* Override Bootstrap text-muted to use our brighter color */
+        .text-muted {
+            color: var(--gaming-text-muted) !important;
+        }
+        
+        /* Ensure small text is also readable */
+        small, .small {
+            color: var(--gaming-text-muted) !important;
+        }
+        
+        /* Ensure table text is bright */
+        .table td strong, .table td {
+            color: var(--gaming-text) !important;
         }
 
         /* Scrollbar */
@@ -534,7 +545,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <a class="navbar-brand" asp-area="Player" asp-page="/Index">
-                <i class="fas fa-gamepad"></i>Game Dashboard
+                <i class="fas fa-gamepad"></i>Tiny World Dashboard
             </a>
             <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
                 @if (Context.Session.GetString("PlayerName") != null)
@@ -605,15 +616,78 @@
     <!-- Navigation active state -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
+            // Normalize current path (remove trailing slash, lowercase for comparison)
+            let currentPath = window.location.pathname.toLowerCase();
+            if (currentPath.endsWith('/') && currentPath.length > 1) {
+                currentPath = currentPath.slice(0, -1);
+            }
+            
+            // Handle root path: /Player or /Player/ should be treated as /Player/Index
+            if (currentPath === '/player' || currentPath === '') {
+                currentPath = '/player/index';
+            }
+            
             const navLinks = document.querySelectorAll('.sidebar .nav-link');
             
+            // Remove all active classes first
             navLinks.forEach(link => {
-                const href = link.getAttribute('href');
-                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                link.classList.remove('active');
+            });
+            
+            // Find and activate the matching link
+            navLinks.forEach(link => {
+                let href = link.getAttribute('href');
+                if (!href) return;
+                
+                // Normalize href (remove trailing slash, lowercase)
+                href = href.toLowerCase();
+                if (href.endsWith('/') && href.length > 1) {
+                    href = href.slice(0, -1);
+                }
+                
+                // Handle root path for Index page
+                if (href === '/player') {
+                    href = '/player/index';
+                }
+                
+                // Exact match
+                if (currentPath === href) {
                     link.classList.add('active');
+                    return;
+                }
+                
+                // For non-index pages, check if current path starts with href + '/'
+                // This handles sub-pages like /Player/Profile/Edit
+                if (href !== '/player/index') {
+                    const hrefWithSlash = href + '/';
+                    if (currentPath.startsWith(hrefWithSlash)) {
+                        link.classList.add('active');
+                        return;
+                    }
                 }
             });
+            
+            // Navbar fade on scroll - Start fading immediately from top
+            const navbar = document.querySelector('.navbar');
+            let lastScrollTop = 0;
+            const fadeDistance = 100; // pixels to fade over
+            
+            // Handle scroll event - Start fading from scroll position 0
+            window.addEventListener('scroll', function() {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // Start fading immediately from the top (scrollTop = 0)
+                // Opacity: 1.0 at top, 0.3 after fadeDistance pixels
+                if (scrollTop > 0) {
+                    const opacity = Math.max(0.3, 1.0 - (scrollTop / fadeDistance));
+                    navbar.style.opacity = opacity;
+                } else {
+                    // At the top - fully visible
+                    navbar.style.opacity = 1.0;
+                }
+                
+                lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+            }, { passive: true });
         });
     </script>
 

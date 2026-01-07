@@ -140,3 +140,4 @@ window.addEventListener('scroll', () => {
 - Smooth scrolling và hover effects
 - Dark theme đồng bộ hoàn toàn
 
+
