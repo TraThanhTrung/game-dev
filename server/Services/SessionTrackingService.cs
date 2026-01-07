@@ -106,6 +106,11 @@ public class SessionTrackingService
         await _db.SaveChangesAsync();
     }
 
+    public async Task<GameSession?> GetSessionAsync(Guid sessionId)
+    {
+        return await _db.GameSessions.FindAsync(sessionId);
+    }
+
     public async Task TrackPlayerLeaveAsync(Guid sessionId, Guid playerId)
     {
         var sessionPlayer = await _db.SessionPlayers

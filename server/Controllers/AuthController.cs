@@ -55,6 +55,40 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Login player with username and password.
+    /// Verifies password and returns player session if credentials are valid.
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<ActionResult<RegisterResponse>> Login([FromBody] LoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PlayerName) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest("PlayerName and Password are required");
+        }
+
+        // Find player by name
+        var player = await _playerWebService.GetPlayerProfileByNameAsync(request.PlayerName);
+        if (player == null)
+        {
+            return Unauthorized("Invalid username or password");
+        }
+
+        // Verify password
+        if (!_playerWebService.VerifyPassword(player, request.Password))
+        {
+            return Unauthorized("Invalid username or password");
+        }
+
+        // Register in WorldService (load existing player)
+        var result = _world.RegisterOrLoadPlayer(player, isNew: false);
+
+        _logger.LogInformation("Player logged in: {Name} (ID: {Id})", player.Name, player.Id);
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Get player profile data (for loading saved game).
     /// </summary>
     [HttpGet("profile/{playerId}")]

@@ -105,6 +105,91 @@ public class NetClient : MonoBehaviour
         onSuccess?.Invoke();
     }
 
+    public IEnumerator GetPlayerProfile(Action<PlayerProfileResponse> onSuccess, Action<string> onError)
+    {
+        if (PlayerId == Guid.Empty)
+        {
+            onError?.Invoke("Player not logged in");
+            yield break;
+        }
+
+        var url = $"{m_BaseUrl}/auth/profile/{PlayerId}";
+        using var req = UnityWebRequest.Get(url);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        PlayerProfileResponse result;
+        try
+        {
+            result = JsonUtility.FromJson<PlayerProfileResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid profile response JSON");
+            yield break;
+        }
+
+        if (result == null)
+        {
+            onError?.Invoke("Null profile response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    public IEnumerator LoginPlayer(string playerName, string password, Action onSuccess, Action<string> onError)
+    {
+        var payload = JsonUtility.ToJson(new LoginRequest { playerName = playerName, password = password });
+        using var req = BuildPost("/auth/login", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        RegisterResponse result;
+        try
+        {
+            result = JsonUtility.FromJson<RegisterResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid login response JSON");
+            yield break;
+        }
+
+        if (result == null || string.IsNullOrEmpty(result.playerId) || !Guid.TryParse(result.playerId, out var pid))
+        {
+            onError?.Invoke("Missing/invalid PlayerId in login response");
+            yield break;
+        }
+
+        PlayerId = pid;
+        Token = result.token;
+        SessionId = string.IsNullOrEmpty(result.sessionId) ? m_DefaultSessionId : result.sessionId;
+        onSuccess?.Invoke();
+    }
+
     public IEnumerator JoinSession(string playerName, Action onSuccess, Action<string> onError)
     {
         if (PlayerId == Guid.Empty)
@@ -418,6 +503,113 @@ public class NetClient : MonoBehaviour
     /// <summary>
     /// Request respawn from server (resets position to spawn and sets HP to 50%).
     /// </summary>
+    public IEnumerator CreateRoom(Action<CreateRoomResponse> onSuccess, Action<string> onError)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new CreateRoomRequest
+        {
+            playerId = PlayerId.ToString(),
+            token = Token
+        });
+
+        using var req = BuildPost("/rooms/create", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        CreateRoomResponse result;
+        try
+        {
+            result = JsonUtility.FromJson<CreateRoomResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid create room response JSON");
+            yield break;
+        }
+
+        if (result == null || string.IsNullOrEmpty(result.roomId))
+        {
+            onError?.Invoke("Missing/invalid RoomId in create room response");
+            yield break;
+        }
+
+        SessionId = result.roomId;
+        onSuccess?.Invoke(result);
+    }
+
+    public IEnumerator JoinRoom(string roomId, Action<JoinRoomResponse> onSuccess, Action<string> onError)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        if (string.IsNullOrWhiteSpace(roomId))
+        {
+            onError?.Invoke("Room ID is required");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new JoinRoomRequest
+        {
+            playerId = PlayerId.ToString(),
+            roomId = roomId,
+            token = Token
+        });
+
+        using var req = BuildPost("/rooms/join", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error} {req.downloadHandler?.text}");
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        JoinRoomResponse result;
+        try
+        {
+            result = JsonUtility.FromJson<JoinRoomResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid join room response JSON");
+            yield break;
+        }
+
+        if (result == null || !result.success)
+        {
+            onError?.Invoke("Failed to join room");
+            yield break;
+        }
+
+        SessionId = result.roomId;
+        onSuccess?.Invoke(result);
+    }
+
     public IEnumerator RequestRespawn(Action<RespawnResponse> onSuccess = null, Action<string> onError = null)
     {
         if (!IsConnected)
@@ -463,6 +655,13 @@ public class NetClient : MonoBehaviour
 public class RegisterRequest
 {
     public string playerName;
+}
+
+[Serializable]
+public class LoginRequest
+{
+    public string playerName;
+    public string password;
 }
 
 [Serializable]
@@ -618,6 +817,44 @@ public class RespawnResponse
     public float y;
     public int currentHp;
     public int maxHp;
+}
+
+[Serializable]
+public class PlayerProfileResponse
+{
+    public string playerId;
+    public string name;
+    public int level;
+    public int exp;
+    public int gold;
+}
+
+[Serializable]
+public class CreateRoomRequest
+{
+    public string playerId;
+    public string token;
+}
+
+[Serializable]
+public class CreateRoomResponse
+{
+    public string roomId;
+}
+
+[Serializable]
+public class JoinRoomRequest
+{
+    public string playerId;
+    public string roomId;
+    public string token;
+}
+
+[Serializable]
+public class JoinRoomResponse
+{
+    public bool success;
+    public string roomId;
 }
 #endregion
 

@@ -122,6 +122,29 @@ public class WorldService
         };
     }
 
+    /// <summary>
+    /// Create a new room (SessionState) with the given sessionId from database.
+    /// </summary>
+    public void CreateRoom(Guid sessionId)
+    {
+        var sessionIdStr = sessionId.ToString();
+        var session = _sessions.GetOrAdd(sessionIdStr, sid => CreateDefaultSession(sid));
+        _logger.LogInformation("Created room: {SessionId}", sessionIdStr);
+    }
+
+    /// <summary>
+    /// Get room info (player count, etc.) from in-memory state.
+    /// Returns null if room doesn't exist.
+    /// </summary>
+    public (int playerCount, int version)? GetRoomInfo(string roomId)
+    {
+        if (_sessions.TryGetValue(roomId, out var session))
+        {
+            return (session.Players.Count, session.Version);
+        }
+        return null;
+    }
+
     public bool JoinSession(JoinSessionRequest request)
     {
         var session = _sessions.GetOrAdd(request.SessionId, sid => CreateDefaultSession(sid));
