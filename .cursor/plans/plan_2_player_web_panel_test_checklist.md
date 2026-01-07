@@ -615,3 +615,4 @@ dotnet run
 - [ ] Game Results page chờ Plan 3 implementation
 - [ ] Có thể thêm caching cho performance
 - [ ] Có thể thêm real-time updates với SignalR (future enhancement)
+

@@ -9,3 +9,4 @@ public class PlayerProfileDto
     public int Gold { get; set; }
 }
 
+
