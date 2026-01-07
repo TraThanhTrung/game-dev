@@ -18,6 +18,16 @@ public class PlayerWebService
     private readonly GameConfigService? _configService;
     #endregion
 
+    #region Private Methods
+    /// <summary>
+    /// Save changes to database.
+    /// </summary>
+    public async Task SaveChangesAsync()
+    {
+        await _db.SaveChangesAsync();
+    }
+    #endregion
+
     #region Constructor
     public PlayerWebService(GameDbContext db, ILogger<PlayerWebService> logger, GameConfigService? configService = null)
     {
@@ -191,7 +201,7 @@ public class PlayerWebService
             _db.PlayerProfiles.Add(newPlayer);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Created new player account: {Name} (Email: {Email}, ID: {Id})", 
+            _logger.LogInformation("Created new player account: {Name} (Email: {Email}, ID: {Id})",
                 username, email, newPlayer.Id);
 
             return (true, newPlayer.Id, null);
@@ -226,6 +236,43 @@ public class PlayerWebService
         var bytes = Encoding.UTF8.GetBytes(password);
         var hash = sha256.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
+    }
+
+    /// <summary>
+    /// Link GoogleId to an existing player account by email.
+    /// </summary>
+    public async Task<(bool Success, Guid PlayerId, string? ErrorMessage)> LinkGoogleIdToExistingAccountAsync(
+        string googleId, string email)
+    {
+        try
+        {
+            var existingPlayer = await GetPlayerProfileByEmailAsync(email);
+            if (existingPlayer == null)
+            {
+                return (false, Guid.Empty, "Account with this email not found");
+            }
+
+            // Check if GoogleId is already linked to another account
+            var existingGoogle = await GetPlayerProfileByGoogleIdAsync(googleId);
+            if (existingGoogle != null && existingGoogle.Id != existingPlayer.Id)
+            {
+                return (false, Guid.Empty, "Google account is already linked to another player");
+            }
+
+            // Link GoogleId to existing account
+            existingPlayer.GoogleId = googleId;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Linked GoogleId to existing account: {Email} (PlayerId: {Id})",
+                email, existingPlayer.Id);
+
+            return (true, existingPlayer.Id, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error linking GoogleId to account: {Email}", email);
+            return (false, Guid.Empty, "Failed to link Google account. Please try again.");
+        }
     }
 
     /// <summary>
@@ -265,11 +312,19 @@ public class PlayerWebService
             // Use email username if username not provided
             var playerName = username ?? email.Split('@')[0];
 
+            // Check if username already exists
+            var existingName = await GetPlayerProfileByNameAsync(playerName);
+            if (existingName != null)
+            {
+                return (false, Guid.Empty, $"Username '{playerName}' is already taken. Please choose a different username.");
+            }
+
             var newPlayer = new PlayerProfile
             {
                 Id = Guid.NewGuid(),
                 Name = playerName,
                 Email = email,
+                EmailVerified = true, // Gmail accounts are verified via Google OAuth
                 GoogleId = googleId,
                 PasswordHash = HashPassword("1234"), // Default password for Gmail users
                 TokenHash = Guid.NewGuid().ToString("N"),
@@ -293,7 +348,7 @@ public class PlayerWebService
             _db.PlayerProfiles.Add(newPlayer);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Created new player with Google: {Name} (Email: {Email}, GoogleId: {GoogleId}, ID: {Id})", 
+            _logger.LogInformation("Created new player with Google: {Name} (Email: {Email}, GoogleId: {GoogleId}, ID: {Id})",
                 playerName, email, googleId, newPlayer.Id);
 
             return (true, newPlayer.Id, null);
@@ -302,6 +357,177 @@ public class PlayerWebService
         {
             _logger.LogError(ex, "Error creating/linking Google account: {Email}", email);
             return (false, Guid.Empty, "Failed to create account. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Change password for a player account.
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> ChangePasswordAsync(
+        Guid playerId, string currentPassword, string newPassword)
+    {
+        try
+        {
+            var player = await GetPlayerProfileAsync(playerId);
+            if (player == null)
+            {
+                return (false, "Player not found");
+            }
+
+            // Check if player has a password (not Gmail-only account)
+            if (string.IsNullOrEmpty(player.PasswordHash))
+            {
+                return (false, "This account does not have a password. Gmail accounts use a default password.");
+            }
+
+            // Verify current password
+            if (!VerifyPassword(player, currentPassword))
+            {
+                return (false, "Current password is incorrect");
+            }
+
+            // Validate new password
+            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 4)
+            {
+                return (false, "New password must be at least 4 characters long");
+            }
+
+            // Update password
+            player.PasswordHash = HashPassword(newPassword);
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Password changed for player: {Name} (ID: {Id})", player.Name, playerId);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password for player: {Id}", playerId);
+            return (false, "Failed to change password. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Update email for a player account.
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> UpdateEmailAsync(
+        Guid playerId, string newEmail)
+    {
+        try
+        {
+            var player = await GetPlayerProfileAsync(playerId);
+            if (player == null)
+            {
+                return (false, "Player not found");
+            }
+
+            // Don't allow updating email if it's already verified
+            if (player.EmailVerified && !string.IsNullOrEmpty(player.Email))
+            {
+                return (false, "Cannot update verified email. Verified emails are locked for security.");
+            }
+
+            // Validate email format (basic check)
+            if (string.IsNullOrWhiteSpace(newEmail) || !newEmail.Contains('@'))
+            {
+                return (false, "Invalid email format");
+            }
+
+            newEmail = newEmail.Trim().ToLower();
+
+            // Check if email is already used by another account
+            var existingEmail = await GetPlayerProfileByEmailAsync(newEmail);
+            if (existingEmail != null && existingEmail.Id != playerId)
+            {
+                return (false, "This email is already registered to another account");
+            }
+
+            // Update email and reset verification status
+            player.Email = newEmail;
+            player.EmailVerified = false; // Reset verification when email changes
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Email updated for player: {Name} (ID: {Id}, New Email: {Email})",
+                player.Name, playerId, newEmail);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating email for player: {Id}", playerId);
+            return (false, "Failed to update email. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Verify email for a player account.
+    /// For student project, this is a simple flag update (no actual email verification).
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> VerifyEmailAsync(Guid playerId)
+    {
+        try
+        {
+            var player = await GetPlayerProfileAsync(playerId);
+            if (player == null)
+            {
+                return (false, "Player not found");
+            }
+
+            if (string.IsNullOrEmpty(player.Email))
+            {
+                return (false, "No email address to verify");
+            }
+
+            // For student project, simply mark as verified
+            // In production, this would involve sending verification email and checking token
+            player.EmailVerified = true;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Email verified for player: {Name} (ID: {Id}, Email: {Email})",
+                player.Name, playerId, player.Email);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying email for player: {Id}", playerId);
+            return (false, "Failed to verify email. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Update avatar path for a player account.
+    /// </summary>
+    public async Task<(bool Success, string? ErrorMessage)> UpdateAvatarAsync(
+        Guid playerId, string avatarPath)
+    {
+        try
+        {
+            var player = await GetPlayerProfileAsync(playerId);
+            if (player == null)
+            {
+                return (false, "Player not found");
+            }
+
+            // Validate avatar path
+            if (string.IsNullOrWhiteSpace(avatarPath))
+            {
+                return (false, "Avatar path is required");
+            }
+
+            // Update avatar path
+            player.AvatarPath = avatarPath;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Avatar updated for player: {Name} (ID: {Id}, Avatar: {Avatar})",
+                player.Name, playerId, avatarPath);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating avatar for player: {Id}", playerId);
+            return (false, "Failed to update avatar. Please try again.");
         }
     }
     #endregion

@@ -37,7 +37,7 @@ public class IndexModel : PageModel
     #endregion
 
     #region Public Methods
-    public IActionResult OnGet(string? gmail = null, string? email = null)
+    public IActionResult OnGet(string? gmail = null, string? email = null, string? error = null)
     {
         // Check if player is logged in
         var playerId = HttpContext.Session.GetString("PlayerId");
@@ -49,20 +49,45 @@ public class IndexModel : PageModel
             return Redirect("/Player");
         }
 
-        // Check if this is a Gmail login callback
-        if (gmail == "success" && !string.IsNullOrEmpty(email))
+        // Clear Gmail state if there's an error
+        if (!string.IsNullOrEmpty(error))
         {
-            IsGmailLogin = true;
-            GmailEmail = email;
-            // GmailEmail, GoogleId, GoogleName should already be in session from AuthController
+            HttpContext.Session.Remove("GmailEmail");
+            HttpContext.Session.Remove("GoogleId");
+            HttpContext.Session.Remove("GoogleName");
+            ErrorMessage = "Gmail authentication failed. Please try again.";
+            return Page();
         }
 
-        // Also check session for Gmail login state
-        var sessionGmailEmail = HttpContext.Session.GetString("GmailEmail");
-        if (!string.IsNullOrEmpty(sessionGmailEmail))
+        // Only show Gmail login state if this is a direct callback from Google OAuth
+        // Check if this is a Gmail login callback with query parameter
+        if (gmail == "success" && !string.IsNullOrEmpty(email))
         {
-            IsGmailLogin = true;
-            GmailEmail = sessionGmailEmail;
+            // Verify that session has matching Gmail info (prevent stale state)
+            var sessionGmailEmail = HttpContext.Session.GetString("GmailEmail");
+            var sessionGoogleId = HttpContext.Session.GetString("GoogleId");
+
+            if (!string.IsNullOrEmpty(sessionGmailEmail) &&
+                !string.IsNullOrEmpty(sessionGoogleId) &&
+                sessionGmailEmail.Equals(email, StringComparison.OrdinalIgnoreCase))
+            {
+                IsGmailLogin = true;
+                GmailEmail = email;
+            }
+            else
+            {
+                // Session doesn't match or is stale, clear it
+                HttpContext.Session.Remove("GmailEmail");
+                HttpContext.Session.Remove("GoogleId");
+                HttpContext.Session.Remove("GoogleName");
+            }
+        }
+        else
+        {
+            // Not a Gmail callback - clear any stale Gmail session data
+            HttpContext.Session.Remove("GmailEmail");
+            HttpContext.Session.Remove("GoogleId");
+            HttpContext.Session.Remove("GoogleName");
         }
 
         return Page();
@@ -73,8 +98,29 @@ public class IndexModel : PageModel
         // Handle Gmail login flow - user enters username after Gmail auth
         var gmailEmail = HttpContext.Session.GetString("GmailEmail");
         var googleId = HttpContext.Session.GetString("GoogleId");
-        if (!string.IsNullOrEmpty(gmailEmail) && !string.IsNullOrEmpty(googleId) && !string.IsNullOrEmpty(gmailUsername))
+
+        // Check if this is a Gmail login flow
+        if (!string.IsNullOrEmpty(gmailEmail) && !string.IsNullOrEmpty(googleId))
         {
+            // Validate username for Gmail login
+            if (string.IsNullOrWhiteSpace(gmailUsername))
+            {
+                ErrorMessage = "Username is required. Please enter your desired username.";
+                IsGmailLogin = true;
+                GmailEmail = gmailEmail;
+                return Page();
+            }
+
+            // Trim and validate username
+            gmailUsername = gmailUsername.Trim();
+            if (gmailUsername.Length < 3)
+            {
+                ErrorMessage = "Username must be at least 3 characters long.";
+                IsGmailLogin = true;
+                GmailEmail = gmailEmail;
+                return Page();
+            }
+
             // Find or create player with Gmail
             var result = await _playerWebService.CreateOrLinkGoogleAccountAsync(
                 googleId,  // Use real GoogleId instead of email
@@ -96,7 +142,7 @@ public class IndexModel : PageModel
                 HttpContext.Session.Remove("GoogleName");
 
                 _logger.LogInformation("Player logged in via Gmail: {Name} (Email: {Email}, ID: {Id})",
-                    gmailUsername, gmailEmail, result.PlayerId);
+                    player?.Name ?? gmailUsername, gmailEmail, result.PlayerId);
 
                 return Redirect("/Player");
             }

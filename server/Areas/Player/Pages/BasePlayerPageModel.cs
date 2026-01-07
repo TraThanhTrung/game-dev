@@ -33,7 +33,7 @@ public abstract class BasePlayerPageModel : PageModel
 
     protected IActionResult RedirectToLogin()
     {
-        return RedirectToPage("/Login");
+        return Redirect("/");
     }
 
     protected IActionResult RequireLogin()

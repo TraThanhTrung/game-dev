@@ -4,36 +4,44 @@
     ViewData["Title"] = "Game Results";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-trophy me-2"></i>Game Results
-    </h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-trophy me-2"></i>Game Results
+        </h1>
+        <p class="text-muted mb-0">Your detailed game performance records</p>
+    </div>
 </div>
 
 @if (Model.GameResults.Any())
 {
-    <div class="card shadow mb-4">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>Game Records
+        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Score</th>
-                            <th>Enemies Killed</th>
-                            <th>Deaths</th>
-                            <th>Exp Gained</th>
-                            <th>Gold Gained</th>
-                            <th>Duration</th>
+                            <th><i class="fas fa-calendar me-2"></i>Date</th>
+                            <th><i class="fas fa-star me-2"></i>Score</th>
+                            <th><i class="fas fa-skull me-2"></i>Enemies Killed</th>
+                            <th><i class="fas fa-times-circle me-2"></i>Deaths</th>
+                            <th><i class="fas fa-star me-2"></i>Exp Gained</th>
+                            <th><i class="fas fa-coins me-2"></i>Gold Gained</th>
+                            <th><i class="fas fa-hourglass-half me-2"></i>Duration</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var result in Model.GameResults)
                         {
                             <tr>
-                                <td colspan="7" class="text-center text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Game results feature will be available after Plan 3 implementation.
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="alert alert-info mb-0" style="background: rgba(0, 212, 255, 0.1); border-color: var(--gaming-primary); color: var(--gaming-primary);">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Game results feature will be available after Plan 3 implementation.
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -45,21 +53,23 @@
 }
 else
 {
-    <div class="card shadow">
+    <div class="card">
         <div class="card-body text-center py-5">
-            <i class="fas fa-trophy fa-3x text-muted mb-3"></i>
-            <p class="text-muted">
-                <strong>Game Results feature is coming soon!</strong>
+            <i class="fas fa-trophy fa-4x mb-4" style="color: var(--gaming-accent); opacity: 0.3;"></i>
+            <h3 class="mb-3" style="color: var(--gaming-text);">Game Results Coming Soon!</h3>
+            <p class="text-muted mb-2">
+                <strong>This feature is under development</strong>
             </p>
-            <p class="text-muted small">
+            <p class="text-muted small mb-4">
                 This feature depends on the GameResult entity from Plan 3, which tracks detailed game results
                 including scores, enemies killed, deaths, experience gained, and gold earned.
             </p>
-            <a asp-page="/History" class="btn btn-primary">
-                <i class="fas fa-history me-1"></i>View Match History Instead
+            <a asp-page="/History" class="btn btn-primary me-2">
+                <i class="fas fa-history me-1"></i>View Match History
+            </a>
+            <a asp-page="/Index" class="btn btn-success">
+                <i class="fas fa-home me-1"></i>Go to Dashboard
             </a>
         </div>
     </div>
 }
-
-

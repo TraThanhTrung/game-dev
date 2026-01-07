@@ -193,6 +193,9 @@ namespace GameServer.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Exp")
                         .HasColumnType("INTEGER");
 
@@ -204,6 +207,10 @@ namespace GameServer.Migrations
 
                     b.Property<string>("GoogleId")
                         .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AvatarPath")
+                        .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Level")

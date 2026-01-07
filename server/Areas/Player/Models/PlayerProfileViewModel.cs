@@ -7,6 +7,10 @@ public class PlayerProfileViewModel
 {
     public Guid PlayerId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public bool EmailVerified { get; set; }
+    public bool HasGoogleAccount { get; set; }
+    public string? AvatarPath { get; set; }
     public int Level { get; set; }
     public int Exp { get; set; }
     public int ExpToLevel { get; set; }

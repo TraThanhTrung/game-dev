@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,12 +26,14 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToAreaPage("Admin", "/Login");
     // Then authorize the rest of the Admin area
     options.Conventions.AuthorizeAreaFolder("Admin", "/");
-    
-    // Allow anonymous access to Player Login page
-    options.Conventions.AllowAnonymousToAreaPage("Player", "/Login");
 });
 
+// Data Protection for authentication cookies
+// Must be configured before authentication to protect OAuth state cookies
+builder.Services.AddDataProtection();
+
 // Session configuration for Player area authentication
+// Use in-memory cache for session (required for OAuth state)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -38,17 +41,36 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.Name = ".Player.Session";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Allow http for localhost
 });
 
 // Google OAuth Authentication
 builder.Services.AddAuthentication()
+    .AddCookie("External", options =>
+    {
+        options.Cookie.Name = ".External.Session";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        options.SlidingExpiration = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Allow http for localhost
+    })
     .AddGoogle(options =>
     {
         var googleAuth = builder.Configuration.GetSection("Authentication:Google");
         options.ClientId = googleAuth["ClientId"] ?? throw new InvalidOperationException("Google ClientId not configured");
         options.ClientSecret = googleAuth["ClientSecret"] ?? throw new InvalidOperationException("Google ClientSecret not configured");
         options.CallbackPath = "/signin-google";
+        // Set ReturnUrlParameter so middleware redirects to our handler after authentication
+        options.ReturnUrlParameter = "returnUrl";
         options.SignInScheme = "External";
+        // Save tokens for correlation
+        options.SaveTokens = true;
+        // Use default correlation cookie settings - don't override
+        // This ensures proper state management
+        // Don't use PKCE - it can cause correlation issues
+        options.UsePkce = false;
     });
 
 // Database Context - Combined Game and Identity
@@ -161,7 +183,7 @@ using (var scope = app.Services.CreateScope())
         {
             configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared", "game-config.json");
         }
-        
+
         if (File.Exists(configPath))
         {
             await GameServer.Scripts.MigrateEnemiesFromConfig.RunAsync(db, app.Logger, configPath);
@@ -188,7 +210,17 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
-// Detailed request logging middleware
+// Static files for admin template
+app.UseStaticFiles();
+
+// Session middleware (MUST be before UseAuthentication for OAuth to work)
+app.UseSession();
+
+// Authentication & Authorization (MUST be before logging middleware)
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Detailed request logging middleware (AFTER authentication to avoid interfering with OAuth)
 app.Use(async (ctx, next) =>
 {
     var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -198,9 +230,11 @@ app.Use(async (ctx, next) =>
 
     // Log request start (only for non-polling requests to reduce spam)
     bool isPolling = path.ToString().Contains("/state");
-    
+    bool isOAuthCallback = path.ToString().Contains("/auth/google") || path.ToString().Contains("/signin-google");
+
+    // Don't interfere with OAuth flow
     await next();
-    
+
     sw.Stop();
     var playerId = ctx.Items.TryGetValue("playerId", out var pid) ? pid?.ToString() ?? "-" : "-";
     var status = ctx.Response.StatusCode;
@@ -208,26 +242,16 @@ app.Use(async (ctx, next) =>
     // Color-code by status
     var logLevel = status >= 400 ? LogLevel.Warning : LogLevel.Information;
 
-    // Skip logging polling requests unless there's an error or it's slow
-    if (isPolling && status < 400 && sw.ElapsedMilliseconds < 100)
+    // Skip logging polling requests and OAuth callbacks unless there's an error
+    if ((isPolling || isOAuthCallback) && status < 400 && sw.ElapsedMilliseconds < 100)
     {
-        return; // Don't log successful fast polling requests
+        return; // Don't log successful fast requests
     }
 
-    app.Logger.Log(logLevel, 
+    app.Logger.Log(logLevel,
         "[{method}] {path}{query} -> {status} ({ms}ms) player:{pid}",
         method, path, query, status, sw.ElapsedMilliseconds, playerId);
 });
-
-// Static files for admin template
-app.UseStaticFiles();
-
-// Session middleware (must be before UseAuthentication)
-app.UseSession();
-
-// Authentication & Authorization
-app.UseAuthentication();
-app.UseAuthorization();
 
 // Map Razor Pages
 app.MapRazorPages();

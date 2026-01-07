@@ -4,104 +4,366 @@
     ViewData["Title"] = "Profile";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-user me-2"></i>Player Profile
-    </h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-user me-2"></i>Player Profile
+        </h1>
+        <p class="text-muted mb-0">Manage your account and profile settings</p>
+    </div>
 </div>
 
 @if (Model.Profile != null)
 {
     <div class="row">
+        <!-- Avatar Section -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-circle me-2"></i>Avatar
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        @{
+                            var avatarUrl = !string.IsNullOrEmpty(Model.Profile.AvatarPath) 
+                                ? Model.Profile.AvatarPath 
+                                : "/avatars/default.svg";
+                        }
+                        <img src="@avatarUrl" alt="Avatar" class="rounded-circle" 
+                             style="width: 200px; height: 200px; object-fit: cover; border: 4px solid var(--gaming-primary); box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); transition: all 0.3s ease;" 
+                             onerror="this.src='/avatars/default.svg'"
+                             onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 0 30px rgba(0, 212, 255, 0.8)';"
+                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 0 20px rgba(0, 212, 255, 0.5)';">
+                    </div>
+                    <form method="post" asp-page-handler="UploadAvatar" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <input type="file" class="form-control" name="avatarFile" 
+                                   accept="image/jpeg,image/png,image/gif,image/webp" required>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>Max size: 5MB (JPG, PNG, GIF, WEBP)
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-upload me-1"></i>Upload Avatar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-info-circle me-2"></i>Basic Information
-                    </h6>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-info-circle me-2"></i>Basic Information
                 </div>
                 <div class="card-body">
-                    <table class="table table-borderless">
+                    <table class="table">
                         <tr>
-                            <td style="width: 200px;"><strong>Player Name:</strong></td>
+                            <td style="width: 200px;">
+                                <strong>
+                                    <i class="fas fa-user-circle me-2" style="color: var(--gaming-primary);"></i>Player Name:
+                                </strong>
+                            </td>
                             <td><span class="player-name">@Model.Profile.Name</span></td>
                         </tr>
                         <tr>
-                            <td><strong>Player ID:</strong></td>
-                            <td><code>@Model.Profile.PlayerId</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Level:</strong></td>
                             <td>
-                                <span class="badge bg-primary">Level @Model.Profile.Level</span>
+                                <strong>
+                                    <i class="fas fa-id-card me-2" style="color: var(--gaming-text-muted);"></i>Player ID:
+                                </strong>
+                            </td>
+                            <td>
+                                <code style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                                    @Model.Profile.PlayerId
+                                </code>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Experience:</strong></td>
                             <td>
-                                @Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
-                                <div class="progress mt-2" style="height: 20px;">
+                                <strong>
+                                    <i class="fas fa-level-up-alt me-2" style="color: var(--gaming-accent);"></i>Level:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                    Level @Model.Profile.Level
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-star me-2" style="color: var(--gaming-accent);"></i>Experience:
+                                </strong>
+                            </td>
+                            <td>
+                                <div class="mb-2">
+                                    <strong style="color: var(--gaming-primary);">
+                                        @Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
+                                    </strong>
+                                </div>
+                                <div class="progress">
                                     @{
                                         var expPercent = Model.Profile.ExpToLevel > 0 
                                             ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
                                             : 0;
                                     }
-                                    <div class="progress-bar bg-success" role="progressbar" 
+                                    <div class="progress-bar" role="progressbar" 
                                          style="width: @expPercent%" 
                                          aria-valuenow="@expPercent" 
                                          aria-valuemin="0" 
                                          aria-valuemax="100">
-                                        @expPercent%
+                                        <strong>@expPercent%</strong>
                                     </div>
                                 </div>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Gold:</strong></td>
                             <td>
-                                <i class="fas fa-coins text-warning me-1"></i>
-                                <strong>@Model.Profile.Gold.ToString("N0")</strong>
+                                <strong>
+                                    <i class="fas fa-coins me-2" style="color: var(--gaming-accent);"></i>Gold:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    <i class="fas fa-coins me-1"></i>@Model.Profile.Gold.ToString("N0")
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Account Created:</strong></td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-envelope me-2" style="color: var(--gaming-primary);"></i>Email:
+                                </strong>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(Model.Profile.Email))
+                                {
+                                    <span>@Model.Profile.Email</span>
+                                    @if (Model.Profile.EmailVerified)
+                                    {
+                                        <span class="badge bg-success ms-2">
+                                            <i class="fas fa-check-circle me-1"></i>Verified
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning ms-2">
+                                            <i class="fas fa-exclamation-circle me-1"></i>Not Verified
+                                        </span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No email address</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-user-tag me-2" style="color: var(--gaming-text-muted);"></i>Account Type:
+                                </strong>
+                            </td>
+                            <td>
+                                @if (Model.Profile.HasGoogleAccount)
+                                {
+                                    <span class="badge bg-danger">
+                                        <i class="fab fa-google me-1"></i>Google Account
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-user me-1"></i>Standard Account
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-calendar me-2" style="color: var(--gaming-text-muted);"></i>Account Created:
+                                </strong>
+                            </td>
                             <td>@Model.Profile.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</td>
                         </tr>
                     </table>
                 </div>
             </div>
 
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-chart-line me-2"></i>Statistics
-                    </h6>
+            <!-- Email Management Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-envelope me-2"></i>Email Management
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm">
+                    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>@Model.SuccessMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>@Model.ErrorMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (string.IsNullOrEmpty(Model.Profile.Email))
+                    {
+                        <!-- Add Email Form -->
+                        <form method="post" asp-page-handler="UpdateEmail">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label for="newEmail" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>Email Address
+                                </label>
+                                <input type="email" class="form-control" id="newEmail" name="newEmail" 
+                                       required placeholder="your.email@example.com">
+                                <small class="text-muted">Add an email address to your account. You can verify it via Google OAuth after adding.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Save Email
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Current Email:</strong></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="@Model.Profile.Email" 
+                                       @(Model.Profile.EmailVerified ? "readonly" : "")>
+                                @if (Model.Profile.EmailVerified)
+                                {
+                                    <span class="input-group-text bg-success text-white">
+                                        <i class="fas fa-check-circle me-1"></i>Verified
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="input-group-text bg-warning">
+                                        <i class="fas fa-exclamation-circle me-1"></i>Not Verified
+                                    </span>
+                                }
+                            </div>
+                            @if (Model.Profile.EmailVerified)
+                            {
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>This email is verified and cannot be changed.
+                                </small>
+                            }
+                        </div>
+
+                        @if (!Model.Profile.EmailVerified)
+                        {
+                            <div class="mb-3">
+                                <p class="text-muted">Verify your email via Google OAuth to secure your account.</p>
+                                <a href="/auth/verify-email" class="btn btn-success">
+                                    <i class="fab fa-google me-1"></i>Verify via Google
+                                </a>
+                            </div>
+
+                            <!-- Allow updating email only if not verified -->
+                            <form method="post" asp-page-handler="UpdateEmail">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group mb-3">
+                                    <input type="email" class="form-control" name="newEmail" 
+                                           placeholder="New email address" value="@Model.Profile.Email" required>
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit me-1"></i>Update Email
+                                    </button>
+                                </div>
+                            </form>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-key me-2"></i>Password
+                </div>
+                <div class="card-body">
+                    <p>Manage your account password.</p>
+                    <a asp-page="/ChangePassword" class="btn btn-primary">
+                        <i class="fas fa-key me-1"></i>Change Password
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i>Statistics
+                </div>
+                <div class="card-body">
+                    <table class="table">
                         <tr>
-                            <td style="width: 200px;"><strong>Damage:</strong></td>
-                            <td>@Model.Profile.Stats.Damage</td>
+                            <td style="width: 200px;">
+                                <strong>
+                                    <i class="fas fa-fire me-2" style="color: var(--gaming-secondary);"></i>Damage:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@Model.Profile.Stats.Damage</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Range:</strong></td>
-                            <td>@Model.Profile.Stats.Range.ToString("F2")</td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-bullseye me-2" style="color: var(--gaming-primary);"></i>Range:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@Model.Profile.Stats.Range.ToString("F2")</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Knockback Force:</strong></td>
-                            <td>@Model.Profile.Stats.KnockbackForce.ToString("F2")</td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-hand-rock me-2" style="color: var(--gaming-accent);"></i>Knockback Force:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">@Model.Profile.Stats.KnockbackForce.ToString("F2")</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Speed:</strong></td>
-                            <td>@Model.Profile.Stats.Speed.ToString("F2")</td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-running me-2" style="color: var(--gaming-success);"></i>Speed:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">@Model.Profile.Stats.Speed.ToString("F2")</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Max Health:</strong></td>
-                            <td>@Model.Profile.Stats.MaxHealth</td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-shield-alt me-2" style="color: var(--gaming-primary);"></i>Max Health:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@Model.Profile.Stats.MaxHealth</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Current Health:</strong></td>
-                            <td>@Model.Profile.Stats.CurrentHealth</td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-heartbeat me-2" style="color: var(--gaming-secondary);"></i>Current Health:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">@Model.Profile.Stats.CurrentHealth</span>
+                            </td>
                         </tr>
                     </table>
                     <a asp-page="/Stats" class="btn btn-primary">
@@ -112,35 +374,29 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-box me-2"></i>Inventory
-                    </h6>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-box me-2"></i>Inventory
                 </div>
-                <div class="card-body">
-                    <p class="text-center">
-                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                    </p>
-                    <p class="text-center">
-                        <strong>@Model.Profile.InventoryItemCount</strong> items
-                    </p>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-box-open fa-4x mb-3" style="color: var(--gaming-primary); opacity: 0.3;"></i>
+                    </div>
+                    <h3 class="mb-2" style="color: var(--gaming-primary);">@Model.Profile.InventoryItemCount</h3>
+                    <p class="text-muted mb-0">Items</p>
                 </div>
             </div>
 
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-magic me-2"></i>Skills
-                    </h6>
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-magic me-2"></i>Skills
                 </div>
-                <div class="card-body">
-                    <p class="text-center">
-                        <i class="fas fa-star fa-3x text-muted mb-3"></i>
-                    </p>
-                    <p class="text-center">
-                        <strong>@Model.Profile.SkillCount</strong> skills unlocked
-                    </p>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-star fa-4x mb-3" style="color: var(--gaming-accent); opacity: 0.3;"></i>
+                    </div>
+                    <h3 class="mb-2" style="color: var(--gaming-accent);">@Model.Profile.SkillCount</h3>
+                    <p class="text-muted mb-0">Skills Unlocked</p>
                 </div>
             </div>
         </div>

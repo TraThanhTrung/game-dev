@@ -1,127 +1,547 @@
+@using GameServer.Services
+@inject PlayerWebService PlayerWebService
+@{
+    var playerIdStr = Context.Session.GetString("PlayerId");
+    string? avatarPath = null;
+    if (Guid.TryParse(playerIdStr, out var playerId))
+    {
+        var player = await PlayerWebService.GetPlayerProfileAsync(playerId);
+        avatarPath = player?.AvatarPath;
+    }
+    var avatarUrl = !string.IsNullOrEmpty(avatarPath) ? avatarPath : "/avatars/default.svg";
+}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>@ViewData["Title"] - Player Panel</title>
+    <title>@ViewData["Title"] - Game Dashboard</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom styles -->
+    <!-- Google Fonts - Gaming Style -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Gaming Theme Styles -->
     <style>
         :root {
-            --primary-color: #4e73df;
-            --secondary-color: #858796;
-            --success-color: #1cc88a;
-            --info-color: #36b9cc;
-            --warning-color: #f6c23e;
-            --danger-color: #e74a3b;
-            --dark-color: #5a5c69;
+            --gaming-primary: #00d4ff;
+            --gaming-secondary: #ff006e;
+            --gaming-accent: #ffbe0b;
+            --gaming-success: #06ffa5;
+            --gaming-dark: #0a0e27;
+            --gaming-darker: #050811;
+            --gaming-card: #0f1629;
+            --gaming-border: #1a2332;
+            --gaming-text: #e0e6ed;
+            --gaming-text-muted: #8b95a6;
+            --neon-glow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            background-color: #f8f9fc;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--gaming-darker) 0%, var(--gaming-dark) 50%, #0d1525 100%);
+            background-attachment: fixed;
+            color: var(--gaming-text);
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 400;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
         }
 
+        /* Animated Background Particles - Optimized */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 110, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 190, 11, 0.08) 0%, transparent 50%);
+            background-size: 200% 200%;
+            animation: gradientShift 20s ease infinite;
+            z-index: 0;
+            pointer-events: none;
+            will-change: background-position;
+            transform: translateZ(0); /* GPU acceleration */
+        }
+
+        @@keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* Navbar - Gaming Style */
         .navbar {
-            background: linear-gradient(135deg, var(--primary-color) 0%, #224abe 100%);
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(255, 0, 110, 0.15) 100%);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--gaming-primary);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
 
         .navbar-brand {
-            font-weight: 600;
-            color: white !important;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: var(--gaming-primary) !important;
+            text-shadow: var(--neon-glow);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
         }
 
+        .navbar-brand:hover {
+            transform: scale(1.05);
+            text-shadow: 0 0 20px var(--gaming-primary), 0 0 40px var(--gaming-primary);
+        }
+
+        .navbar-brand i {
+            color: var(--gaming-accent);
+            margin-right: 0.5rem;
+        }
+
+        .navbar-text {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--gaming-text) !important;
+            font-weight: 500;
+        }
+
+        .navbar-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--gaming-primary);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            object-fit: cover;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-avatar:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+        }
+
+        .btn-outline-light {
+            border-color: var(--gaming-primary);
+            color: var(--gaming-primary);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-light:hover {
+            background: var(--gaming-primary);
+            color: var(--gaming-dark);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* Sidebar - Gaming Style */
         .sidebar {
-            min-height: calc(100vh - 56px);
-            background: white;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            min-height: calc(100vh - 80px);
+            background: rgba(15, 22, 41, 0.8);
+            backdrop-filter: blur(10px);
+            border-right: 2px solid var(--gaming-border);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+            padding: 2rem 0;
         }
 
         .sidebar .nav-link {
-            color: var(--dark-color);
-            padding: 0.75rem 1rem;
+            color: var(--gaming-text-muted);
+            padding: 1rem 1.5rem;
+            margin: 0.25rem 1rem;
             border-left: 3px solid transparent;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 1.1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: var(--gaming-primary);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
         }
 
         .sidebar .nav-link:hover {
-            background-color: #f8f9fc;
-            border-left-color: var(--primary-color);
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--gaming-primary);
+            border-left-color: var(--gaming-primary);
+            transform: translateX(5px);
+        }
+
+        .sidebar .nav-link:hover::before {
+            transform: scaleY(1);
         }
 
         .sidebar .nav-link.active {
-            background-color: #f8f9fc;
-            border-left-color: var(--primary-color);
-            color: var(--primary-color);
-            font-weight: 600;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.2) 0%, transparent 100%);
+            color: var(--gaming-primary);
+            border-left-color: var(--gaming-primary);
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
         }
 
+        .sidebar .nav-link.active::before {
+            transform: scaleY(1);
+        }
+
+        .sidebar .nav-link i {
+            width: 24px;
+            margin-right: 0.75rem;
+        }
+
+        /* Cards - Gaming Style */
         .card {
-            border: none;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-            margin-bottom: 1.5rem;
+            background: rgba(15, 22, 41, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--gaming-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            will-change: transform; /* GPU acceleration */
+        }
+
+        .card:hover {
+            transform: translateY(-5px) translateZ(0); /* GPU acceleration */
+            box-shadow: 0 12px 40px rgba(0, 212, 255, 0.2);
+            border-color: var(--gaming-primary);
         }
 
         .card-header {
-            background-color: white;
-            border-bottom: 1px solid #e3e6f0;
-            font-weight: 600;
-            color: var(--dark-color);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(255, 0, 110, 0.15) 100%) !important;
+            border-bottom: 2px solid var(--gaming-border);
+            padding: 1.25rem 1.5rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: var(--gaming-primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
         }
 
+        .card-body {
+            padding: 1.5rem;
+            color: var(--gaming-text);
+            background: transparent !important;
+        }
+
+        /* Stat Cards - Gaming Style */
         .stat-card {
-            border-left: 4px solid var(--primary-color);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(15, 22, 41, 0.9) 100%);
+            border: 1px solid var(--gaming-primary);
+            border-left: 4px solid var(--gaming-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            will-change: transform; /* GPU acceleration */
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+            will-change: transform, opacity;
+            transform: translateZ(0); /* GPU acceleration */
+        }
+
+        @@keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px) scale(1.02) translateZ(0); /* GPU acceleration */
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+            border-color: var(--gaming-accent);
         }
 
         .stat-card.success {
-            border-left-color: var(--success-color);
+            border-left-color: var(--gaming-success);
+            border-color: var(--gaming-success);
         }
 
         .stat-card.info {
-            border-left-color: var(--info-color);
+            border-left-color: var(--gaming-primary);
         }
 
         .stat-card.warning {
-            border-left-color: var(--warning-color);
+            border-left-color: var(--gaming-accent);
+            border-color: var(--gaming-accent);
         }
 
         .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--dark-color);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--gaming-primary);
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            margin: 0.5rem 0;
         }
 
         .stat-label {
-            font-size: 0.875rem;
-            color: var(--secondary-color);
+            font-size: 0.85rem;
+            color: var(--gaming-text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 2px;
+            font-weight: 600;
         }
 
-        .player-name {
-            color: var(--primary-color);
+        /* Buttons - Gaming Style */
+        .btn {
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gaming-primary) 0%, #0099cc 100%);
+            border-color: var(--gaming-primary);
+            color: var(--gaming-dark);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) translateZ(0); /* GPU acceleration */
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.6);
+            background: linear-gradient(135deg, #00e5ff 0%, var(--gaming-primary) 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--gaming-success) 0%, #04cc7a 100%);
+            border-color: var(--gaming-success);
+            color: var(--gaming-dark);
+        }
+
+        /* Progress Bars - Gaming Style */
+        .progress {
+            background: rgba(26, 35, 50, 0.8);
+            border-radius: 10px;
+            height: 25px;
+            overflow: hidden;
+            border: 1px solid var(--gaming-border);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--gaming-primary) 0%, var(--gaming-success) 100%);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Tables - Gaming Style */
+        .table {
+            color: var(--gaming-text);
+            background: transparent;
+        }
+
+        .table td, .table th {
+            border-color: var(--gaming-border);
+            padding: 1rem;
+            background: rgba(15, 22, 41, 0.5) !important;
+        }
+
+        .table thead th {
+            background: rgba(0, 212, 255, 0.15) !important;
+            color: var(--gaming-primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--gaming-primary);
+        }
+
+        .table tbody tr {
+            transition: all 0.3s ease;
+            background: rgba(15, 22, 41, 0.5) !important;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background: rgba(15, 22, 41, 0.7) !important;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(0, 212, 255, 0.15) !important;
+            transform: scale(1.01);
+        }
+
+        /* Badges - Gaming Style */
+        .badge {
+            padding: 0.5rem 1rem;
+            font-weight: 700;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bg-primary {
+            background: linear-gradient(135deg, var(--gaming-primary) 0%, #0099cc 100%) !important;
+            color: var(--gaming-dark) !important;
+        }
+
+        .bg-success {
+            background: linear-gradient(135deg, var(--gaming-success) 0%, #04cc7a 100%) !important;
+            color: var(--gaming-dark) !important;
+        }
+
+        .bg-warning {
+            background: linear-gradient(135deg, var(--gaming-accent) 0%, #ffa500 100%) !important;
+            color: var(--gaming-dark) !important;
+        }
+
+        /* Player Name */
+        .player-name {
+            color: var(--gaming-primary);
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        /* Main Content */
+        main {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Headings */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: var(--gaming-primary);
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+        }
+
+        /* Alerts */
+        .alert {
+            border-radius: 8px;
+            border: 2px solid;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            background: rgba(6, 255, 165, 0.1);
+            border-color: var(--gaming-success);
+            color: var(--gaming-success);
+        }
+
+        .alert-danger {
+            background: rgba(255, 0, 110, 0.1);
+            border-color: var(--gaming-secondary);
+            color: var(--gaming-secondary);
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            background: rgba(15, 22, 41, 0.8);
+            border: 1px solid var(--gaming-border);
+            color: var(--gaming-text);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: rgba(15, 22, 41, 0.9);
+            border-color: var(--gaming-primary);
+            color: var(--gaming-text);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .form-label {
+            color: var(--gaming-text);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--gaming-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--gaming-primary);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gaming-accent);
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .sidebar {
+                min-height: auto;
+            }
+            
+            h1 {
+                font-size: 1.75rem;
+            }
         }
     </style>
 </head>
 
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <a class="navbar-brand" asp-area="Player" asp-page="/Index">
-                <i class="fas fa-gamepad me-2"></i>Player Panel
+                <i class="fas fa-gamepad"></i>Game Dashboard
             </a>
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
                 @if (Context.Session.GetString("PlayerName") != null)
                 {
-                    <span class="navbar-text text-white me-3">
-                        <i class="fas fa-user me-1"></i>@Context.Session.GetString("PlayerName")
+                    <span class="navbar-text me-3">
+                        <img src="@avatarUrl" alt="Avatar" class="navbar-avatar me-2" onerror="this.src='/avatars/default.svg'">
+                        <strong>@Context.Session.GetString("PlayerName")</strong>
                     </span>
                     <form method="post" asp-area="Player" asp-page="/Logout" class="d-inline">
                         <button type="submit" class="btn btn-outline-light btn-sm">
@@ -141,27 +561,32 @@
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link" asp-area="Player" asp-page="/Index">
-                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                                <i class="fas fa-tachometer-alt"></i>Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="Player" asp-page="/Profile">
-                                <i class="fas fa-user me-2"></i>Profile
+                                <i class="fas fa-user"></i>Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/ChangePassword">
+                                <i class="fas fa-key"></i>Change Password
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="Player" asp-page="/Stats">
-                                <i class="fas fa-chart-bar me-2"></i>Stats
+                                <i class="fas fa-chart-bar"></i>Stats
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="Player" asp-page="/History">
-                                <i class="fas fa-history me-2"></i>Match History
+                                <i class="fas fa-history"></i>Match History
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="Player" asp-page="/Results">
-                                <i class="fas fa-trophy me-2"></i>Game Results
+                                <i class="fas fa-trophy"></i>Game Results
                             </a>
                         </li>
                     </ul>
@@ -194,6 +619,4 @@
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
-
 </html>
-

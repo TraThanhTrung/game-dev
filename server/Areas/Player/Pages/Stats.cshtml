@@ -4,40 +4,59 @@
     ViewData["Title"] = "Statistics";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-chart-bar me-2"></i>Player Statistics
-    </h1>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Player Statistics
+        </h1>
+        <p class="text-muted mb-0">Detailed combat and performance stats</p>
+    </div>
 </div>
 
 @if (Model.Profile != null && Model.Stats != null)
 {
     <div class="row">
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-sword me-2"></i>Combat Stats
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-sword me-2"></i>Combat Stats
                 </div>
                 <div class="card-body">
-                    <table class="table table-hover">
+                    <table class="table">
                         <tr>
-                            <td style="width: 250px;"><strong>Damage:</strong></td>
-                            <td>
-                                <span class="badge bg-danger">@Model.Stats.Damage</span>
+                            <td style="width: 250px;">
+                                <strong>
+                                    <i class="fas fa-fire me-2" style="color: var(--gaming-secondary);"></i>Damage:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-primary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.Damage
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Range:</strong></td>
                             <td>
-                                <span class="badge bg-info">@Model.Stats.Range.ToString("F2")</span>
+                                <strong>
+                                    <i class="fas fa-bullseye me-2" style="color: var(--gaming-primary);"></i>Range:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-primary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.Range.ToString("F2")
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Knockback Force:</strong></td>
                             <td>
-                                <span class="badge bg-warning">@Model.Stats.KnockbackForce.ToString("F2")</span>
+                                <strong>
+                                    <i class="fas fa-hand-rock me-2" style="color: var(--gaming-accent);"></i>Knockback Force:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-warning" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.KnockbackForce.ToString("F2")
+                                </span>
                             </td>
                         </tr>
                     </table>
@@ -46,18 +65,22 @@
         </div>
 
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-running me-2"></i>Movement Stats
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-running me-2"></i>Movement Stats
                 </div>
                 <div class="card-body">
-                    <table class="table table-hover">
+                    <table class="table">
                         <tr>
-                            <td style="width: 250px;"><strong>Speed:</strong></td>
-                            <td>
-                                <span class="badge bg-success">@Model.Stats.Speed.ToString("F2")</span>
+                            <td style="width: 250px;">
+                                <strong>
+                                    <i class="fas fa-tachometer-alt me-2" style="color: var(--gaming-success);"></i>Speed:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-success" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.Speed.ToString("F2")
+                                </span>
                             </td>
                         </tr>
                     </table>
@@ -68,41 +91,56 @@
 
     <div class="row">
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-heart me-2"></i>Health Stats
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-heart me-2"></i>Health Stats
                 </div>
                 <div class="card-body">
-                    <table class="table table-hover">
+                    <table class="table">
                         <tr>
-                            <td style="width: 250px;"><strong>Max Health:</strong></td>
-                            <td>
-                                <span class="badge bg-danger">@Model.Stats.MaxHealth</span>
+                            <td style="width: 250px;">
+                                <strong>
+                                    <i class="fas fa-shield-alt me-2" style="color: var(--gaming-primary);"></i>Max Health:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-primary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.MaxHealth
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Current Health:</strong></td>
                             <td>
-                                <span class="badge bg-success">@Model.Stats.CurrentHealth</span>
+                                <strong>
+                                    <i class="fas fa-heartbeat me-2" style="color: var(--gaming-secondary);"></i>Current Health:
+                                </strong>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-success" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    @Model.Stats.CurrentHealth
+                                </span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Health Percentage:</strong></td>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-percentage me-2" style="color: var(--gaming-accent);"></i>Health Percentage:
+                                </strong>
+                            </td>
                             <td>
                                 @{
                                     var healthPercent = Model.Stats.MaxHealth > 0 
                                         ? (int)((double)Model.Stats.CurrentHealth / Model.Stats.MaxHealth * 100) 
                                         : 0;
                                 }
-                                <div class="progress" style="height: 25px;">
-                                    <div class="progress-bar bg-danger" role="progressbar" 
-                                         style="width: @healthPercent%" 
+                                <div class="progress mt-2">
+                                    <div class="progress-bar" 
+                                         role="progressbar" 
+                                         style="width: @healthPercent%; background: linear-gradient(90deg, var(--gaming-secondary) 0%, var(--gaming-success) 100%);" 
                                          aria-valuenow="@healthPercent" 
                                          aria-valuemin="0" 
                                          aria-valuemax="100">
-                                        @healthPercent%
+                                        <strong>@healthPercent%</strong>
                                     </div>
                                 </div>
                             </td>
@@ -113,40 +151,59 @@
         </div>
 
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-user me-2"></i>Player Info
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user me-2"></i>Player Info
                 </div>
                 <div class="card-body">
-                    <table class="table table-hover">
+                    <table class="table">
                         <tr>
-                            <td style="width: 250px;"><strong>Name:</strong></td>
-                            <td><span class="player-name">@Model.Profile.Name</span></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Level:</strong></td>
+                            <td style="width: 250px;">
+                                <strong>
+                                    <i class="fas fa-user-circle me-2" style="color: var(--gaming-primary);"></i>Name:
+                                </strong>
+                            </td>
                             <td>
-                                <span class="badge bg-primary">Level @Model.Profile.Level</span>
+                                <span class="player-name">@Model.Profile.Name</span>
                             </td>
                         </tr>
                         <tr>
-                            <td><strong>Experience:</strong></td>
                             <td>
-                                @Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
-                                <div class="progress mt-2" style="height: 20px;">
+                                <strong>
+                                    <i class="fas fa-level-up-alt me-2" style="color: var(--gaming-accent);"></i>Level:
+                                </strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
+                                    Level @Model.Profile.Level
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>
+                                    <i class="fas fa-star me-2" style="color: var(--gaming-accent);"></i>Experience:
+                                </strong>
+                            </td>
+                            <td>
+                                <div class="mb-2">
+                                    <strong style="color: var(--gaming-primary);">
+                                        @Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
+                                    </strong>
+                                </div>
+                                <div class="progress">
                                     @{
                                         var expPercent = Model.Profile.ExpToLevel > 0 
                                             ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
                                             : 0;
                                     }
-                                    <div class="progress-bar bg-success" role="progressbar" 
+                                    <div class="progress-bar" 
+                                         role="progressbar" 
                                          style="width: @expPercent%" 
                                          aria-valuenow="@expPercent" 
                                          aria-valuemin="0" 
                                          aria-valuemax="100">
-                                        @expPercent%
+                                        <strong>@expPercent%</strong>
                                     </div>
                                 </div>
                             </td>
@@ -157,5 +214,3 @@
         </div>
     </div>
 }
-
-

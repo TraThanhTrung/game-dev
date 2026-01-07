@@ -31,7 +31,7 @@ public class LogoutModel : PageModel
             _logger.LogInformation("Player logged out: {Name}", playerName);
         }
 
-        return RedirectToPage("/Login");
+        return Redirect("/");
     }
     #endregion
 }

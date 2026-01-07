@@ -4,12 +4,12 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <span class="text-muted">Welcome, <strong class="player-name">@Model.Profile?.Name</strong>!</span>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h1>
+        <p style="color:white !important;" class="text-muted mb-0">Welcome back, <span class="player-name">@Model.Profile?.Name</span>!</p>
     </div>
 </div>
 
@@ -18,91 +18,81 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="stat-label text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Level
-                            </div>
-                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
-                                @Model.Profile.Level
-                            </div>
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">Level</div>
+                        <div class="stat-value">@Model.Profile.Level</div>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-star me-1"></i>@Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-level-up-alt fa-2x text-gray-300"></i>
-                        </div>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-level-up-alt fa-3x" style="color: var(--gaming-primary); opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="stat-label text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Gold
-                            </div>
-                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
-                                @Model.Profile.Gold.ToString("N0")
-                            </div>
+            <div class="stat-card success">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">Gold</div>
+                        <div class="stat-value" style="color: var(--gaming-accent);">@Model.Profile.Gold.ToString("N0")</div>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-coins me-1"></i>Currency
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-coins fa-2x text-gray-300"></i>
-                        </div>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-coins fa-3x" style="color: var(--gaming-accent); opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="stat-label text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Total Matches
-                            </div>
-                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
-                                @Model.TotalMatches
-                            </div>
+            <div class="stat-card info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">Total Matches</div>
+                        <div class="stat-value">@Model.TotalMatches</div>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-gamepad me-1"></i>Games Played
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-gamepad fa-2x text-gray-300"></i>
-                        </div>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-gamepad fa-3x" style="color: var(--gaming-primary); opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="stat-label text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Play Time
-                            </div>
-                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
-                                @{
-                                    var hours = Model.TotalPlayTime / 3600;
-                                    var minutes = (Model.TotalPlayTime % 3600) / 60;
-                                }
-                                @if (hours > 0)
-                                {
-                                    <text>@hours h @minutes m</text>
-                                }
-                                else
-                                {
-                                    <text>@minutes m</text>
-                                }
-                            </div>
+            <div class="stat-card warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">Play Time</div>
+                        <div class="stat-value" style="color: var(--gaming-accent);">
+                            @{
+                                var hours = Model.TotalPlayTime / 3600;
+                                var minutes = (Model.TotalPlayTime % 3600) / 60;
+                            }
+                            @if (hours > 0)
+                            {
+                                <text>@hours<span style="font-size: 1.5rem;">h</span> @minutes<span style="font-size: 1.5rem;">m</span></text>
+                            }
+                            else
+                            {
+                                <text>@minutes<span style="font-size: 1.5rem;">m</span></text>
+                            }
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        <div class="text-muted small mt-2">
+                            <i class="fas fa-clock me-1"></i>Total Time
                         </div>
+                    </div>
+                    <div class="text-center">
+                        <i class="fas fa-clock fa-3x" style="color: var(--gaming-accent); opacity: 0.3;"></i>
                     </div>
                 </div>
             </div>
@@ -112,107 +102,139 @@
     <!-- Experience Progress -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-star me-2"></i>Experience Progress
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-star me-2"></i>Experience Progress
                 </div>
                 <div class="card-body">
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span>Level @Model.Profile.Level</span>
-                            <span>@Model.Profile.Exp / @Model.Profile.ExpToLevel EXP</span>
+                    <div class="d-flex justify-content-between mb-3">
+                        <div>
+                            <h3 class="mb-0" style="color: var(--gaming-primary);">Level @Model.Profile.Level</h3>
+                            <small class="text-muted">Next Level: @(Model.Profile.Level + 1)</small>
                         </div>
-                        <div class="progress" style="height: 25px;">
-                            @{
-                                var expPercent = Model.Profile.ExpToLevel > 0 
-                                    ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
-                                    : 0;
-                            }
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: @expPercent%" 
-                                 aria-valuenow="@expPercent" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100">
-                                @expPercent%
+                        <div class="text-end">
+                            <div class="stat-value" style="font-size: 1.5rem; margin: 0;">
+                                @Model.Profile.Exp / @Model.Profile.ExpToLevel
                             </div>
+                            <small class="text-muted">EXP</small>
                         </div>
+                    </div>
+                    <div class="progress">
+                        @{
+                            var expPercent = Model.Profile.ExpToLevel > 0 
+                                ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
+                                : 0;
+                        }
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: @expPercent%" 
+                             aria-valuenow="@expPercent" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            <strong>@expPercent%</strong>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <small class="text-muted">
+                            @(Model.Profile.ExpToLevel - Model.Profile.Exp) EXP needed to reach Level @(Model.Profile.Level + 1)
+                        </small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Quick Stats -->
+    <!-- Quick Stats & Activity -->
     <div class="row">
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-user me-2"></i>Player Stats
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user me-2"></i>Player Stats
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm">
+                    <table class="table">
                         <tr>
-                            <td><strong>Damage:</strong></td>
-                            <td>@Model.Profile.Stats.Damage</td>
+                            <td><strong><i class="fas fa-sword me-2" style="color: var(--gaming-secondary);"></i>Damage:</strong></td>
+                            <td class="text-end">
+                                <span class="badge bg-primary">@Model.Profile.Stats.Damage</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Range:</strong></td>
-                            <td>@Model.Profile.Stats.Range.ToString("F1")</td>
+                            <td><strong><i class="fas fa-bullseye me-2" style="color: var(--gaming-primary);"></i>Range:</strong></td>
+                            <td class="text-end">
+                                <span class="badge bg-primary">@Model.Profile.Stats.Range.ToString("F1")</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Speed:</strong></td>
-                            <td>@Model.Profile.Stats.Speed.ToString("F1")</td>
+                            <td><strong><i class="fas fa-running me-2" style="color: var(--gaming-success);"></i>Speed:</strong></td>
+                            <td class="text-end">
+                                <span class="badge bg-success">@Model.Profile.Stats.Speed.ToString("F1")</span>
+                            </td>
                         </tr>
                         <tr>
-                            <td><strong>Health:</strong></td>
-                            <td>@Model.Profile.Stats.CurrentHealth / @Model.Profile.Stats.MaxHealth</td>
+                            <td><strong><i class="fas fa-heart me-2" style="color: var(--gaming-secondary);"></i>Health:</strong></td>
+                            <td class="text-end">
+                                <span class="badge bg-warning">
+                                    @Model.Profile.Stats.CurrentHealth / @Model.Profile.Stats.MaxHealth
+                                </span>
+                            </td>
                         </tr>
                     </table>
-                    <a asp-page="/Stats" class="btn btn-sm btn-primary">
-                        <i class="fas fa-chart-bar me-1"></i>View Full Stats
-                    </a>
+                    <div class="text-center mt-3">
+                        <a asp-page="/Stats" class="btn btn-primary">
+                            <i class="fas fa-chart-bar me-1"></i>View Full Stats
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-6 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-history me-2"></i>Recent Activity
-                    </h6>
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-history me-2"></i>Recent Activity
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        You have participated in <strong>@Model.TotalMatches</strong> matches.
-                    </p>
-                    <p class="text-muted">
-                        <i class="fas fa-clock me-1"></i>
-                        Total play time: 
-                        @{
-                            var totalHours = Model.TotalPlayTime / 3600;
-                            var totalMinutes = (Model.TotalPlayTime % 3600) / 60;
-                        }
-                        @if (totalHours > 0)
-                        {
-                            <text>@totalHours hours @totalMinutes minutes</text>
-                        }
-                        else
-                        {
-                            <text>@totalMinutes minutes</text>
-                        }
-                    </p>
-                    <a asp-page="/History" class="btn btn-sm btn-primary">
-                        <i class="fas fa-history me-1"></i>View Match History
-                    </a>
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-gamepad fa-2x me-3" style="color: var(--gaming-primary);"></i>
+                            <div>
+                                <h5 class="mb-0">Total Matches</h5>
+                                <p class="text-muted mb-0">You have participated in <strong style="color: var(--gaming-primary);">@Model.TotalMatches</strong> matches</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-clock fa-2x me-3" style="color: var(--gaming-accent);"></i>
+                            <div>
+                                <h5 class="mb-0">Play Time</h5>
+                                <p class="text-muted mb-0">
+                                    @{
+                                        var totalHours = Model.TotalPlayTime / 3600;
+                                        var totalMinutes = (Model.TotalPlayTime % 3600) / 60;
+                                    }
+                                    @if (totalHours > 0)
+                                    {
+                                        <text><strong style="color: var(--gaming-accent);">@totalHours hours @totalMinutes minutes</strong></text>
+                                    }
+                                    else
+                                    {
+                                        <text><strong style="color: var(--gaming-accent);">@totalMinutes minutes</strong></text>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <a asp-page="/History" class="btn btn-primary me-2">
+                            <i class="fas fa-history me-1"></i>View Match History
+                        </a>
+                        <a asp-page="/Results" class="btn btn-success">
+                            <i class="fas fa-trophy me-1"></i>Game Results
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 }
-

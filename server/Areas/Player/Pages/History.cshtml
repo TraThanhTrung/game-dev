@@ -4,30 +4,38 @@
     ViewData["Title"] = "Match History";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-history me-2"></i>Match History
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <span class="text-muted">Total: <strong>@Model.TotalMatches</strong> matches</span>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-history me-2"></i>Match History
+        </h1>
+        <p class="text-muted mb-0">Your complete gaming journey</p>
+    </div>
+    <div>
+        <span class="badge bg-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            Total: <strong>@Model.TotalMatches</strong> matches
+        </span>
     </div>
 </div>
 
 @if (Model.MatchHistory.Any())
 {
-    <div class="card shadow mb-4">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>Match Records
+        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table">
                     <thead>
                         <tr>
-                            <th>Session ID</th>
-                            <th>Start Time</th>
-                            <th>End Time</th>
-                            <th>Duration</th>
-                            <th>Players</th>
-                            <th>Status</th>
-                            <th>Your Play Time</th>
+                            <th><i class="fas fa-hashtag me-2"></i>Session ID</th>
+                            <th><i class="fas fa-play me-2"></i>Start Time</th>
+                            <th><i class="fas fa-stop me-2"></i>End Time</th>
+                            <th><i class="fas fa-hourglass-half me-2"></i>Duration</th>
+                            <th><i class="fas fa-users me-2"></i>Players</th>
+                            <th><i class="fas fa-info-circle me-2"></i>Status</th>
+                            <th><i class="fas fa-clock me-2"></i>Your Play Time</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -35,7 +43,9 @@
                         {
                             <tr>
                                 <td>
-                                    <code class="small">@match.SessionId.ToString().Substring(0, 8)...</code>
+                                    <code style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                                        @match.SessionId.ToString().Substring(0, 8)...
+                                    </code>
                                 </td>
                                 <td>@match.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
                                 <td>
@@ -52,7 +62,9 @@
                                     @if (match.EndTime.HasValue)
                                     {
                                         var duration = match.EndTime.Value - match.StartTime;
-                                        <text>@((int)duration.TotalMinutes)m @duration.Seconds</text>
+                                        <span class="badge bg-info">
+                                            @((int)duration.TotalMinutes)m @duration.Seconds s
+                                        </span>
                                     }
                                     else
                                     {
@@ -60,16 +72,20 @@
                                     }
                                 </td>
                                 <td>
-                                    <span class="badge bg-info">@match.PlayerCount</span>
+                                    <span class="badge bg-primary">@match.PlayerCount <i class="fas fa-users ms-1"></i></span>
                                 </td>
                                 <td>
                                     @if (match.Status == "Completed")
                                     {
-                                        <span class="badge bg-success">@match.Status</span>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>@match.Status
+                                        </span>
                                     }
                                     else if (match.Status == "Active")
                                     {
-                                        <span class="badge bg-primary">@match.Status</span>
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-spinner fa-spin me-1"></i>@match.Status
+                                        </span>
                                     }
                                     else
                                     {
@@ -81,7 +97,9 @@
                                     {
                                         var minutes = match.PlayDuration.Value / 60;
                                         var seconds = match.PlayDuration.Value % 60;
-                                        <text>@minutes m @seconds s</text>
+                                        <span class="badge bg-warning">
+                                            @minutes m @seconds s
+                                        </span>
                                     }
                                     else
                                     {
@@ -97,38 +115,51 @@
             <!-- Pagination -->
             @if (Model.TotalPages > 1)
             {
-                <nav aria-label="Match history pagination">
+                <nav aria-label="Match history pagination" class="mt-4">
                     <ul class="pagination justify-content-center">
                         @if (Model.CurrentPage > 1)
                         {
                             <li class="page-item">
-                                <a class="page-link" asp-page="/History" asp-route-page="@(Model.CurrentPage - 1)">Previous</a>
+                                <a class="page-link" asp-page="/History" asp-route-page="@(Model.CurrentPage - 1)" style="background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous
+                                </a>
                             </li>
                         }
                         else
                         {
                             <li class="page-item disabled">
-                                <span class="page-link">Previous</span>
+                                <span class="page-link" style="background: rgba(15, 22, 41, 0.4); border-color: var(--gaming-border); color: var(--gaming-text-muted);">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous
+                                </span>
                             </li>
                         }
 
                         @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
                         {
                             <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-page="/History" asp-route-page="@i">@i</a>
+                                <a class="page-link" 
+                                   asp-page="/History" 
+                                   asp-route-page="@i"
+                                   style="@(i == Model.CurrentPage ? "background: var(--gaming-primary); border-color: var(--gaming-primary); color: var(--gaming-dark);" : "background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);")">
+                                    @i
+                                </a>
                             </li>
                         }
 
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
                             <li class="page-item">
-                                <a class="page-link" asp-page="/History" asp-route-page="@(Model.CurrentPage + 1)">Next</a>
+                                <a class="page-link" asp-page="/History" asp-route-page="@(Model.CurrentPage + 1)" style="background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);">
+                                    Next<i class="fas fa-chevron-right ms-1"></i>
+                                </a>
                             </li>
                         }
                         else
                         {
                             <li class="page-item disabled">
-                                <span class="page-link">Next</span>
+                                <span class="page-link" style="background: rgba(15, 22, 41, 0.4); border-color: var(--gaming-border); color: var(--gaming-text-muted);">
+                                    Next<i class="fas fa-chevron-right ms-1"></i>
+                                </span>
                             </li>
                         }
                     </ul>
@@ -139,15 +170,14 @@
 }
 else
 {
-    <div class="card shadow">
+    <div class="card">
         <div class="card-body text-center py-5">
-            <i class="fas fa-history fa-3x text-muted mb-3"></i>
-            <p class="text-muted">No match history found. Start playing to see your matches here!</p>
+            <i class="fas fa-history fa-4x mb-4" style="color: var(--gaming-primary); opacity: 0.3;"></i>
+            <h3 class="mb-3" style="color: var(--gaming-text);">No Match History</h3>
+            <p class="text-muted mb-4">Start playing to see your matches here!</p>
             <a asp-page="/Index" class="btn btn-primary">
                 <i class="fas fa-home me-1"></i>Go to Dashboard
             </a>
         </div>
     </div>
 }
-
-

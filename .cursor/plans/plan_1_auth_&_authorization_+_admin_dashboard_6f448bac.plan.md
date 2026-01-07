@@ -2,82 +2,83 @@
 name: "Plan 1: Auth & Authorization + Admin Dashboard"
 overview: Xây dựng hệ thống authentication/authorization cho admin và trang admin dashboard hoàn chỉnh với quản lý users, enemies, game sections, match history, và monitoring.
 todos:
-  - id: db_identity_setup
-    content: Cài đặt ASP.NET Core Identity, tạo AdminIdentityDbContext, entities (GameSession, SessionPlayer, Enemy, GameSection) và migrations
-    status: pending
-  - id: enemy_migration
-    content: Tạo script migration để import enemies từ config.json sang database
-    status: pending
-    dependencies:
-      - db_identity_setup
-  - id: auth_system
-    content: Configure Identity trong Program.cs, xây dựng login/logout Razor Pages sử dụng SignInManager, setup [Authorize]
-    status: pending
-    dependencies:
-      - db_identity_setup
-  - id: redis_basic
-    content: Cấu hình Redis cơ bản cho caching (RedisService với caching methods)
-    status: pending
-  - id: enemy_config_service
-    content: Tạo EnemyConfigService để load enemy từ database, cache trong Redis
-    status: completed
-    dependencies:
-      - db_identity_setup
-      - enemy_migration
-      - redis_basic
-  - id: admin_service
-    content: Tạo AdminService với các methods để query statistics, quản lý enemies và game sections
-    status: completed
-    dependencies:
-      - db_identity_setup
-  - id: session_tracking
-    content: Tạo SessionTrackingService để track sessions vào database (chưa tích hợp WorldService)
-    status: pending
-    dependencies:
-      - db_identity_setup
-  - id: enemy_management
-    content: Xây dựng Enemy Management pages (Index, Create, Edit, Delete)
-    status: pending
-    dependencies:
-      - auth_system
-      - admin_service
-      - enemy_config_service
-  - id: game_section_management
-    content: Xây dựng Game Section Management pages (Index, Create, Edit, Details)
-    status: pending
-    dependencies:
-      - auth_system
-      - admin_service
-      - enemy_management
-  - id: dashboard
-    content: Xây dựng Dashboard page (Index) với thống kê tổng quan
-    status: pending
-    dependencies:
-      - auth_system
-      - admin_service
-  - id: users_management
-    content: Xây dựng Users Management pages (Index, Details) với search và pagination
-    status: completed
-    dependencies:
-      - auth_system
-      - admin_service
-  - id: match_history
-    content: Xây dựng Match History pages (Index, Details) với filter theo ngày và game section
-    status: pending
-    dependencies:
-      - auth_system
-      - admin_service
-  - id: active_sessions
-    content: Xây dựng Active Sessions page để hiển thị sessions đang chơi (từ database, chưa real-time)
-    status: pending
-    dependencies:
-      - auth_system
-      - admin_service
-  - id: template_integration
-    content: Tích hợp template vào _Layout.cshtml và styling
-    status: pending
-    dependencies:
-      - dashboard
+
+- id: db_identity_setup
+content: Cài đặt ASP.NET Core Identity, tạo AdminIdentityDbContext, entities (GameSession, SessionPlayer, Enemy, GameSection) và migrations
+status: pending
+- id: enemy_migration
+content: Tạo script migration để import enemies từ config.json sang database
+status: pending
+dependencies:
+  - db_identity_setup
+- id: auth_system
+content: Configure Identity trong Program.cs, xây dựng login/logout Razor Pages sử dụng SignInManager, setup [Authorize]
+status: pending
+dependencies:
+  - db_identity_setup
+- id: redis_basic
+content: Cấu hình Redis cơ bản cho caching (RedisService với caching methods)
+status: pending
+- id: enemy_config_service
+content: Tạo EnemyConfigService để load enemy từ database, cache trong Redis
+status: completed
+dependencies:
+  - db_identity_setup
+  - enemy_migration
+  - redis_basic
+- id: admin_service
+content: Tạo AdminService với các methods để query statistics, quản lý enemies và game sections
+status: completed
+dependencies:
+  - db_identity_setup
+- id: session_tracking
+content: Tạo SessionTrackingService để track sessions vào database (chưa tích hợp WorldService)
+status: pending
+dependencies:
+  - db_identity_setup
+- id: enemy_management
+content: Xây dựng Enemy Management pages (Index, Create, Edit, Delete)
+status: pending
+dependencies:
+  - auth_system
+  - admin_service
+  - enemy_config_service
+- id: game_section_management
+content: Xây dựng Game Section Management pages (Index, Create, Edit, Details)
+status: pending
+dependencies:
+  - auth_system
+  - admin_service
+  - enemy_management
+- id: dashboard
+content: Xây dựng Dashboard page (Index) với thống kê tổng quan
+status: pending
+dependencies:
+  - auth_system
+  - admin_service
+- id: users_management
+content: Xây dựng Users Management pages (Index, Details) với search và pagination
+status: completed
+dependencies:
+  - auth_system
+  - admin_service
+- id: match_history
+content: Xây dựng Match History pages (Index, Details) với filter theo ngày và game section
+status: pending
+dependencies:
+  - auth_system
+  - admin_service
+- id: active_sessions
+content: Xây dựng Active Sessions page để hiển thị sessions đang chơi (từ database, chưa real-time)
+status: pending
+dependencies:
+  - auth_system
+  - admin_service
+- id: template_integration
+content: Tích hợp template vào _Layout.cshtml và styling
+status: pending
+dependencies:
+  - dashboard
 ---
 
 # Plan
