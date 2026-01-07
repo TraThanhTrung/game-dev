@@ -1,0 +1,149 @@
+@page
+@model GameServer.Areas.Player.Pages.ProfileModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-user me-2"></i>Player Profile
+    </h1>
+</div>
+
+@if (Model.Profile != null)
+{
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>Basic Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td style="width: 200px;"><strong>Player Name:</strong></td>
+                            <td><span class="player-name">@Model.Profile.Name</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Player ID:</strong></td>
+                            <td><code>@Model.Profile.PlayerId</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Level:</strong></td>
+                            <td>
+                                <span class="badge bg-primary">Level @Model.Profile.Level</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Experience:</strong></td>
+                            <td>
+                                @Model.Profile.Exp / @Model.Profile.ExpToLevel EXP
+                                <div class="progress mt-2" style="height: 20px;">
+                                    @{
+                                        var expPercent = Model.Profile.ExpToLevel > 0 
+                                            ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
+                                            : 0;
+                                    }
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: @expPercent%" 
+                                         aria-valuenow="@expPercent" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        @expPercent%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Gold:</strong></td>
+                            <td>
+                                <i class="fas fa-coins text-warning me-1"></i>
+                                <strong>@Model.Profile.Gold.ToString("N0")</strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Account Created:</strong></td>
+                            <td>@Model.Profile.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-line me-2"></i>Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td style="width: 200px;"><strong>Damage:</strong></td>
+                            <td>@Model.Profile.Stats.Damage</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Range:</strong></td>
+                            <td>@Model.Profile.Stats.Range.ToString("F2")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Knockback Force:</strong></td>
+                            <td>@Model.Profile.Stats.KnockbackForce.ToString("F2")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Speed:</strong></td>
+                            <td>@Model.Profile.Stats.Speed.ToString("F2")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Max Health:</strong></td>
+                            <td>@Model.Profile.Stats.MaxHealth</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Current Health:</strong></td>
+                            <td>@Model.Profile.Stats.CurrentHealth</td>
+                        </tr>
+                    </table>
+                    <a asp-page="/Stats" class="btn btn-primary">
+                        <i class="fas fa-chart-bar me-1"></i>View Detailed Stats
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-box me-2"></i>Inventory
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-center">
+                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                    </p>
+                    <p class="text-center">
+                        <strong>@Model.Profile.InventoryItemCount</strong> items
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-magic me-2"></i>Skills
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-center">
+                        <i class="fas fa-star fa-3x text-muted mb-3"></i>
+                    </p>
+                    <p class="text-center">
+                        <strong>@Model.Profile.SkillCount</strong> skills unlocked
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+

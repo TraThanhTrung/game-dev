@@ -1,0 +1,12 @@
+.swiper-container {
+    .swiper-button-next{
+        &::after{
+            content: unset;
+        }
+    }
+    .swiper-button-prev{
+        &::after{
+            content: unset;
+        }
+    }
+}

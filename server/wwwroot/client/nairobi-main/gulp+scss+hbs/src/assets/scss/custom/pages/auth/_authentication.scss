@@ -1,0 +1,61 @@
+.sign-bg {
+	position: absolute;
+	left: 0;
+	top: 0;
+
+	&.sign-bg-right {
+		left: auto;
+		right: 0;
+	}
+}
+.gradient-main {
+	height: 100%;
+	width: 100%;
+	object-fit: cover;
+}
+.login-bottom {
+    margin-top: -12.5rem;
+}
+.bottom-img1{
+	position: absolute;
+	bottom: 0;
+	left: 3px;
+	width: 50%;
+}
+.bottom-img2{
+	position: absolute;
+	bottom: 0;
+	right: 3px;
+	width: 85%;
+}
+.bottom-img3{
+	position: absolute;
+	bottom: 0;
+	left: 3px;
+	width:55%;
+}
+.bottom-img4{
+	position: absolute;
+	bottom: 0;
+	left: 3px;
+	width: 40%;
+}
+.bottom-img5{
+	position: absolute;
+	bottom: 0;
+	right: 3px;
+	width: 45%;
+}
+@include media-breakpoint-up(xxl) {
+	.auth-card {
+		padding: 0 6.25rem;
+	}
+}
+@include media-breakpoint-down(sm) {
+	.login-header {
+		height: 12.5rem !important;
+	}
+	.login-bottom {
+		margin-top: -6.25rem;
+	}
+}

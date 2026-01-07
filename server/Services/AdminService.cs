@@ -84,6 +84,32 @@ public class AdminService
 
         return TimeSpan.FromSeconds(totalSeconds);
     }
+
+    public async Task<bool> DeleteUserAsync(Guid playerId)
+    {
+        var player = await _db.PlayerProfiles
+            .Include(p => p.Stats)
+            .Include(p => p.Skills)
+            .Include(p => p.Inventory)
+            .FirstOrDefaultAsync(p => p.Id == playerId);
+        
+        if (player == null)
+            return false;
+
+        // Xóa SessionPlayers (không có cascade delete)
+        var sessionPlayers = await _db.SessionPlayers
+            .Where(sp => sp.PlayerId == playerId)
+            .ToListAsync();
+        _db.SessionPlayers.RemoveRange(sessionPlayers);
+
+        // Xóa PlayerProfile (sẽ cascade delete Stats, Skills, Inventory)
+        _db.PlayerProfiles.Remove(player);
+        
+        await _db.SaveChangesAsync();
+        
+        _logger.LogInformation("Deleted user: {Name} (ID: {Id})", player.Name, playerId);
+        return true;
+    }
     #endregion
 
     #region Public Methods - Matches

@@ -14,8 +14,8 @@
     <h3 class="page-title">Delete Enemy</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
-            <li class="breadcrumb-item"><a asp-page="/Admin/Enemies/Index">Enemies</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin">Enemies</a></li>
             <li class="breadcrumb-item active" aria-current="page">Delete</li>
         </ol>
     </nav>
@@ -49,7 +49,7 @@
                 
                 <form method="post">
                     <button type="submit" class="btn btn-danger me-2">Delete</button>
-                    <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                    <a asp-area="Admin" class="btn btn-light">Cancel</a>
                 </form>
             </div>
         </div>

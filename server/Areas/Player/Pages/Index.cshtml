@@ -1,0 +1,218 @@
+@page
+@model GameServer.Areas.Player.Pages.IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="text-muted">Welcome, <strong class="player-name">@Model.Profile?.Name</strong>!</span>
+    </div>
+</div>
+
+@if (Model.Profile != null)
+{
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Level
+                            </div>
+                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
+                                @Model.Profile.Level
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-level-up-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Gold
+                            </div>
+                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
+                                @Model.Profile.Gold.ToString("N0")
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-coins fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total Matches
+                            </div>
+                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
+                                @Model.TotalMatches
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-gamepad fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Play Time
+                            </div>
+                            <div class="stat-value h5 mb-0 font-weight-bold text-gray-800">
+                                @{
+                                    var hours = Model.TotalPlayTime / 3600;
+                                    var minutes = (Model.TotalPlayTime % 3600) / 60;
+                                }
+                                @if (hours > 0)
+                                {
+                                    <text>@hours h @minutes m</text>
+                                }
+                                else
+                                {
+                                    <text>@minutes m</text>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Experience Progress -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-star me-2"></i>Experience Progress
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Level @Model.Profile.Level</span>
+                            <span>@Model.Profile.Exp / @Model.Profile.ExpToLevel EXP</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            @{
+                                var expPercent = Model.Profile.ExpToLevel > 0 
+                                    ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
+                                    : 0;
+                            }
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: @expPercent%" 
+                                 aria-valuenow="@expPercent" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                @expPercent%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user me-2"></i>Player Stats
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Damage:</strong></td>
+                            <td>@Model.Profile.Stats.Damage</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Range:</strong></td>
+                            <td>@Model.Profile.Stats.Range.ToString("F1")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Speed:</strong></td>
+                            <td>@Model.Profile.Stats.Speed.ToString("F1")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Health:</strong></td>
+                            <td>@Model.Profile.Stats.CurrentHealth / @Model.Profile.Stats.MaxHealth</td>
+                        </tr>
+                    </table>
+                    <a asp-page="/Stats" class="btn btn-sm btn-primary">
+                        <i class="fas fa-chart-bar me-1"></i>View Full Stats
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        You have participated in <strong>@Model.TotalMatches</strong> matches.
+                    </p>
+                    <p class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Total play time: 
+                        @{
+                            var totalHours = Model.TotalPlayTime / 3600;
+                            var totalMinutes = (Model.TotalPlayTime % 3600) / 60;
+                        }
+                        @if (totalHours > 0)
+                        {
+                            <text>@totalHours hours @totalMinutes minutes</text>
+                        }
+                        else
+                        {
+                            <text>@totalMinutes minutes</text>
+                        }
+                    </p>
+                    <a asp-page="/History" class="btn btn-sm btn-primary">
+                        <i class="fas fa-history me-1"></i>View Match History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+

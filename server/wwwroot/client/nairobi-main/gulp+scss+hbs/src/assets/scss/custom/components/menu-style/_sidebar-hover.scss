@@ -1,0 +1,62 @@
+// Sidebar Panel
+.sidebar-hover {
+    .logo {
+        opacity: 1;
+        transform: translateX(0px);
+        transition: all 0.3s ease-in-out;
+    }
+    .logo-hover {
+        opacity: 0;
+        transform: translateX(-100px);
+        transition: all 0.3s ease-in-out;
+    }
+    &:hover {
+        max-width: $navbar-vertical-width;
+        .logo-title {
+            transition: $navbar-vertical-transition;
+            transform: translateX(0%);
+            opacity: 1;
+        }
+        .logo-hover{
+            display: block  !important;
+            opacity: 1;
+            transform: translateX(-25px);
+            transition: all 0.3s ease-in-out;
+        }
+        .logo{
+           // display: none  !important;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+            transform: translateX(-30px);
+        }
+        &.navs-gradient{
+            @include sidebar-nav-item-sub-spaceing; //default spacing 1rem by default $spacer
+        }
+        .navbar-collapse {
+            .static-item {
+                text-align: left;
+                .default-icon {display: block;}
+                .mini-icon {display: none;}
+            }
+            @include nav-item() {
+                span {
+                    opacity: 1;
+                    transform: translateX(0);
+                    transition: $navbar-vertical-transition;
+                }
+                .icon {
+                    display: block;
+                }
+            }
+        }
+    }
+}
+@include media-breakpoint-down(xl) {
+    .sidebar.sidebar-mini.sidebar-hover {
+        &:hover {
+            &+.main-content{
+                margin-left: 0;
+                }
+            }
+        }
+    }   

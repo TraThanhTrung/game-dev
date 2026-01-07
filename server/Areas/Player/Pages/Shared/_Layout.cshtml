@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>@ViewData["Title"] - Player Panel</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom styles -->
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #858796;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --dark-color: #5a5c69;
+        }
+
+        body {
+            background-color: #f8f9fc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #224abe 100%);
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            color: white !important;
+        }
+
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background: white;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+
+        .sidebar .nav-link {
+            color: var(--dark-color);
+            padding: 0.75rem 1rem;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: #f8f9fc;
+            border-left-color: var(--primary-color);
+        }
+
+        .sidebar .nav-link.active {
+            background-color: #f8f9fc;
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #e3e6f0;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .stat-card {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success-color);
+        }
+
+        .stat-card.info {
+            border-left-color: var(--info-color);
+        }
+
+        .stat-card.warning {
+            border-left-color: var(--warning-color);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .player-name {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" asp-area="Player" asp-page="/Index">
+                <i class="fas fa-gamepad me-2"></i>Player Panel
+            </a>
+            <div class="navbar-nav ms-auto">
+                @if (Context.Session.GetString("PlayerName") != null)
+                {
+                    <span class="navbar-text text-white me-3">
+                        <i class="fas fa-user me-1"></i>@Context.Session.GetString("PlayerName")
+                    </span>
+                    <form method="post" asp-area="Player" asp-page="/Logout" class="d-inline">
+                        <button type="submit" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/Index">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/Profile">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/Stats">
+                                <i class="fas fa-chart-bar me-2"></i>Stats
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/History">
+                                <i class="fas fa-history me-2"></i>Match History
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Player" asp-page="/Results">
+                                <i class="fas fa-trophy me-2"></i>Game Results
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 pt-4">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Navigation active state -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (currentPath === href || currentPath.startsWith(href + '/')) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+
+</html>
+

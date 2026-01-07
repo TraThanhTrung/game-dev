@@ -25,7 +25,31 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToAreaPage("Admin", "/Login");
     // Then authorize the rest of the Admin area
     options.Conventions.AuthorizeAreaFolder("Admin", "/");
+    
+    // Allow anonymous access to Player Login page
+    options.Conventions.AllowAnonymousToAreaPage("Player", "/Login");
 });
+
+// Session configuration for Player area authentication
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.Name = ".Player.Session";
+});
+
+// Google OAuth Authentication
+builder.Services.AddAuthentication()
+    .AddGoogle(options =>
+    {
+        var googleAuth = builder.Configuration.GetSection("Authentication:Google");
+        options.ClientId = googleAuth["ClientId"] ?? throw new InvalidOperationException("Google ClientId not configured");
+        options.ClientSecret = googleAuth["ClientSecret"] ?? throw new InvalidOperationException("Google ClientSecret not configured");
+        options.CallbackPath = "/signin-google";
+        options.SignInScheme = "External";
+    });
 
 // Database Context - Combined Game and Identity
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
@@ -84,6 +108,13 @@ builder.Services.AddScoped<RedisService>();
 builder.Services.AddScoped<EnemyConfigService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<SessionTrackingService>();
+builder.Services.AddScoped<PlayerWebService>(sp =>
+{
+    var db = sp.GetRequiredService<GameDbContext>();
+    var logger = sp.GetRequiredService<ILogger<PlayerWebService>>();
+    var configService = sp.GetService<GameConfigService>();
+    return new PlayerWebService(db, logger, configService);
+});
 builder.Services.AddHostedService<GameLoopService>();
 
 var app = builder.Build();
@@ -190,6 +221,9 @@ app.Use(async (ctx, next) =>
 
 // Static files for admin template
 app.UseStaticFiles();
+
+// Session middleware (must be before UseAuthentication)
+app.UseSession();
 
 // Authentication & Authorization
 app.UseAuthentication();

@@ -354,5 +354,9 @@
             <i class="mdi mdi-arrow-left"></i>
             Back to Users List
         </a>
+        <a asp-area="Admin" asp-page="/Users/Delete" asp-route-id="@Model.PlayerProfile.Id" class="btn btn-danger">
+            <i class="mdi mdi-delete"></i>
+            Delete User
+        </a>
     </div>
 </div>

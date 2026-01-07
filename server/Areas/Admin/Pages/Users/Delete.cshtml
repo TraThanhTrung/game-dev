@@ -1,0 +1,104 @@
+@page "{id}"
+@model GameServer.Areas.Admin.Pages.Users.DeleteModel
+@{
+    ViewData["Title"] = "Delete User";
+}
+
+@if (Model.PlayerProfile == null)
+{
+    <div class="alert alert-danger">User not found.</div>
+    return;
+}
+
+<div class="page-header">
+    <h3 class="page-title">Delete User</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Users/Index">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Delete</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="mdi mdi-alert"></i>
+                    <strong>Warning!</strong> Are you sure you want to delete this user? This action cannot be undone.
+                </div>
+
+                <h4 class="card-title mb-4">User Information</h4>
+                
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">User ID</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Id</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Name</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Name</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Level</label>
+                    </div>
+                    <div class="col-8">
+                        <span class="badge badge-primary badge-pill">@Model.PlayerProfile.Level</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Experience</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Exp / @Model.PlayerProfile.ExpToLevel</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Gold</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0 font-weight-medium">@Model.PlayerProfile.Gold</p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <label class="text-muted small">Created At</label>
+                    </div>
+                    <div class="col-8">
+                        <p class="mb-0">@Model.PlayerProfile.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <form method="post">
+                        <input type="hidden" name="id" value="@Model.PlayerProfile.Id" />
+                        <button type="submit" class="btn btn-danger">
+                            <i class="mdi mdi-delete"></i> Delete User
+                        </button>
+                        <a asp-area="Admin" asp-page="/Users/Index" class="btn btn-secondary">
+                            <i class="mdi mdi-arrow-left"></i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

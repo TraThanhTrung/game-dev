@@ -1,0 +1,195 @@
+.header{
+    background: url('../images/top-header.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    height: 350px;
+    position: relative;
+}
+
+.main-img{
+    .container{
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: $white;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+  
+      h1{
+        margin: 0;
+        color: $white;
+        span{
+          padding: 6px 14px;
+          display: inline-block;
+        }
+      }
+    }
+}
+
+.border_bottom {
+    width: 100%;
+    height: 1px;
+    background: $border-color;
+}
+
+/* width */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 4px;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: $gray-500;
+    border-radius: 4px;
+}
+
+.accordion-button:not(.collapsed) {
+    box-shadow: unset;
+}
+
+.iq-sidebar-accordian {
+    .nav-item {
+        width: 100%;
+        .nav-link {
+            color: $body-color;
+            transition: all 400ms ease;
+            &:hover {
+                transition: all 400ms ease;
+                color: $primary;
+            }
+            &.active{
+                transition: all 400ms ease;
+                color: $white;
+                background-color: $primary;
+                border-radius: $border-radius-sm;
+            }
+        }
+    }
+    .nav-link{
+        padding: $spacer * .5 $spacer;
+    }
+    .accordion{
+        .accordion-item {
+            .accordion-header{
+                .accordion-button{
+                    &:not(.collapsed){
+                        border: 1px solid $primary;
+                        color: $primary;
+                        border-radius: $border-radius-sm;
+                    }
+                }
+                .accordion-button{
+                    color: $body-color;
+                }
+            }
+        }
+    }
+}
+
+.iq-sidebar-accordian {
+    .nav-navbar {
+        background: transparent;
+    }
+    .accordion-item{
+    border:unset ;
+    }
+}
+button:focus:not(:focus-visible) {
+    box-shadow: none;
+}
+.accordion-body {
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+    padding: 1rem 1.25rem;
+    padding-right: 0;
+}
+.accordion-button{
+    padding-top: 0.5rem;
+    padding-right: 1rem ;
+    padding-bottom: 0.5rem;
+    padding-left: 1rem ;
+}
+
+.anchorjs-link {
+    &:hover, &:focus{
+        color: $primary;
+        text-decoration: none;
+        opacity: 1;
+    }
+    opacity: 0;
+    -webkit-font-smoothing: antialiased;
+    font-weight: 400;
+    color: rgba($primary,0.5);
+    transition: color 0.15s ease-in-out;
+    text-decoration: none;
+}
+
+h3{
+    &:hover{
+        > .anchorjs-link{
+            opacity: 1;
+        }
+    }
+}
+
+[data-anchorjs-icon]::after {
+    content: attr(data-anchorjs-icon);
+}
+// Scollspy
+.bd-example-toasts {
+    min-height: 240px;
+}
+.scrollspy-example-2 {
+    position: relative;
+    height: 350px;
+    overflow: auto;
+}
+.scrollspy-example {
+    position: relative;
+    height: 200px;
+    margin-top: .5rem;
+    overflow: auto;
+}
+.bd-content{
+    margin: $spacer * 1.5 0;
+    >.dropdown-menu{
+        display: block;
+        position: static;
+    }
+    .modal{
+        position: static;
+        display: block;
+    }
+}
+//plugins
+
+a{
+    text-decoration: none !important;
+}
+
+ul#myfiles {
+    background: $black;
+    color: $white;
+    padding: 10px 20px;
+    list-style: none;
+}
+ul#myfiles ul{
+  list-style: none;
+  padding-left: 30px;
+}
+
+.iq-documentation-project{
+    margin-top: -3rem;
+}
+@include media-breakpoint-down(lg){
+    .iq-documentation-project{
+        .row{
+            .col-sm-6{
+                margin-bottom: 1rem;
+            }
+        }
+    }
+}

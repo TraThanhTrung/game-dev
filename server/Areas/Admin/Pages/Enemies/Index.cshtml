@@ -8,7 +8,7 @@
     <h3 class="page-title">Enemies Management</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin">Dashboard</a></li>
             <li class="breadcrumb-item active" aria-current="page">Enemies</li>
         </ol>
     </nav>
@@ -20,7 +20,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="card-title">Enemies List</h4>
-                    <a asp-area="Admin" asp-page="/Enemies/Create" class="btn btn-success">
+                    <a asp-area="Admin" class="btn btn-success">
                         <i class="mdi mdi-plus"></i> Create New
                     </a>
                 </div>
@@ -63,11 +63,11 @@
                                         }
                                     </td>
                                     <td>
-                                        <a asp-area="Admin" asp-page="/Enemies/Edit" asp-route-id="@enemy.EnemyId"
+                                        <a asp-area="Admin" asp-route-id="@enemy.EnemyId"
                                             class="btn btn-sm btn-primary">
                                             <i class="mdi mdi-pencil"></i>
                                         </a>
-                                        <a asp-area="Admin" asp-page="/Enemies/Delete" asp-route-id="@enemy.EnemyId"
+                                        <a asp-area="Admin" asp-route-id="@enemy.EnemyId"
                                             class="btn btn-sm btn-danger">
                                             <i class="mdi mdi-delete"></i>
                                         </a>

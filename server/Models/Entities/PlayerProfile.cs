@@ -14,6 +14,15 @@ public class PlayerProfile
     [MaxLength(128)]
     public string TokenHash { get; set; } = string.Empty;
 
+    [MaxLength(256)]
+    public string? Email { get; set; }
+
+    [MaxLength(256)]
+    public string? PasswordHash { get; set; }
+
+    [MaxLength(256)]
+    public string? GoogleId { get; set; }
+
     public int Level { get; set; }
     public int Exp { get; set; }
     public int ExpToLevel { get; set; }

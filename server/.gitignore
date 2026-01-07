@@ -18,7 +18,3 @@ obj/
 .vs/
 .idea/
 
-# EF migrations cache
-Migrations/*.Designer.cs
-Migrations/*Snapshot.cs
-

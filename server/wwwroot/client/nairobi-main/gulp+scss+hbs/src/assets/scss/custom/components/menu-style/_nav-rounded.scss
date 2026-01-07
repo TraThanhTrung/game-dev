@@ -1,0 +1,11 @@
+// Sidebar Item Right
+
+.navs-gradient {
+    &.sidebar-mini {
+        @include sidebar-nav-item-varients(false, .625rem 1.75rem);
+    }
+    .sidebar-body {
+        padding-right: 1rem;
+    }
+    @include sidebar-nav-item-varients(false)
+}

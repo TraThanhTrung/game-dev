@@ -19,20 +19,20 @@ taskkill /F /IM GameServer.exe
 
 ### ✅ 1. Authentication & Authorization
 
-#### 1.1 Login
+#### 1.1 Login ( done )
 
 - [ ] Truy cập `/Admin/Login` - hiển thị form login
 - [ ] Đăng nhập với username/password sai → hiển thị lỗi
 - [ ] Đăng nhập với `admin / Admin123!` → redirect đến Dashboard
 - [ ] Kiểm tra UI/UX theo template (form đẹp, styling đúng)
 
-#### 1.2 Authorization
+#### 1.2 Authorization ( done )
 
 - [ ] Truy cập `/Admin` khi chưa login → redirect đến `/Admin/Login`
 - [ ] Sau khi login, có thể truy cập các trang admin
 - [ ] Kiểm tra sidebar hiển thị đúng menu items
 
-#### 1.3 Logout
+#### 1.3 Logout ( done )
 
 - [ ] Click logout → đăng xuất thành công
 - [ ] Sau logout → redirect về `/Admin/Login`
@@ -44,7 +44,7 @@ taskkill /F /IM GameServer.exe
 
 **URL:** `/Admin` hoặc `/Admin/Index`
 
-- [ ] Hiển thị 4 stats cards:
+- [ ] Hiển thị 4 stats cards: ( done )
   - [ ] Total Users (với icon và số liệu)
   - [ ] Total Sessions (với icon và số liệu)
   - [ ] Active Sessions (với icon và số liệu)
@@ -78,7 +78,7 @@ taskkill /F /IM GameServer.exe
 
 ### ✅ 4. Enemies Management
 
-#### 4.1 Enemies Index (`/Admin/Enemies`)
+#### 4.1 Enemies Index (`/Admin/Enemies`) ( done )
 
 - [ ] Hiển thị danh sách enemies trong table
 - [ ] Table có các cột: ID, Type ID, Name, Exp Reward, Gold Reward, Max Health, Damage, Speed, Status, Actions
@@ -86,7 +86,7 @@ taskkill /F /IM GameServer.exe
 - [ ] Có nút "Create New"
 - [ ] Có nút Edit và Delete cho mỗi enemy
 
-#### 4.2 Create Enemy (`/Admin/Enemies/Create`)
+#### 4.2 Create Enemy (`/Admin/Enemies/Create`) ( done)
 
 - [ ] Form có đầy đủ fields:
   - Type ID (required)
@@ -102,7 +102,7 @@ taskkill /F /IM GameServer.exe
 - [ ] Submit thành công → redirect về Index
 - [ ] Kiểm tra UI: form đẹp, styling đúng template
 
-#### 4.3 Edit Enemy (`/Admin/Enemies/Edit?id={id}`)
+#### 4.3 Edit Enemy (`/Admin/Enemies/Edit?id={id}`) ( xem lại cache )
 
 - [ ] Form pre-filled với dữ liệu hiện tại
 - [ ] Có thể chỉnh sửa tất cả fields

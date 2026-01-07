@@ -1,6 +1,9 @@
 using GameServer.Models.Dto;
 using GameServer.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace GameServer.Controllers;
 
@@ -10,12 +13,18 @@ public class AuthController : ControllerBase
 {
     private readonly WorldService _world;
     private readonly PlayerService _playerService;
+    private readonly PlayerWebService _playerWebService;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(WorldService world, PlayerService playerService, ILogger<AuthController> logger)
+    public AuthController(
+        WorldService world, 
+        PlayerService playerService,
+        PlayerWebService playerWebService,
+        ILogger<AuthController> logger)
     {
         _world = world;
         _playerService = playerService;
+        _playerWebService = playerWebService;
         _logger = logger;
     }
 
@@ -53,7 +62,7 @@ public class AuthController : ControllerBase
         var player = await _playerService.GetPlayerAsync(playerId);
         if (player == null)
         {
-            return NotFound("Player not found");
+            return NotFound();
         }
 
         return Ok(new PlayerProfileDto
@@ -62,25 +71,77 @@ public class AuthController : ControllerBase
             Name = player.Name,
             Level = player.Level,
             Exp = player.Exp,
-            Gold = player.Gold,
-            MaxHealth = player.Stats.MaxHealth,
-            CurrentHealth = player.Stats.CurrentHealth,
-            Damage = player.Stats.Damage,
-            Speed = player.Stats.Speed
+            Gold = player.Gold
         });
     }
-}
 
-// DTO for profile response
-public class PlayerProfileDto
-{
-    public Guid PlayerId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int Level { get; set; }
-    public int Exp { get; set; }
-    public int Gold { get; set; }
-    public int MaxHealth { get; set; }
-    public int CurrentHealth { get; set; }
-    public int Damage { get; set; }
-    public float Speed { get; set; }
+    /// <summary>
+    /// Google OAuth login - redirects to Google OAuth
+    /// </summary>
+    [HttpGet("google")]
+    [AllowAnonymous]
+    public IActionResult GoogleAuth()
+    {
+        var redirectUrl = Url.Action("GoogleCallback", "Auth", null, Request.Scheme);
+        var properties = new AuthenticationProperties 
+        { 
+            RedirectUri = redirectUrl 
+        };
+        return Challenge(properties, "Google");
+    }
+
+    /// <summary>
+    /// Google OAuth callback - handles response from Google
+    /// </summary>
+    [HttpGet("google-callback")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GoogleCallback()
+    {
+        // Get Google user info from claims
+        var result = await HttpContext.AuthenticateAsync("Google");
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning("Google authentication failed");
+            return Redirect("/?error=google_auth_failed");
+        }
+
+        // Extract Google user information
+        var googleId = result.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = result.Principal.FindFirst(ClaimTypes.Email)?.Value;
+        var name = result.Principal.FindFirst(ClaimTypes.Name)?.Value;
+
+        if (string.IsNullOrEmpty(googleId) || string.IsNullOrEmpty(email))
+        {
+            _logger.LogWarning("Google authentication missing required claims");
+            return Redirect("/?error=google_auth_incomplete");
+        }
+
+        // Check if user already exists
+        var existingPlayer = await _playerWebService.GetPlayerProfileByGoogleIdAsync(googleId);
+        
+        if (existingPlayer != null)
+        {
+            // User exists, login directly
+            HttpContext.Session.SetString("PlayerId", existingPlayer.Id.ToString());
+            HttpContext.Session.SetString("PlayerName", existingPlayer.Name);
+            
+            // Sign out the external cookie
+            await HttpContext.SignOutAsync("Google");
+            
+            _logger.LogInformation("Player logged in via Google: {Name} (Email: {Email}, ID: {Id})", 
+                existingPlayer.Name, email, existingPlayer.Id);
+            
+            return Redirect("/Player");
+        }
+
+        // New user - store Google info in session and redirect to username setup
+        HttpContext.Session.SetString("GmailEmail", email);
+        HttpContext.Session.SetString("GoogleId", googleId);
+        HttpContext.Session.SetString("GoogleName", name ?? email.Split('@')[0]);
+        
+        // Sign out the external cookie
+        await HttpContext.SignOutAsync("Google");
+        
+        return Redirect($"/?gmail=success&email={Uri.EscapeDataString(email)}");
+    }
 }

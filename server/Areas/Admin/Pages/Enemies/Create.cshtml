@@ -8,8 +8,8 @@
     <h3 class="page-title">Create Enemy</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
-            <li class="breadcrumb-item"><a asp-page="/Admin/Enemies/Index">Enemies</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin">Enemies</a></li>
             <li class="breadcrumb-item active" aria-current="page">Create</li>
         </ol>
     </nav>
@@ -147,7 +147,7 @@
                     </div>
                     
                     <button type="submit" class="btn btn-primary me-2">Create</button>
-                    <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                    <a asp-area="Admin" class="btn btn-light">Cancel</a>
                 </form>
             </div>
         </div>

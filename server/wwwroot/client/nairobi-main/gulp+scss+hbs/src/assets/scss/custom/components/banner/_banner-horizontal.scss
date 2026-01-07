@@ -1,0 +1,8 @@
+.banner-horizontal{
+    max-height: 586px;
+    overflow-y: scroll;
+    border-radius: 10px;
+    .iq-video-thumb {
+        margin-bottom: $spacer;
+    }
+}

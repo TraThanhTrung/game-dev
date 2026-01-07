@@ -1,0 +1,11 @@
+.iq-video-thumb {
+    position: relative;
+    img {
+        object-fit: cover;
+    }
+    .iq-btn-thumb {
+        top: 34%;
+        left: 40%;
+        position: absolute;
+    }
+}

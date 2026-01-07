@@ -1,0 +1,18 @@
+@include media-breakpoint-down(xl) {
+    .sidebar {
+        &.sidebar-default {
+            &.sidebar-mini {
+                transform: translateX(-100%);
+            }
+        }
+    }
+    .sidebar-default.sidebar-mini+.main-content,
+    .sidebar-default+.main-content {
+        margin-left: 0;
+    }
+    .search-input {
+        display: none;
+    }
+}
+
+

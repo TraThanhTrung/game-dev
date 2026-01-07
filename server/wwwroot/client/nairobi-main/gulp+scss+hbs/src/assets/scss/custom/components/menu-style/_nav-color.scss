@@ -1,0 +1,17 @@
+// Sidebar Background Colors
+.sidebar-dark {
+    @include sidebar-color-varients($navbar-vertical-dark-bg);
+    @include nav-item() {
+        &[aria-expanded=true] {
+            &:after{
+                border-color: $white
+            }
+        }
+        &.active,&[aria-expanded=true]{
+            @include sidebar-item-gradient-varients($white,$primary);
+        }
+        &:hover:not(.active):not([aria-expanded=true]) {
+            @include sidebar-nav-item-hover($primary, 0);
+        }
+    }
+}
