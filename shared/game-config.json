@@ -24,7 +24,7 @@
     "levelCap": 100
   },
   "polling": {
-    "stateIntervalSeconds": 0.07,
+    "stateIntervalSeconds": 0.01,
     "lerpSpeed": 55.0,
     "positionChangeThreshold": 0.005
   },

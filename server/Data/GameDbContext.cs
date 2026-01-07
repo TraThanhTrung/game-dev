@@ -1,9 +1,11 @@
 using GameServer.Models.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameServer.Data;
 
-public class GameDbContext : DbContext
+public class GameDbContext : IdentityDbContext<IdentityUser>
 {
     public GameDbContext(DbContextOptions<GameDbContext> options) : base(options)
     {

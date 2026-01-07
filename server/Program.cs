@@ -27,12 +27,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeAreaFolder("Admin", "/");
 });
 
-// Database Contexts
+// Database Context - Combined Game and Identity
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
 builder.Services.AddDbContext<GameDbContext>(options => options.UseSqlite(connectionString));
-
-var identityConnectionString = builder.Configuration.GetConnectionString("IdentityDb") ?? "Data Source=identity.db";
-builder.Services.AddDbContext<AdminIdentityDbContext>(options => options.UseSqlite(identityConnectionString));
 
 // ASP.NET Core Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -52,7 +49,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     // User settings
     options.User.RequireUniqueEmail = false;
 })
-.AddEntityFrameworkStores<AdminIdentityDbContext>()
+.AddEntityFrameworkStores<GameDbContext>()
 .AddDefaultTokenProviders();
 
 // Identity cookie settings
@@ -97,10 +94,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
     db.Database.Migrate();
     app.Logger.LogInformation("Database migrations applied: {db}", connectionString);
-
-    var identityDb = scope.ServiceProvider.GetRequiredService<AdminIdentityDbContext>();
-    identityDb.Database.Migrate();
-    app.Logger.LogInformation("Identity database migrations applied");
 
     // Seed default admin user
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();

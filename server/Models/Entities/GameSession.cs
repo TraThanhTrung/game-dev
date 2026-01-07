@@ -20,3 +20,4 @@ public class GameSession
     public ICollection<SessionPlayer> Players { get; set; } = new List<SessionPlayer>();
 }
 
+

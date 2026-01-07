@@ -37,3 +37,4 @@ public class DetailsModel : PageModel
     #endregion
 }
 
+
