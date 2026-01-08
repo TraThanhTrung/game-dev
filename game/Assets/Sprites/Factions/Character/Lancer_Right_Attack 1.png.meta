@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 75f5c39232e2e2b4f957b3ff6326d963
+guid: 0b97b5888133470419e7d8f1d1557349
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -69,7 +69,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -104,7 +104,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Lancer_Run_0
+      name: Lancer_Right_Attack 1_0
       rect:
         serializedVersion: 2
         x: 0
@@ -118,14 +118,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: d7b7028517f8d5048a4f74aaf379dab4
-      internalID: 1915445151
+      spriteID: dbf9f7e713444b646b23c77e955c0f2e
+      internalID: -375112705
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Lancer_Run_1
+      name: Lancer_Right_Attack 1_1
       rect:
         serializedVersion: 2
         x: 320
@@ -139,14 +139,14 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 4377601414d43644a82e5584849624d8
-      internalID: 149256551
+      spriteID: 421152f5930391b48b97bfef9b70dc58
+      internalID: 1761065540
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Lancer_Run_2
+      name: Lancer_Right_Attack 1_2
       rect:
         serializedVersion: 2
         x: 640
@@ -160,71 +160,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: e3083675b67b75f4aa869c22b6612f79
-      internalID: 1460839948
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Lancer_Run_3
-      rect:
-        serializedVersion: 2
-        x: 960
-        y: 0
-        width: 320
-        height: 320
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 8224e9a06d2078244ae4374485f57074
-      internalID: 299838754
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Lancer_Run_4
-      rect:
-        serializedVersion: 2
-        x: 1280
-        y: 0
-        width: 320
-        height: 320
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 890240a80b953194d9ba26db429ee0ed
-      internalID: -1325621803
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Lancer_Run_5
-      rect:
-        serializedVersion: 2
-        x: 1600
-        y: 0
-        width: 320
-        height: 320
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      outline: []
-      physicsShape: []
-      tessellationDetail: 0
-      bones: []
-      spriteID: 5c8f75bde9dcffb459cfb8ece8f82a7d
-      internalID: 1128794176
+      spriteID: 034078dc7ec99824da76c17b971172ec
+      internalID: 1470326711
       vertices: []
       indices: 
       edges: []
@@ -240,12 +177,9 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     nameFileIdTable:
-      Lancer_Run_1: 149256551
-      Lancer_Run_2: 1460839948
-      Lancer_Run_4: -1325621803
-      Lancer_Run_5: 1128794176
-      Lancer_Run_3: 299838754
-      Lancer_Run_0: 1915445151
+      Lancer_Right_Attack 1_1: 1761065540
+      Lancer_Right_Attack 1_0: -375112705
+      Lancer_Right_Attack 1_2: 1470326711
   spritePackingTag: 
   pSDRemoveMatte: 0
   pSDShowRemoveMatteOption: 0
