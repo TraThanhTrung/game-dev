@@ -6,7 +6,10 @@
 
 @if (Model.Match == null)
 {
-    <div class="alert alert-danger">Match not found.</div>
+    <div class="alert alert-danger">
+        <i class="mdi mdi-alert-circle"></i>
+        Match not found.
+    </div>
     return;
 }
 
@@ -14,94 +17,293 @@
     <h3 class="page-title">Match Details</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
-            <li class="breadcrumb-item"><a asp-page="/Admin/Matches/Index">Match History</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Matches/Index">Match History</a></li>
             <li class="breadcrumb-item active" aria-current="page">Details</li>
         </ol>
     </nav>
 </div>
 
+<!-- Overview Cards -->
 <div class="row">
-    <div class="col-md-6 grid-margin stretch-card">
+    <div class="col-md-4 grid-margin stretch-card">
         <div class="card">
             <div class="card-body">
-                <h4 class="card-title">Session Information</h4>
-                <div class="form-group">
-                    <label>Session ID</label>
-                    <p class="form-control-static">@Model.Match.SessionId</p>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">Session Info</h4>
+                        <p class="text-muted mb-0">
+                            <i class="mdi mdi-identifier"></i>
+                            <small>@Model.Match.SessionId.ToString("N")[..8]...</small>
+                        </p>
+                    </div>
+                    <div class="icon icon-box-info">
+                        <span class="mdi mdi-gamepad-variant icon-item"></span>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Start Time</label>
-                    <p class="form-control-static">@Model.Match.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">@Model.Match.PlayerCount Players</h4>
+                        <p class="text-muted mb-0">
+                            @if (Model.Match.EndTime.HasValue)
+                            {
+                                var duration = Model.Match.EndTime.Value - Model.Match.StartTime;
+                                <i class="mdi mdi-clock-outline"></i>
+                                <text>Duration: @duration.ToString(@"hh\:mm\:ss")</text>
+                            }
+                            else
+                            {
+                                <i class="mdi mdi-play-circle"></i>
+                                <text>Ongoing</text>
+                            }
+                        </p>
+                    </div>
+                    <div class="icon icon-box-warning">
+                        <span class="mdi mdi-account-group icon-item"></span>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>End Time</label>
-                    <p class="form-control-static">@(Model.Match.EndTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</p>
-                </div>
-                <div class="form-group">
-                    <label>Duration</label>
-                    <p class="form-control-static">
-                        @if (Model.Match.EndTime.HasValue)
-                        {
-                            @((Model.Match.EndTime.Value - Model.Match.StartTime).ToString(@"hh\:mm\:ss"))
-                        }
-                        else
-                        {
-                            <text>Ongoing</text>
-                        }
-                    </p>
-                </div>
-                <div class="form-group">
-                    <label>Player Count</label>
-                    <p class="form-control-static">@Model.Match.PlayerCount</p>
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <p class="form-control-static">
-                        @if (Model.Match.Status == "Active")
-                        {
-                            <span class="badge badge-warning">@Model.Match.Status</span>
-                        }
-                        else if (Model.Match.Status == "Completed")
-                        {
-                            <span class="badge badge-success">@Model.Match.Status</span>
-                        }
-                        else
-                        {
-                            <span class="badge badge-danger">@Model.Match.Status</span>
-                        }
-                    </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h4 class="card-title mb-2">
+                            @if (Model.Match.Status == "Active")
+                            {
+                                <span class="badge badge-warning">@Model.Match.Status</span>
+                            }
+                            else if (Model.Match.Status == "Completed")
+                            {
+                                <span class="badge badge-success">@Model.Match.Status</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-danger">@Model.Match.Status</span>
+                            }
+                        </h4>
+                        <p class="text-muted mb-0">
+                            <i class="mdi mdi-calendar-clock"></i>
+                            @Model.Match.StartTime.ToString("yyyy-MM-dd HH:mm")
+                        </p>
+                    </div>
+                    <div class="icon icon-box-success">
+                        <span class="mdi mdi-check-circle icon-item"></span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Session Information -->
 <div class="row">
-    <div class="col-12 grid-margin stretch-card">
+    <div class="col-md-6 grid-margin stretch-card">
         <div class="card">
             <div class="card-body">
-                <h4 class="card-title">Players (@Model.Match.Players.Count)</h4>
+                <h4 class="card-title mb-4">
+                    <i class="mdi mdi-information"></i>
+                    Session Information
+                </h4>
+
+                <div class="row mb-3">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-identifier"></i>
+                            Session ID
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        <p class="mb-0 font-weight-medium">
+                            <code class="text-primary">@Model.Match.SessionId</code>
+                        </p>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-play-circle"></i>
+                            Start Time
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        <p class="mb-0">
+                            <i class="mdi mdi-calendar-clock"></i>
+                            @Model.Match.StartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                        </p>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-stop-circle"></i>
+                            End Time
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        <p class="mb-0">
+                            @if (Model.Match.EndTime.HasValue)
+                            {
+                                <i class="mdi mdi-calendar-check"></i>
+                                @Model.Match.EndTime.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                            }
+                            else
+                            {
+                                <span class="badge badge-warning">Ongoing</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-clock-outline"></i>
+                            Duration
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        <p class="mb-0 font-weight-medium">
+                            @if (Model.Match.EndTime.HasValue)
+                            {
+                                var duration = Model.Match.EndTime.Value - Model.Match.StartTime;
+                                <i class="mdi mdi-timer"></i>
+                                @duration.ToString(@"hh\:mm\:ss")
+                            }
+                            else
+                            {
+                                var ongoingDuration = DateTime.UtcNow - Model.Match.StartTime;
+                                <span class="badge badge-info">
+                                    <i class="mdi mdi-play"></i>
+                                    @ongoingDuration.ToString(@"hh\:mm\:ss")
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-account-group"></i>
+                            Player Count
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        <p class="mb-0 font-weight-medium">
+                            <span class="badge badge-primary badge-pill">@Model.Match.PlayerCount</span>
+                        </p>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="row">
+                    <div class="col-5">
+                        <label class="text-muted small">
+                            <i class="mdi mdi-flag"></i>
+                            Status
+                        </label>
+                    </div>
+                    <div class="col-7">
+                        @if (Model.Match.Status == "Active")
+                        {
+                            <span class="badge badge-warning badge-pill">@Model.Match.Status</span>
+                        }
+                        else if (Model.Match.Status == "Completed")
+                        {
+                            <span class="badge badge-success badge-pill">@Model.Match.Status</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger badge-pill">@Model.Match.Status</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Players List -->
+    <div class="col-md-6 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-4">
+                    <i class="mdi mdi-account-group"></i>
+                    Players
+                    <span class="badge badge-info badge-pill ms-2">@Model.Match.Players.Count</span>
+                </h4>
+
                 @if (Model.Match.Players.Any())
                 {
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-hover table-striped">
                             <thead>
                                 <tr>
-                                    <th>Player ID</th>
-                                    <th>Join Time</th>
-                                    <th>Leave Time</th>
-                                    <th>Play Duration</th>
+                                    <th style="width: 25%;">
+                                        <i class="mdi mdi-identifier mr-1"></i> Player ID
+                                    </th>
+                                    <th style="width: 25%;">
+                                        <i class="mdi mdi-login mr-1"></i> Join Time
+                                    </th>
+                                    <th style="width: 25%;">
+                                        <i class="mdi mdi-logout mr-1"></i> Leave Time
+                                    </th>
+                                    <th style="width: 25%;">
+                                        <i class="mdi mdi-clock mr-1"></i> Play Duration
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var player in Model.Match.Players)
                                 {
                                     <tr>
-                                        <td>@player.PlayerId.ToString("N")[..8]...</td>
-                                        <td>@player.JoinTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                        <td>@(player.LeaveTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</td>
-                                        <td>@(player.PlayDuration.HasValue ? $"{player.PlayDuration}s" : "N/A")</td>
+                                        <td style="vertical-align: middle;">
+                                            <code class="text-primary">@player.PlayerId.ToString("N")[..8]...</code>
+                                        </td>
+                                        <td style="vertical-align: middle;">
+                                            <i class="mdi mdi-calendar-clock text-muted mr-1"></i>
+                                            @player.JoinTime.ToString("HH:mm:ss")
+                                        </td>
+                                        <td style="vertical-align: middle;">
+                                            @if (player.LeaveTime.HasValue)
+                                            {
+                                                <i class="mdi mdi-calendar-check text-muted mr-1"></i>
+                                                @player.LeaveTime.Value.ToString("HH:mm:ss")
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-info">
+                                                    <i class="mdi mdi-check-circle mr-1"></i> Active
+                                                </span>
+                                            }
+                                        </td>
+                                        <td style="vertical-align: middle;">
+                                            @if (player.PlayDuration.HasValue)
+                                            {
+                                                <span class="badge badge-success">
+                                                    <i class="mdi mdi-timer mr-1"></i>
+                                                    @player.PlayDuration.Value.ToString(@"hh\:mm\:ss")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">N/A</span>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                             </tbody>
@@ -110,18 +312,22 @@
                 }
                 else
                 {
-                    <p class="text-muted">No players in this session</p>
+                    <div class="alert alert-warning">
+                        <i class="mdi mdi-alert"></i>
+                        No players in this session.
+                    </div>
                 }
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<!-- Action Buttons -->
+<div class="row mt-3">
     <div class="col-12">
-        <a asp-page="/Admin/Matches/Index" class="btn btn-secondary">Back to List</a>
+        <a asp-area="Admin" asp-page="/Matches/Index" class="btn btn-secondary">
+            <i class="mdi mdi-arrow-left"></i>
+            Back to Match History
+        </a>
     </div>
 </div>
-
-
-

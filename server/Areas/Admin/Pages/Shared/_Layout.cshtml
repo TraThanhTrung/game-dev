@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>@ViewData["Title"] - Game Admin</title>
+    <title>@ViewData["Title"] - Tiny World</title>
 
     <!-- plugins:css -->
     <link rel="stylesheet" href="~/admin/dist/assets/vendors/mdi/css/materialdesignicons.min.css">
@@ -26,12 +26,19 @@
         <!-- Sidebar -->
         <nav class="sidebar sidebar-offcanvas" id="sidebar">
             <div class="sidebar-brand-wrapper d-none d-lg-flex align-items-center justify-content-center fixed-top">
-                <a class="sidebar-brand brand-logo" asp-area="Admin" asp-page="/Index">
-                    <img src="~/admin/dist/assets/images/logo.svg" alt="logo" />
-                </a>
-                <a class="sidebar-brand brand-logo-mini" asp-area="Admin" asp-page="/Index">
-                    <img src="~/admin/dist/assets/images/logo-mini.svg" alt="logo" />
-                </a>
+                    <a class="sidebar-brand brand-logo" asp-area="Admin" asp-page="/Index"
+                        style="text-decoration: none; display: flex; align-items: center; justify-content: center; width: 100%; padding: 15px 20px;">
+                        <span
+                            style="font-size: 22px; font-weight: 700; letter-spacing: 1.2px; color: #2c3e50; text-align: center; line-height: 1.2; white-space: nowrap;">Tiny
+                            World</span>
+                    </a>
+                    <a class="sidebar-brand brand-logo-mini" asp-area="Admin" asp-page="/Index"
+                        style="text-decoration: none; display: flex; align-items: center; justify-content: center; width: 100%; padding: 15px;">
+                        <div
+                            style="width: 32px; height: 32px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">
+                            <i class="mdi mdi-earth" style="font-size: 18px; color: #ffffff;"></i>
+                        </div>
+                    </a>
             </div>
             <ul class="nav">
                 <li class="nav-item profile">
@@ -52,16 +59,7 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-right sidebar-dropdown preview-list"
                             aria-labelledby="profile-dropdown">
-                            <a class="dropdown-item preview-item" href="#">
-                                <div class="preview-thumbnail">
-                                    <div class="preview-icon bg-dark rounded-circle">
-                                        <i class="mdi mdi-cog text-primary"></i>
-                                    </div>
-                                </div>
-                                <div class="preview-item-content">
-                                    <p class="preview-subject ellipsis mb-1 text-small">Account settings</p>
-                                </div>
-                            </a>
+                            <h6 class="p-3 mb-0">Profile</h6>
                             <div class="dropdown-divider"></div>
                             <form id="logoutFormSidebar" method="post" action="/Admin/Logout">
                                 @Html.AntiForgeryToken()
@@ -209,10 +207,7 @@
                 <footer class="footer">
                     <div class="d-sm-flex justify-content-center justify-content-sm-between">
                         <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">
-                            Copyright © 2024 Game Server. All rights reserved.
-                        </span>
-                        <span class="text-muted float-none float-sm-end d-block mt-1 mt-sm-0 text-center">
-                            Hand-crafted & made with <i class="mdi mdi-heart text-danger"></i>
+                            Copyright © 2026 Game Server ( Tiny World ). All rights reserved.
                         </span>
                     </div>
                 </footer>

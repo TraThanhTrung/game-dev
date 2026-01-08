@@ -8,7 +8,7 @@
     <h3 class="page-title">Game Sections Management</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
             <li class="breadcrumb-item active" aria-current="page">Game Sections</li>
         </ol>
     </nav>
@@ -20,7 +20,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="card-title">Game Sections List</h4>
-                    <a asp-page="/Admin/GameSections/Create" class="btn btn-success">
+                    <a asp-area="Admin" asp-page="/GameSections/Create" class="btn btn-success">
                         <i class="mdi mdi-plus"></i> Create New
                     </a>
                 </div>
@@ -61,10 +61,10 @@
                                         }
                                     </td>
                                     <td>
-                                        <a asp-page="/Admin/GameSections/Details" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-info">
+                                        <a asp-area="Admin" asp-page="/GameSections/Details" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-info">
                                             <i class="mdi mdi-eye"></i>
                                         </a>
-                                        <a asp-page="/Admin/GameSections/Edit" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-primary">
+                                        <a asp-area="Admin" asp-page="/GameSections/Edit" asp-route-id="@gameSection.SectionId" class="btn btn-sm btn-primary">
                                             <i class="mdi mdi-pencil"></i>
                                         </a>
                                     </td>

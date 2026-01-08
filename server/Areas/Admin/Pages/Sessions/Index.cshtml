@@ -8,7 +8,7 @@
     <h3 class="page-title">Active Sessions</h3>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a asp-page="/Admin/Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Index">Dashboard</a></li>
             <li class="breadcrumb-item active" aria-current="page">Active Sessions</li>
         </ol>
     </nav>
@@ -40,7 +40,7 @@
                                 @foreach (var session in Model.ActiveSessions)
                                 {
                                     var duration = (DateTime.UtcNow - session.StartTime).ToString(@"hh\:mm\:ss");
-                                    
+
                                     <tr>
                                         <td>@session.SessionId.ToString("N")[..8]...</td>
                                         <td>@session.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
@@ -50,7 +50,8 @@
                                             <span class="badge badge-warning">@session.Status</span>
                                         </td>
                                         <td>
-                                            <a asp-page="/Admin/Matches/Details" asp-route-id="@session.SessionId" class="btn btn-sm btn-primary">
+                                            <a asp-area="Admin" asp-page="/Matches/Details" asp-route-id="@session.SessionId"
+                                                class="btn btn-sm btn-primary">
                                                 <i class="mdi mdi-eye"></i> View
                                             </a>
                                         </td>
@@ -74,11 +75,8 @@
 @section Scripts {
     <script>
         // Auto-refresh every 5 seconds
-        setTimeout(function() {
+        setTimeout(function () {
             location.reload();
         }, 5000);
     </script>
 }
-
-
-
