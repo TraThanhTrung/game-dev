@@ -13,13 +13,13 @@ status: pending
 content: Tạo RoomService với CRUD operations, start/end game section logic, tích hợp database và Redis
 status: pending
 dependencies:
-  - room_game_result_entities
-  - redis_service_extension
+- room_game_result_entities
+- redis_service_extension
 - id: rooms_controller
 content: Tạo RoomsController với tất cả API endpoints (create, join, leave, start-section, end-section)
 status: pending
 dependencies:
-  - room_service
+- room_service
 - id: game_sections_controller
 content: Tạo GameSectionsController API để lấy danh sách game sections
 status: pending
@@ -30,7 +30,7 @@ status: pending
 content: Cập nhật WorldService để sử dụng Redis thay vì ConcurrentDictionary
 status: pending
 dependencies:
-  - redis_service_extension
+- redis_service_extension
 - id: worldservice_database
 content: Cập nhật WorldService để load enemy config từ database (EnemyConfigService từ Plan 1)
 status: pending
@@ -38,27 +38,27 @@ status: pending
 content: Tích hợp WorldService với RoomService và SessionTrackingService
 status: pending
 dependencies:
-  - room_service
-  - worldservice_redis
-  - worldservice_database
+- room_service
+- worldservice_redis
+- worldservice_database
 - id: game_result_tracking
 content: "Implement game result tracking: lưu GameResult, update player stats, update GameSession"
 status: pending
 dependencies:
-  - room_service
+- room_service
 - id: player_service_update
 content: Cập nhật PlayerService để update stats sau game result (exp, gold, level)
 status: pending
 dependencies:
-  - game_result_tracking
+- game_result_tracking
 - id: testing_integration
 content: Test room system, game sections, game results, Redis integration với Unity client
 status: pending
 dependencies:
-  - rooms_controller
-  - game_sections_controller
-  - worldservice_integration
-  - game_result_tracking
+- rooms_controller
+- game_sections_controller
+- worldservice_integration
+- game_result_tracking
 ---
 
 # Plan 3: Update Gameplay with Room System
