@@ -38,3 +38,4 @@ public class DetailsModel : PageModel
 }
 
 
+
