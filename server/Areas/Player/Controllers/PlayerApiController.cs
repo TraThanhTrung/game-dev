@@ -38,7 +38,7 @@ public class PlayerApiController : ControllerBase
 
     private bool IsPlayerLoggedIn()
     {
-        return GetPlayerIdFromSession().HasValue && 
+        return GetPlayerIdFromSession().HasValue &&
                !string.IsNullOrEmpty(HttpContext.Session.GetString("PlayerName"));
     }
     #endregion
