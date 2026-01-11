@@ -172,15 +172,28 @@ public class MultiplayerUIManager : MonoBehaviour
         {
             // Parse error message to show user-friendly message
             var errorMsg = err ?? "Unknown error";
+            
+            // Handle expected errors gracefully (not as crashes)
             if (errorMsg.Contains("401") || errorMsg.Contains("Unauthorized"))
             {
-                SetStatus("Login failed: Invalid username or password", StatusType.Error);
+                SetStatus("Sai tên đăng nhập hoặc mật khẩu", StatusType.Error);
+                Debug.LogWarning("[MultiplayerUI] Login failed: Invalid credentials");
+            }
+            else if (errorMsg.Contains("404") || errorMsg.Contains("Not Found"))
+            {
+                SetStatus("Tài khoản không tồn tại", StatusType.Error);
+                Debug.LogWarning("[MultiplayerUI] Login failed: Account not found");
+            }
+            else if (errorMsg.Contains("Cannot connect") || errorMsg.Contains("Connection"))
+            {
+                SetStatus("Không thể kết nối server", StatusType.Error);
+                Debug.LogWarning($"[MultiplayerUI] Connection error: {errorMsg}");
             }
             else
             {
-                SetStatus($"Login error: {errorMsg}", StatusType.Error);
+                SetStatus($"Lỗi đăng nhập: {errorMsg}", StatusType.Error);
+                Debug.LogWarning($"[MultiplayerUI] Login failed: {errorMsg}");
             }
-            Debug.LogError($"[MultiplayerUI] Login failed: {errorMsg}");
         }));
     }
     #endregion

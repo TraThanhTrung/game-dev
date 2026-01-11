@@ -387,6 +387,130 @@ public class WorldService
 
     #endregion
 
+    #region SignalR Support
+
+    /// <summary>
+    /// Get session snapshot for SignalR broadcast.
+    /// Returns a GameStateSnapshot suitable for real-time updates.
+    /// </summary>
+    public Hubs.GameStateSnapshot? GetSessionSnapshot(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return null;
+        }
+
+        var snapshot = new Hubs.GameStateSnapshot
+        {
+            Sequence = session.Version,
+            ServerTime = (float)(DateTime.UtcNow - DateTime.UtcNow.Date).TotalSeconds, // Seconds since midnight
+            ConfirmedInputSequence = GetLatestConfirmedInputSequence(sessionId),
+            Players = session.Players.Values.Select(p => new Hubs.PlayerSnapshot
+            {
+                Id = p.Id.ToString(),
+                Name = p.Name,
+                CharacterType = p.CharacterType,
+                X = p.X,
+                Y = p.Y,
+                Hp = p.Hp,
+                MaxHp = p.MaxHp,
+                Level = p.Level,
+                Status = p.IsDead ? "dead" : "idle",
+                LastConfirmedInputSequence = p.LastConfirmedInputSequence
+            }).ToList(),
+            Enemies = session.Enemies.Values
+                .Where(e => e.Hp > 0)
+                .Select(e => new Hubs.EnemySnapshot
+                {
+                    Id = e.Id.ToString(),
+                    TypeId = e.TypeId,
+                    X = e.X,
+                    Y = e.Y,
+                    Hp = e.Hp,
+                    MaxHp = e.MaxHp,
+                    Status = e.Status.ToString().ToLower()
+                }).ToList(),
+            Projectiles = session.Projectiles.Values.Select(p => new Hubs.ProjectileSnapshot
+            {
+                Id = p.Id.ToString(),
+                OwnerId = p.OwnerId.ToString(),
+                X = p.X,
+                Y = p.Y,
+                VelocityX = p.DirX * p.Speed,
+                VelocityY = p.DirY * p.Speed
+            }).ToList()
+        };
+
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Queue input from SignalR client for processing in next game tick.
+    /// </summary>
+    public void QueueInput(Hubs.InputPayload input)
+    {
+        if (!Guid.TryParse(input.PlayerId, out var playerId))
+        {
+            _logger.LogWarning("[WorldService] Invalid player ID in input: {PlayerId}", input.PlayerId);
+            return;
+        }
+
+        _inputQueue[playerId] = new InputCommand
+        {
+            PlayerId = playerId,
+            SessionId = input.SessionId,
+            MoveX = Clamp(input.MoveX),
+            MoveY = Clamp(input.MoveY),
+            AimX = 0,
+            AimY = 0,
+            Attack = input.Attack,
+            Shoot = false,
+            Sequence = input.Sequence
+        };
+
+        // Update last confirmed input sequence for the player
+        if (_playerToSession.TryGetValue(playerId, out var sessionId))
+        {
+            if (_sessions.TryGetValue(sessionId, out var session))
+            {
+                if (session.Players.TryGetValue(playerId, out var playerState))
+                {
+                    playerState.LastConfirmedInputSequence = input.Sequence;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the latest confirmed input sequence for a session.
+    /// Used for client-side prediction reconciliation.
+    /// </summary>
+    private int GetLatestConfirmedInputSequence(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return 0;
+        }
+
+        // Return the maximum confirmed input sequence among all players
+        var maxSequence = session.Players.Values
+            .Select(p => p.LastConfirmedInputSequence)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return maxSequence;
+    }
+
+    /// <summary>
+    /// Get all active session IDs for broadcasting.
+    /// </summary>
+    public IEnumerable<string> GetActiveSessionIds()
+    {
+        return _sessions.Keys.ToList();
+    }
+
+    #endregion
+
     #region Internal helpers
 
     private void ProcessInputs(SessionState session)

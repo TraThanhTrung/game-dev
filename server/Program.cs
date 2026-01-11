@@ -1,4 +1,5 @@
 using GameServer.Data;
+using GameServer.Hubs;
 using GameServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -143,6 +144,13 @@ builder.Services.AddScoped<PlayerWebService>(sp =>
 });
 builder.Services.AddHostedService<GameLoopService>();
 
+// SignalR for real-time game state
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = 64 * 1024; // 64KB max message size
+});
+
 var app = builder.Build();
 
 // Apply database migrations
@@ -261,6 +269,9 @@ app.Use(async (ctx, next) =>
 app.MapRazorPages();
 
 app.MapControllers();
+
+// Map SignalR Hub for real-time game state
+app.MapHub<GameHub>("/gamehub");
 
 // Log when server is ready
 app.Lifetime.ApplicationStarted.Register(() =>

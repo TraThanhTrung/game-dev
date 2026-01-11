@@ -4,11 +4,13 @@ public class PlayerState
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string CharacterType { get; set; } = "lancer"; // "lancer" or "warrious"
     public float X { get; set; }
     public float Y { get; set; }
     public int Hp { get; set; }
     public int MaxHp { get; set; }
     public int Sequence { get; set; }
+    public int LastConfirmedInputSequence { get; set; } // For client reconciliation
     public bool IsDead => Hp <= 0;
 
     // Progression

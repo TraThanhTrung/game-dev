@@ -60,6 +60,56 @@ public class SessionsController : ControllerBase
     }
 
     /// <summary>
+    /// Get session metadata for loading screen (players, room config).
+    /// Called during loading screen to get session info before connecting SignalR.
+    /// </summary>
+    [HttpGet("{sessionId}/metadata")]
+    public ActionResult<SessionMetadataResponse> GetSessionMetadata([FromRoute] string sessionId)
+    {
+        var roomInfo = _world.GetRoomInfo(sessionId);
+        if (roomInfo == null)
+        {
+            return NotFound(new { message = "Session not found" });
+        }
+
+        var snapshot = _world.GetSessionSnapshot(sessionId);
+
+        var response = new SessionMetadataResponse
+        {
+            SessionId = sessionId,
+            PlayerCount = roomInfo.Value.playerCount,
+            Version = roomInfo.Value.version,
+            Players = snapshot?.Players.Select(p => new PlayerMetadata
+            {
+                Id = p.Id,
+                Name = p.Name,
+                CharacterType = p.CharacterType,
+                Level = p.Level
+            }).ToList() ?? new List<PlayerMetadata>()
+        };
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Signal that client is ready to connect to SignalR.
+    /// Called after loading screen completes resource validation.
+    /// </summary>
+    [HttpPost("{sessionId}/ready")]
+    public IActionResult SignalReady([FromRoute] string sessionId, [FromBody] ReadyRequest request)
+    {
+        if (request.PlayerId == Guid.Empty)
+            return BadRequest("PlayerId required");
+
+        HttpContext.Items["playerId"] = request.PlayerId.ToString();
+
+        _logger.LogInformation("[Sessions] Player {PlayerId} ready for session {SessionId}",
+            request.PlayerId.ToString()[..8], sessionId);
+
+        return Ok(new { ready = true, sessionId });
+    }
+
+    /// <summary>
     /// Save player progress to database.
     /// </summary>
     [HttpPost("save")]

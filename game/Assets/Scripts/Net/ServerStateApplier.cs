@@ -46,6 +46,11 @@ public class ServerStateApplier : MonoBehaviour
 
     // SmoothDamp for smoother interpolation (better than Lerp for network sync)
     private Vector3 velocity = Vector3.zero;
+
+    // Prediction & Interpolation components
+    private ClientPredictor m_Predictor;
+    private StateInterpolator m_Interpolator;
+    private bool m_UseSignalRMode = false;
     #endregion
 
     #region Public Properties
@@ -201,8 +206,29 @@ public class ServerStateApplier : MonoBehaviour
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
 #endif
 
-        // Auto-start polling if NetClient is connected
-        if (m_AutoPoll && NetClient.Instance != null && NetClient.Instance.IsConnected && !isPolling)
+        // Get prediction/interpolation components
+        m_Predictor = GetComponent<ClientPredictor>();
+        m_Interpolator = GetComponent<StateInterpolator>();
+
+        // Subscribe to SignalR events if available
+        if (NetClient.Instance != null)
+        {
+            NetClient.Instance.OnGameStateReceived += OnSignalRGameStateReceived;
+            NetClient.Instance.OnSignalRConnectionChanged += OnSignalRConnectionChanged;
+
+            // Check if SignalR is already connected
+            if (NetClient.Instance.IsSignalRConnected)
+            {
+                m_UseSignalRMode = true;
+                if (m_EnableLogging)
+                {
+                    Debug.Log("[StateApplier] Using SignalR mode for state sync");
+                }
+            }
+        }
+
+        // Auto-start polling if NetClient is connected and not using SignalR
+        if (m_AutoPoll && !m_UseSignalRMode && NetClient.Instance != null && NetClient.Instance.IsConnected && !isPolling)
         {
             StartPolling();
         }
@@ -216,7 +242,167 @@ public class ServerStateApplier : MonoBehaviour
         EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
 #endif
 
+        // Unsubscribe from SignalR events
+        if (NetClient.Instance != null)
+        {
+            NetClient.Instance.OnGameStateReceived -= OnSignalRGameStateReceived;
+            NetClient.Instance.OnSignalRConnectionChanged -= OnSignalRConnectionChanged;
+        }
+
         StopPolling();
+    }
+
+    /// <summary>
+    /// Handle SignalR connection state changes.
+    /// </summary>
+    private void OnSignalRConnectionChanged(bool connected)
+    {
+        m_UseSignalRMode = connected;
+
+        if (connected)
+        {
+            // Stop polling when SignalR connects
+            StopPolling();
+            if (m_EnableLogging)
+            {
+                Debug.Log("[StateApplier] Switched to SignalR mode");
+            }
+        }
+        else
+        {
+            // Fall back to polling when SignalR disconnects
+            if (m_AutoPoll && NetClient.Instance != null && NetClient.Instance.IsConnected)
+            {
+                StartPolling();
+                if (m_EnableLogging)
+                {
+                    Debug.Log("[StateApplier] Fell back to polling mode");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handle game state received via SignalR.
+    /// </summary>
+    private void OnSignalRGameStateReceived(GameStateSnapshot state)
+    {
+        if (state == null || state.players == null || NetClient.Instance == null)
+            return;
+
+        var myId = NetClient.Instance.PlayerId.ToString();
+
+        foreach (var p in state.players)
+        {
+            if (p.id == myId)
+            {
+                ApplySignalRSnapshot(p, state.serverTime, state.sequence, state.confirmedInputSequence);
+                break;
+            }
+        }
+
+        // Update remote players via RemotePlayerManager
+        var remotePlayerManager = FindObjectOfType<RemotePlayerManager>();
+        if (remotePlayerManager != null)
+        {
+            // Convert to RemotePlayerSnapshot list for RemotePlayerManager
+            var playerSnapshots = new System.Collections.Generic.List<RemotePlayerSnapshot>();
+            foreach (var p in state.players)
+            {
+                playerSnapshots.Add(RemotePlayerSnapshot.FromSignalR(p));
+            }
+            remotePlayerManager.UpdateFromSnapshot(playerSnapshots, state.serverTime, state.sequence);
+        }
+
+        // Sync enemies via EnemySpawner
+        if (enemySpawner != null)
+        {
+            // Convert SignalR state to legacy StateResponse for EnemySpawner
+            var legacyState = ConvertToLegacyState(state);
+            enemySpawner.OnStateReceived(legacyState);
+        }
+    }
+
+    /// <summary>
+    /// Apply player snapshot from SignalR with prediction reconciliation.
+    /// </summary>
+    private void ApplySignalRSnapshot(SignalRPlayerSnapshot snapshot, float serverTime, int sequence, int confirmedInputSequence)
+    {
+        if (snapshot == null) return;
+
+        var serverPos = new Vector3(snapshot.x, snapshot.y, 0);
+
+        // Add to interpolation buffer
+        if (m_Interpolator != null)
+        {
+            m_Interpolator.AddSnapshot(serverPos, serverTime, sequence, snapshot.hp, snapshot.maxHp, snapshot.status);
+        }
+
+        // Reconcile prediction (for local player only)
+        if (m_Predictor != null)
+        {
+            m_Predictor.Reconcile(snapshot.x, snapshot.y, snapshot.lastConfirmedInputSequence);
+        }
+        else
+        {
+            // No predictor - apply position via interpolation or directly
+            if (m_Interpolator == null)
+            {
+                targetPosition = serverPos;
+                hasTargetPosition = true;
+            }
+        }
+
+        // Apply non-position state immediately
+        CurrentHp = snapshot.hp;
+        MaxHp = snapshot.maxHp;
+        Sequence = sequence;
+
+        // Sync with StatsManager
+        if (StatsManager.Instance != null)
+        {
+            StatsManager.Instance.ApplySnapshot(snapshot.hp, snapshot.maxHp);
+        }
+
+        // Update ExpManager (only level, exp values come from regular state sync)
+        if (expManager != null && snapshot.level > 0)
+        {
+            expManager.SyncFromServer(snapshot.level, 0, 100); // Basic level sync from SignalR
+        }
+    }
+
+    /// <summary>
+    /// Convert SignalR GameStateSnapshot to legacy StateResponse.
+    /// </summary>
+    private StateResponse ConvertToLegacyState(GameStateSnapshot state)
+    {
+        var response = new StateResponse
+        {
+            sessionId = NetClient.Instance?.SessionId ?? "default",
+            version = state.sequence
+        };
+
+        // Convert enemies
+        if (state.enemies != null)
+        {
+            response.enemies = new EnemySnapshot[state.enemies.Count];
+            for (int i = 0; i < state.enemies.Count; i++)
+            {
+                var e = state.enemies[i];
+                response.enemies[i] = new EnemySnapshot
+                {
+                    id = e.id,
+                    typeId = e.typeId,
+                    x = e.x,
+                    y = e.y,
+                    hp = e.hp,
+                    maxHp = e.maxHp,
+                    status = e.status
+                };
+            }
+        }
+
+        return response;
     }
 
 #if UNITY_EDITOR
@@ -309,7 +495,16 @@ public class ServerStateApplier : MonoBehaviour
             }
         }
 
-        if (hasTargetPosition)
+        // Try to get predictor if not found yet (may be added after Start)
+        if (m_Predictor == null)
+        {
+            m_Predictor = GetComponent<ClientPredictor>();
+        }
+
+        // IMPORTANT: Skip position interpolation if ClientPredictor is active
+        // Local player position is handled by ClientPredictor + Rigidbody physics
+        // Only apply position updates for remote players or when predictor is not available
+        if (hasTargetPosition && m_Predictor == null)
         {
             // Use SmoothDamp for smoother interpolation (better than Lerp for network sync)
             float distance = Vector3.Distance(transform.position, targetPosition);

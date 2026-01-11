@@ -1282,6 +1282,7 @@ MonoBehaviour:
   m_StartButton: {fileID: 4422625704226895597}
   m_StatusText: {fileID: 1321803955761623458}
   m_GameSceneName: RPG
+  m_CharacterPreview: {fileID: 363517143}
 --- !u!1 &783430403
 GameObject:
   m_ObjectHideFlags: 0

@@ -21,6 +21,9 @@ public class HomeManager : MonoBehaviour
     [SerializeField] private Button m_StartButton;
     [SerializeField] private TMP_Text m_StatusText;
     [SerializeField] private string m_GameSceneName = c_GameSceneName;
+
+    [Header("Character Selection")]
+    [SerializeField] private CharacterPreview m_CharacterPreview;
     #endregion
 
     #region Unity Lifecycle
@@ -217,10 +220,49 @@ public class HomeManager : MonoBehaviour
     {
         SetStatus("Starting game...", StatusType.Loading);
         var roomId = NetClient.Instance != null ? NetClient.Instance.SessionId : "Unknown";
-        Debug.Log($"[HomeManager] Starting game in room: {roomId}");
+
+        // Get selected character type from CharacterPreview
+        string characterType = GetSelectedCharacterType();
+
+        // Store character type in NetClient for later use
+        if (NetClient.Instance != null)
+        {
+            NetClient.Instance.SelectedCharacterType = characterType;
+        }
+
+        Debug.Log($"[HomeManager] Starting game in room: {roomId}, character: {characterType}");
 
         // Load game scene
         UnityEngine.SceneManagement.SceneManager.LoadScene(m_GameSceneName);
+    }
+
+    /// <summary>
+    /// Get the currently selected character type from CharacterPreview.
+    /// </summary>
+    private string GetSelectedCharacterType()
+    {
+        if (m_CharacterPreview == null)
+        {
+            Debug.LogWarning("[HomeManager] CharacterPreview is NOT assigned! Using default: lancer");
+            return "lancer";
+        }
+
+        var selection = m_CharacterPreview.GetCurrentSelection();
+        if (selection == null)
+        {
+            Debug.LogWarning("[HomeManager] No character selection found! Using default: lancer");
+            return "lancer";
+        }
+
+        if (string.IsNullOrEmpty(selection.name))
+        {
+            Debug.LogWarning("[HomeManager] Character selection has no name! Using default: lancer");
+            return "lancer";
+        }
+
+        string characterType = selection.name.ToLower();
+        Debug.Log($"[HomeManager] Selected character type: {characterType}");
+        return characterType;
     }
     #endregion
 }

@@ -39,3 +39,38 @@ public class StateResponse
     public List<ProjectileSnapshot> Projectiles { get; set; } = new();
 }
 
+#region Session Metadata DTOs
+
+/// <summary>
+/// Response for session metadata (used during loading screen).
+/// </summary>
+public class SessionMetadataResponse
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int PlayerCount { get; set; }
+    public int Version { get; set; }
+    public List<PlayerMetadata> Players { get; set; } = new();
+}
+
+/// <summary>
+/// Player metadata for session info.
+/// </summary>
+public class PlayerMetadata
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string CharacterType { get; set; } = "lancer";
+    public int Level { get; set; }
+}
+
+/// <summary>
+/// Request to signal client is ready for SignalR connection.
+/// </summary>
+public class ReadyRequest
+{
+    public Guid PlayerId { get; set; }
+    public string? CharacterType { get; set; }
+}
+
+#endregion
+

@@ -308,7 +308,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b05cd4c3ea944d44b7856a5b450414a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_LogToConsole: 1
+  m_LogToConsole: 0
 --- !u!4 &275046247
 Transform:
   m_ObjectHideFlags: 0
@@ -1348,6 +1348,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_BaseUrl: http://localhost:5220
   m_DefaultSessionId: default
+  m_EnableSignalRLogging: 1
 --- !u!4 &1138725624
 Transform:
   m_ObjectHideFlags: 0

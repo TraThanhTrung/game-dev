@@ -118,5 +118,114 @@ public class RedisService
         }
     }
     #endregion
+
+    #region Public Methods - Session State Cache
+    /// <summary>
+    /// Cache session metadata (short TTL, for REST API queries)
+    /// </summary>
+    public async Task<SessionMetadata?> GetSessionMetadataAsync(string sessionId)
+    {
+        var key = $"session:metadata:{sessionId}";
+        return await GetAsync<SessionMetadata>(key);
+    }
+
+    public async Task SetSessionMetadataAsync(string sessionId, SessionMetadata metadata)
+    {
+        var key = $"session:metadata:{sessionId}";
+        await SetAsync(key, metadata, TimeSpan.FromSeconds(5)); // Short TTL
+    }
+
+    public async Task InvalidateSessionMetadataAsync(string sessionId)
+    {
+        var key = $"session:metadata:{sessionId}";
+        await DeleteAsync(key);
+    }
+    #endregion
+
+    #region Public Methods - Player Profile Cache
+    /// <summary>
+    /// Cache player profile (medium TTL, for profile lookups)
+    /// </summary>
+    public async Task<PlayerProfileCache?> GetPlayerProfileAsync(Guid playerId)
+    {
+        var key = $"player:profile:{playerId}";
+        return await GetAsync<PlayerProfileCache>(key);
+    }
+
+    public async Task SetPlayerProfileAsync(Guid playerId, PlayerProfileCache profile)
+    {
+        var key = $"player:profile:{playerId}";
+        await SetAsync(key, profile, TimeSpan.FromMinutes(5)); // 5 min TTL
+    }
+
+    public async Task InvalidatePlayerProfileAsync(Guid playerId)
+    {
+        var key = $"player:profile:{playerId}";
+        await DeleteAsync(key);
+    }
+    #endregion
+
+    #region Public Methods - Game Section Cache
+    /// <summary>
+    /// Cache game section config (long TTL, static data)
+    /// </summary>
+    public async Task<GameSectionCache?> GetGameSectionAsync(int sectionId)
+    {
+        var key = $"game:section:{sectionId}";
+        return await GetAsync<GameSectionCache>(key);
+    }
+
+    public async Task SetGameSectionAsync(int sectionId, GameSectionCache section)
+    {
+        var key = $"game:section:{sectionId}";
+        await SetAsync(key, section, TimeSpan.FromHours(24)); // 24 hour TTL
+    }
+    #endregion
 }
+
+#region Cache DTOs
+/// <summary>
+/// Session metadata for caching (lightweight version for REST queries)
+/// </summary>
+public class SessionMetadata
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int PlayerCount { get; set; }
+    public List<PlayerInfo> Players { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
+    public int Version { get; set; }
+}
+
+public class PlayerInfo
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string CharacterType { get; set; } = "lancer";
+}
+
+/// <summary>
+/// Player profile for caching
+/// </summary>
+public class PlayerProfileCache
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Level { get; set; }
+    public int Gold { get; set; }
+    public string? AvatarPath { get; set; }
+}
+
+/// <summary>
+/// Game section for caching
+/// </summary>
+public class GameSectionCache
+{
+    public int SectionId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int EnemyCount { get; set; }
+    public int EnemyLevel { get; set; }
+    public float SpawnRate { get; set; }
+    public int? Duration { get; set; }
+}
+#endregion
 
