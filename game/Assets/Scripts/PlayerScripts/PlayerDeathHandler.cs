@@ -137,17 +137,9 @@ public class PlayerDeathHandler : MonoBehaviour
             return;
         }
 
-        // Get spawn position from config
-        Vector3 spawnPosition = Vector3.zero;
-        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
-        {
-            var defaults = GameConfigLoader.Instance.Config.playerDefaults;
-            spawnPosition = new Vector3(defaults.spawnX, defaults.spawnY, 0);
-        }
-        else
-        {
-            Debug.LogWarning("[PlayerDeathHandler] GameConfigLoader not found, using default spawn (0,0,0)");
-        }
+        // Hardcoded spawn position (server will provide authoritative position via respawn request)
+        // Player stats and spawn position are now managed via database, not game-config.json
+        Vector3 spawnPosition = new Vector3(-16f, 12f, 0f);
 
         // Reset position to spawn position before activating
         m_PlayerObject.transform.position = spawnPosition;

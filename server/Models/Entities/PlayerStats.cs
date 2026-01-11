@@ -8,12 +8,24 @@ public class PlayerStats
     [Key]
     public Guid PlayerId { get; set; }
 
+    // Combat stats
     public int Damage { get; set; }
     public float Range { get; set; }
     public float KnockbackForce { get; set; }
     public float Speed { get; set; }
     public int MaxHealth { get; set; }
     public int CurrentHealth { get; set; }
+
+    // Additional stats (for full sync)
+    public float WeaponRange { get; set; }
+    public float KnockbackTime { get; set; }
+    public float StunTime { get; set; }
+    public float BonusDamagePercent { get; set; }
+    public float DamageReductionPercent { get; set; }
+
+    // Spawn position
+    public float SpawnX { get; set; }
+    public float SpawnY { get; set; }
 
     [ForeignKey(nameof(PlayerId))]
     public PlayerProfile Player { get; set; } = default!;

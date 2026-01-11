@@ -17,6 +17,53 @@ namespace GameServer.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.5");
 
+            modelBuilder.Entity("GameServer.Models.Entities.Checkpoint", b =>
+                {
+                    b.Property<int>("CheckpointId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CheckpointName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnemyPool")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxEnemies")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SectionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<float>("X")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("Y")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("CheckpointId");
+
+                    b.HasIndex("CheckpointName")
+                        .IsUnique();
+
+                    b.HasIndex("SectionId");
+
+                    b.ToTable("Checkpoints");
+                });
+
             modelBuilder.Entity("GameServer.Models.Entities.Enemy", b =>
                 {
                     b.Property<int>("EnemyId")
@@ -186,6 +233,10 @@ namespace GameServer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AvatarPath")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -207,10 +258,6 @@ namespace GameServer.Migrations
 
                     b.Property<string>("GoogleId")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AvatarPath")
-                        .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Level")
@@ -240,13 +287,22 @@ namespace GameServer.Migrations
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("TEXT");
 
+                    b.Property<float>("BonusDamagePercent")
+                        .HasColumnType("REAL");
+
                     b.Property<int>("CurrentHealth")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Damage")
                         .HasColumnType("INTEGER");
 
+                    b.Property<float>("DamageReductionPercent")
+                        .HasColumnType("REAL");
+
                     b.Property<float>("KnockbackForce")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("KnockbackTime")
                         .HasColumnType("REAL");
 
                     b.Property<int>("MaxHealth")
@@ -255,7 +311,19 @@ namespace GameServer.Migrations
                     b.Property<float>("Range")
                         .HasColumnType("REAL");
 
+                    b.Property<float>("SpawnX")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("SpawnY")
+                        .HasColumnType("REAL");
+
                     b.Property<float>("Speed")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("StunTime")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("WeaponRange")
                         .HasColumnType("REAL");
 
                     b.HasKey("PlayerId");
@@ -507,6 +575,16 @@ namespace GameServer.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("GameServer.Models.Entities.Checkpoint", b =>
+                {
+                    b.HasOne("GameServer.Models.Entities.GameSection", "Section")
+                        .WithMany("Checkpoints")
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Section");
+                });
+
             modelBuilder.Entity("GameServer.Models.Entities.InventoryItem", b =>
                 {
                     b.HasOne("GameServer.Models.Entities.PlayerProfile", "Player")
@@ -600,6 +678,11 @@ namespace GameServer.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GameServer.Models.Entities.GameSection", b =>
+                {
+                    b.Navigation("Checkpoints");
                 });
 
             modelBuilder.Entity("GameServer.Models.Entities.GameSession", b =>

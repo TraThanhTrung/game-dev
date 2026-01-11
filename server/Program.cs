@@ -14,6 +14,13 @@ builder.Services.AddControllers()
     {
         // Accept camelCase from client (e.g., playerName instead of PlayerName)
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Serialize responses in camelCase for Unity client compatibility
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        // Include null values in JSON responses (required for avatarPath field)
+        // Never = include all values including null
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never;
+        // Ensure null values are written to JSON
+        options.JsonSerializerOptions.WriteIndented = false; // Compact JSON
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -118,16 +125,13 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 });
 
 // Application Services
-// Note: GameConfigService needs to be registered after DbContext and RedisService
-builder.Services.AddSingleton<GameConfigService>(sp =>
-{
-    var logger = sp.GetRequiredService<ILogger<GameConfigService>>();
-    return new GameConfigService(logger, sp);
-});
+// GameConfigService only loads expCurve and polling settings (no player/enemy configs)
+builder.Services.AddSingleton<GameConfigService>();
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<RedisService>();
 builder.Services.AddScoped<EnemyConfigService>();
+builder.Services.AddSingleton<CheckpointService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<SessionTrackingService>();
 builder.Services.AddScoped<PlayerWebService>(sp =>

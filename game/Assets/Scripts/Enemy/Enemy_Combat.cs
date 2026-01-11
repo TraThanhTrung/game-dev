@@ -31,13 +31,12 @@ public class Enemy_Combat : MonoBehaviour
     #region Private Methods
     private void LoadFromConfig()
     {
-        // Ensure GameConfigLoader exists
-        GameConfigLoader.EnsureInstance();
-
-        if (GameConfigLoader.Instance == null)
+        // Load from EnemyConfigManager (database via API) instead of GameConfigLoader
+        // Ensure EnemyConfigManager exists
+        if (EnemyConfigManager.Instance == null)
         {
-            Debug.LogWarning("[Enemy_Combat] GameConfigLoader not found. Using defaults.");
-            return;
+            var go = new GameObject("EnemyConfigManager");
+            go.AddComponent<EnemyConfigManager>();
         }
 
         // Get typeId from Enemy_Health component
@@ -47,18 +46,19 @@ public class Enemy_Combat : MonoBehaviour
             typeId = m_EnemyHealth.EnemyTypeId;
         }
 
-        var enemyConfig = GameConfigLoader.Instance.GetEnemyConfig(typeId);
+        var enemyConfig = EnemyConfigManager.Instance?.GetEnemyConfig(typeId);
         if (enemyConfig != null)
         {
             m_Damage = enemyConfig.damage;
             m_WeaponRange = enemyConfig.weaponRange;
             m_KnockbackForce = enemyConfig.knockbackForce;
             m_StunTime = enemyConfig.stunTime;
-            Debug.Log($"[Enemy_Combat] Loaded config for {typeId}: damage={m_Damage}, weaponRange={m_WeaponRange}");
+            Debug.Log($"[Enemy_Combat] Loaded config from database for {typeId}: damage={m_Damage}, weaponRange={m_WeaponRange}");
         }
         else
         {
-            Debug.LogWarning($"[Enemy_Combat] Config not found for typeId={typeId}. Using defaults.");
+            Debug.LogWarning($"[Enemy_Combat] Config not found in database for typeId={typeId}. " +
+                $"Make sure EnemyConfigManager has loaded configs from server. Using defaults.");
         }
     }
     #endregion

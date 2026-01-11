@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,6 +16,7 @@ public class HomeManager : MonoBehaviour
     [SerializeField] private TMP_Text m_PlayerNameText;
     [SerializeField] private TMP_Text m_PlayerLevelText;
     [SerializeField] private TMP_Text m_PlayerGoldText;
+    [SerializeField] private UnityEngine.UI.RawImage m_PlayerAvatarImage;
     [SerializeField] private TMP_InputField m_RoomIdInput;
     [SerializeField] private Button m_StartButton;
     [SerializeField] private TMP_Text m_StatusText;
@@ -52,7 +54,7 @@ public class HomeManager : MonoBehaviour
         StartCoroutine(NetClient.Instance.GetPlayerProfile(
             profile =>
             {
-                // Update UI elements
+                // Update UI elements - Name, Level, Gold
                 if (m_PlayerNameText != null)
                     m_PlayerNameText.text = profile.name ?? "Unknown";
 
@@ -62,8 +64,25 @@ public class HomeManager : MonoBehaviour
                 if (m_PlayerGoldText != null)
                     m_PlayerGoldText.text = $"Gold: {profile.gold}";
 
+                Debug.Log($"[HomeManager] Profile loaded: {profile.name} Level={profile.level} Gold={profile.gold} AvatarPath={(profile.avatarPath ?? "null")}");
+
+                // Load avatar image if path is provided
+                if (!string.IsNullOrEmpty(profile.avatarPath) && m_PlayerAvatarImage != null)
+                {
+                    Debug.Log($"[HomeManager] Loading avatar from path: {profile.avatarPath}");
+                    StartCoroutine(LoadAvatarImage(profile.avatarPath));
+                }
+                else
+                {
+                    // Clear avatar if no path provided
+                    if (m_PlayerAvatarImage != null)
+                    {
+                        m_PlayerAvatarImage.texture = null;
+                    }
+                    Debug.Log($"[HomeManager] No avatar path provided. avatarPath={(profile.avatarPath ?? "null")}, m_PlayerAvatarImage={(m_PlayerAvatarImage != null ? "assigned" : "null")}");
+                }
+
                 SetStatus("Profile loaded", StatusType.Success);
-                Debug.Log($"[HomeManager] Profile loaded: {profile.name} Level={profile.level} Gold={profile.gold}");
             },
             err =>
             {
@@ -173,6 +192,25 @@ public class HomeManager : MonoBehaviour
                     Debug.LogError($"[HomeManager] Failed to join room: {err}");
                 }));
         }
+    }
+
+    private IEnumerator LoadAvatarImage(string avatarPath)
+    {
+        yield return NetClient.Instance.DownloadAvatarImage(avatarPath,
+            texture =>
+            {
+                if (m_PlayerAvatarImage != null && texture != null)
+                {
+                    // Set texture directly to RawImage (no need to convert to Sprite)
+                    m_PlayerAvatarImage.texture = texture;
+                    Debug.Log($"[HomeManager] Avatar loaded successfully: {avatarPath} ({texture.width}x{texture.height})");
+                }
+            },
+            err =>
+            {
+                Debug.LogWarning($"[HomeManager] Failed to load avatar: {err}");
+                // Don't set error status for avatar load failure - profile still loaded successfully
+            });
     }
 
     private void LoadGameScene()

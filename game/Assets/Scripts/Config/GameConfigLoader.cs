@@ -2,6 +2,11 @@ using System;
 using System.IO;
 using UnityEngine;
 
+/// <summary>
+/// Loads game configuration from shared/game-config.json.
+/// Only loads expCurve and polling settings.
+/// Player stats and enemy configs are now loaded from the server database.
+/// </summary>
 public class GameConfigLoader : MonoBehaviour
 {
     #region Constants
@@ -64,7 +69,7 @@ public class GameConfigLoader : MonoBehaviour
             if (parsed != null)
             {
                 Config = parsed;
-                Debug.Log($"[GameConfigLoader] Config loaded from {path}");
+                Debug.Log($"[GameConfigLoader] Config loaded from {path} (expCurve, polling only)");
             }
         }
         catch (Exception ex)
@@ -73,79 +78,19 @@ public class GameConfigLoader : MonoBehaviour
         }
     }
     #endregion
-
-    #region Public Methods
-    /// <summary>
-    /// Get enemy config by typeId. Returns null if not found.
-    /// </summary>
-    public EnemyConfigData GetEnemyConfig(string typeId)
-    {
-        if (Config == null || Config.enemyStats == null)
-            return null;
-
-        foreach (var enemy in Config.enemyStats)
-        {
-            if (enemy.typeId == typeId)
-                return enemy;
-        }
-
-        return null;
-    }
-    #endregion
 }
 
 #region Config Models
+/// <summary>
+/// Game configuration data structure.
+/// Only contains expCurve and polling settings.
+/// Player stats and enemy configs are loaded from the server database.
+/// </summary>
 [Serializable]
 public class GameConfigData
 {
-    public PlayerDefaultsData playerDefaults = new PlayerDefaultsData();
     public ExpCurveData expCurve = new ExpCurveData();
     public PollingSettingsData polling = new PollingSettingsData();
-    public EnemyConfigData[] enemyStats = Array.Empty<EnemyConfigData>();
-}
-
-[Serializable]
-public class PlayerDefaultsData
-{
-    public int level = 1;
-    public int exp = 0;
-    public int gold = 100;
-    public float spawnX = -16f;
-    public float spawnY = 12f;
-    public PlayerStatBlockData stats = new PlayerStatBlockData();
-}
-
-[Serializable]
-public class PlayerStatBlockData
-{
-    public int damage = 10;
-    public float weaponRange = 1.5f;
-    public float knockbackForce = 5f;
-    public float knockbackTime = 0.2f;
-    public float stunTime = 0.3f;
-    public float speed = 4f;
-    public int maxHealth = 50;
-    public int currentHealth = 50;
-    public float bonusDamagePercent = 0f;
-    public float damageReductionPercent = 0f;
-}
-
-[Serializable]
-public class EnemyConfigData
-{
-    public string typeId = "enemy";
-    public int expReward = 25;
-    public int goldReward = 10;
-    public int maxHealth = 30;
-    public int damage = 5;
-    public float speed = 2f;
-    public float detectRange = 6f;
-    public float attackRange = 1.2f;
-    public float attackCooldown = 2f;
-    public float weaponRange = 1.2f;
-    public float knockbackForce = 5f;
-    public float stunTime = 0.3f;
-    public float respawnDelay = 5f;
 }
 
 [Serializable]
@@ -164,4 +109,3 @@ public class PollingSettingsData
     public float positionChangeThreshold = 0.01f;
 }
 #endregion
-

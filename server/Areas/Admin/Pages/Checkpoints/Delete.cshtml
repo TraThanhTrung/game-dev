@@ -1,0 +1,58 @@
+@page
+@model GameServer.Areas.Admin.Pages.Checkpoints.DeleteModel
+@{
+    ViewData["Title"] = "Delete Checkpoint";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Delete Checkpoint</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-page="/Checkpoints/Index">Checkpoints</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Delete</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">Confirm Delete</h4>
+                
+                @if (Model.Checkpoint != null)
+                {
+                    <p>Are you sure you want to delete this checkpoint?</p>
+                    <dl class="row">
+                        <dt class="col-sm-3">ID</dt>
+                        <dd class="col-sm-9">@Model.Checkpoint.CheckpointId</dd>
+                        
+                        <dt class="col-sm-3">Name</dt>
+                        <dd class="col-sm-9">@Model.Checkpoint.CheckpointName</dd>
+                        
+                        <dt class="col-sm-3">Position</dt>
+                        <dd class="col-sm-9">(@Model.Checkpoint.X, @Model.Checkpoint.Y)</dd>
+                        
+                        <dt class="col-sm-3">Enemy Pool</dt>
+                        <dd class="col-sm-9"><code>@Model.Checkpoint.EnemyPool</code></dd>
+                        
+                        <dt class="col-sm-3">Max Enemies</dt>
+                        <dd class="col-sm-9">@Model.Checkpoint.MaxEnemies</dd>
+                    </dl>
+                    
+                    <form method="post">
+                        <input type="hidden" asp-for="@Model.Checkpoint.CheckpointId" />
+                        <button type="submit" class="btn btn-danger mr-2">Delete</button>
+                        <a asp-page="./Index" class="btn btn-light">Cancel</a>
+                    </form>
+                }
+                else
+                {
+                    <p>Checkpoint not found.</p>
+                    <a asp-page="./Index" class="btn btn-light">Back to List</a>
+                }
+            </div>
+        </div>
+    </div>
+</div>

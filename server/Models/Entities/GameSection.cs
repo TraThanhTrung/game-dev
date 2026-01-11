@@ -30,7 +30,11 @@ public class GameSection
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation property - Checkpoints belonging to this section
+    public ICollection<Checkpoint> Checkpoints { get; set; } = new List<Checkpoint>();
 }
+
 
 
 

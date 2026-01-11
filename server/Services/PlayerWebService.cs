@@ -165,13 +165,8 @@ public class PlayerWebService
             // Hash password using SHA256 (simple hashing for student project)
             var passwordHash = HashPassword(password);
 
-            // Get default config for new player
-            if (_configService == null)
-            {
-                return (false, Guid.Empty, "Configuration service not available");
-            }
-
-            var defaults = _configService.PlayerDefaults;
+            // Load defaults from game-config.json (only used at creation time)
+            var defaults = _configService?.PlayerDefaults ?? new PlayerDefaults();
             var stats = defaults.Stats;
 
             var newPlayer = new PlayerProfile
@@ -183,7 +178,7 @@ public class PlayerWebService
                 TokenHash = Guid.NewGuid().ToString("N"),
                 Level = defaults.Level,
                 Exp = defaults.Exp,
-                ExpToLevel = _configService.GetExpForNextLevel(defaults.Level),
+                ExpToLevel = _configService?.GetExpForNextLevel(defaults.Level) ?? 10,
                 Gold = defaults.Gold,
                 CreatedAt = DateTime.UtcNow,
                 Stats = new PlayerStats
@@ -193,7 +188,14 @@ public class PlayerWebService
                     KnockbackForce = stats.KnockbackForce,
                     Speed = stats.Speed,
                     MaxHealth = stats.MaxHealth,
-                    CurrentHealth = stats.CurrentHealth
+                    CurrentHealth = stats.CurrentHealth,
+                    WeaponRange = stats.WeaponRange,
+                    KnockbackTime = stats.KnockbackTime,
+                    StunTime = stats.StunTime,
+                    BonusDamagePercent = stats.BonusDamagePercent,
+                    DamageReductionPercent = stats.DamageReductionPercent,
+                    SpawnX = defaults.SpawnX,
+                    SpawnY = defaults.SpawnY
                 }
             };
             newPlayer.Stats.PlayerId = newPlayer.Id;
@@ -301,14 +303,6 @@ public class PlayerWebService
             }
 
             // Create new account with Google
-            if (_configService == null)
-            {
-                return (false, Guid.Empty, "Configuration service not available");
-            }
-
-            var defaults = _configService.PlayerDefaults;
-            var stats = defaults.Stats;
-
             // Use email username if username not provided
             var playerName = username ?? email.Split('@')[0];
 
@@ -318,6 +312,10 @@ public class PlayerWebService
             {
                 return (false, Guid.Empty, $"Username '{playerName}' is already taken. Please choose a different username.");
             }
+
+            // Load defaults from game-config.json (only used at creation time)
+            var defaults = _configService?.PlayerDefaults ?? new PlayerDefaults();
+            var stats = defaults.Stats;
 
             var newPlayer = new PlayerProfile
             {
@@ -330,7 +328,7 @@ public class PlayerWebService
                 TokenHash = Guid.NewGuid().ToString("N"),
                 Level = defaults.Level,
                 Exp = defaults.Exp,
-                ExpToLevel = _configService.GetExpForNextLevel(defaults.Level),
+                ExpToLevel = _configService?.GetExpForNextLevel(defaults.Level) ?? 10,
                 Gold = defaults.Gold,
                 CreatedAt = DateTime.UtcNow,
                 Stats = new PlayerStats
@@ -340,7 +338,14 @@ public class PlayerWebService
                     KnockbackForce = stats.KnockbackForce,
                     Speed = stats.Speed,
                     MaxHealth = stats.MaxHealth,
-                    CurrentHealth = stats.CurrentHealth
+                    CurrentHealth = stats.CurrentHealth,
+                    WeaponRange = stats.WeaponRange,
+                    KnockbackTime = stats.KnockbackTime,
+                    StunTime = stats.StunTime,
+                    BonusDamagePercent = stats.BonusDamagePercent,
+                    DamageReductionPercent = stats.DamageReductionPercent,
+                    SpawnX = defaults.SpawnX,
+                    SpawnY = defaults.SpawnY
                 }
             };
             newPlayer.Stats.PlayerId = newPlayer.Id;

@@ -9,7 +9,7 @@ public class StatsManager : MonoBehaviour
     public StatsUI statsUI;
     public TMP_Text healthText;
 
-    [Header("Combat Stats")]
+    [Header("Combat Stats (synced from server)")]
     public int damage;
     public float weaponRange;
     public float knockbackForce;
@@ -36,26 +36,31 @@ public class StatsManager : MonoBehaviour
 
     private void Start()
     {
-        // Initialize from shared config if available
-        if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
-        {
-            ApplyConfig(GameConfigLoader.Instance.Config.playerDefaults.stats);
-        }
+        // Stats are synced from server via ServerStateApplier.ApplySnapshot()
+        // No longer load from GameConfigLoader - all stats come from database
     }
 
-    public void ApplyConfig(PlayerStatBlockData stats)
+    /// <summary>
+    /// Apply all player stats from server snapshot.
+    /// Called by ServerStateApplier when receiving state from server.
+    /// </summary>
+    public void ApplyServerStats(
+        int damage, float range, float speed,
+        float weaponRange, float knockbackForce, float knockbackTime, float stunTime,
+        float bonusDamagePercent, float damageReductionPercent)
     {
-        damage = stats.damage;
-        weaponRange = stats.weaponRange;
-        knockbackForce = stats.knockbackForce;
-        knockbackTime = stats.knockbackTime;
-        stunTime = stats.stunTime;
-        speed = (int)stats.speed;
-        maxHealth = stats.maxHealth;
-        currentHealth = stats.currentHealth;
-        bonusDamagePercent = stats.bonusDamagePercent;
-        damageReductionPercent = stats.damageReductionPercent;
-        UpdateHealth(0);
+        this.damage = damage;
+        this.weaponRange = weaponRange;
+        this.knockbackForce = knockbackForce;
+        this.knockbackTime = knockbackTime;
+        this.stunTime = stunTime;
+        this.speed = (int)speed;
+        this.bonusDamagePercent = bonusDamagePercent;
+        this.damageReductionPercent = damageReductionPercent;
+
+        // Update UI if available
+        if (statsUI != null)
+            statsUI.UpdateAllStats();
     }
 
     public void ApplySnapshot(int hp, int maxHp)

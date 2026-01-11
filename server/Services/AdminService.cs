@@ -1,6 +1,7 @@
 using GameServer.Data;
 using GameServer.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GameServer.Services;
 
@@ -9,15 +10,18 @@ public class AdminService
     #region Private Fields
     private readonly GameDbContext _db;
     private readonly ILogger<AdminService> _logger;
+    private readonly IServiceProvider _serviceProvider;
     #endregion
 
     #region Constructor
     public AdminService(
         GameDbContext db,
-        ILogger<AdminService> logger)
+        ILogger<AdminService> logger,
+        IServiceProvider serviceProvider)
     {
         _db = db;
         _logger = logger;
+        _serviceProvider = serviceProvider;
     }
     #endregion
 
@@ -189,6 +193,10 @@ public class AdminService
         if (enemy == null)
             return null;
 
+        // Store old TypeId for cache invalidation (in case TypeId changed)
+        var oldTypeId = enemy.TypeId;
+        var newTypeId = updatedEnemy.TypeId;
+
         enemy.TypeId = updatedEnemy.TypeId;
         enemy.Name = updatedEnemy.Name;
         enemy.ExpReward = updatedEnemy.ExpReward;
@@ -207,6 +215,27 @@ public class AdminService
         enemy.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        // Invalidate Redis cache for enemy config (old and new TypeId if changed)
+        try
+        {
+            var enemyConfigService = _serviceProvider.GetService<EnemyConfigService>();
+            if (enemyConfigService != null)
+            {
+                await enemyConfigService.InvalidateCacheAsync(oldTypeId);
+                if (oldTypeId != newTypeId)
+                {
+                    await enemyConfigService.InvalidateCacheAsync(newTypeId);
+                }
+                _logger.LogInformation("Invalidated Redis cache for enemy config: {OldTypeId} -> {NewTypeId}", oldTypeId, newTypeId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to invalidate Redis cache for enemy {TypeId}", newTypeId);
+            // Continue even if cache invalidation fails
+        }
+
         return enemy;
     }
 
@@ -265,12 +294,118 @@ public class AdminService
 
     public async Task<bool> DeleteGameSectionAsync(int sectionId)
     {
-        var section = await _db.GameSections.FindAsync(sectionId);
+        var section = await _db.GameSections
+            .Include(s => s.Checkpoints)
+            .FirstOrDefaultAsync(s => s.SectionId == sectionId);
+        
         if (section == null)
             return false;
 
+        // Set checkpoints' SectionId to null (orphan them) before deleting section
+        foreach (var checkpoint in section.Checkpoints)
+        {
+            checkpoint.SectionId = null;
+        }
+
         _db.GameSections.Remove(section);
         await _db.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Get checkpoint count for a GameSection.
+    /// </summary>
+    public async Task<int> GetCheckpointCountForSectionAsync(int sectionId)
+    {
+        return await _db.Checkpoints
+            .CountAsync(c => c.SectionId == sectionId);
+    }
+
+    /// <summary>
+    /// Get active checkpoint count for a GameSection.
+    /// </summary>
+    public async Task<int> GetActiveCheckpointCountForSectionAsync(int sectionId)
+    {
+        return await _db.Checkpoints
+            .CountAsync(c => c.SectionId == sectionId && c.IsActive);
+    }
+    #endregion
+
+    #region Public Methods - Checkpoints
+    public async Task<List<Checkpoint>> GetCheckpointsAsync(int? sectionId = null)
+    {
+        var query = _db.Checkpoints
+            .Include(c => c.Section)
+            .AsQueryable();
+        
+        if (sectionId.HasValue)
+        {
+            query = query.Where(c => c.SectionId == sectionId.Value);
+        }
+        
+        return await query
+            .OrderBy(c => c.CheckpointName)
+            .ToListAsync();
+    }
+
+    public async Task<Checkpoint?> GetCheckpointAsync(int checkpointId)
+    {
+        return await _db.Checkpoints
+            .Include(c => c.Section)
+            .FirstOrDefaultAsync(c => c.CheckpointId == checkpointId);
+    }
+
+    public async Task<Checkpoint> CreateCheckpointAsync(Checkpoint checkpoint)
+    {
+        checkpoint.CreatedAt = DateTime.UtcNow;
+        _db.Checkpoints.Add(checkpoint);
+        await _db.SaveChangesAsync();
+        
+        // Invalidate checkpoint cache
+        var checkpointService = _serviceProvider.GetService<CheckpointService>();
+        checkpointService?.InvalidateCache();
+        
+        return checkpoint;
+    }
+
+    public async Task<Checkpoint?> UpdateCheckpointAsync(int checkpointId, Checkpoint updatedCheckpoint)
+    {
+        var checkpoint = await _db.Checkpoints.FindAsync(checkpointId);
+        if (checkpoint == null)
+            return null;
+
+        checkpoint.CheckpointName = updatedCheckpoint.CheckpointName;
+        checkpoint.SectionId = updatedCheckpoint.SectionId;
+        checkpoint.X = updatedCheckpoint.X;
+        checkpoint.Y = updatedCheckpoint.Y;
+        checkpoint.EnemyPool = updatedCheckpoint.EnemyPool;
+        checkpoint.MaxEnemies = updatedCheckpoint.MaxEnemies;
+        checkpoint.IsActive = updatedCheckpoint.IsActive;
+        checkpoint.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        
+        // Invalidate checkpoint cache (both old and new if section changed)
+        var checkpointService = _serviceProvider.GetService<CheckpointService>();
+        checkpointService?.InvalidateCache(checkpoint.CheckpointName);
+        
+        return checkpoint;
+    }
+
+    public async Task<bool> DeleteCheckpointAsync(int checkpointId)
+    {
+        var checkpoint = await _db.Checkpoints.FindAsync(checkpointId);
+        if (checkpoint == null)
+            return false;
+
+        var checkpointName = checkpoint.CheckpointName;
+        _db.Checkpoints.Remove(checkpoint);
+        await _db.SaveChangesAsync();
+        
+        // Invalidate checkpoint cache
+        var checkpointService = _serviceProvider.GetService<CheckpointService>();
+        checkpointService?.InvalidateCache(checkpointName);
+        
         return true;
     }
     #endregion
@@ -285,6 +420,7 @@ public class DashboardStatsDto
     public int MatchesToday { get; set; }
 }
 #endregion
+
 
 
 

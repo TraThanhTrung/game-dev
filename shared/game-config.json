@@ -27,22 +27,5 @@
     "stateIntervalSeconds": 0.01,
     "lerpSpeed": 55.0,
     "positionChangeThreshold": 0.005
-  },
-  "enemyStats": [
-    {
-      "typeId": "slime",
-      "expReward": 3,
-      "goldReward": 10,
-      "maxHealth": 5,
-      "damage": 3,
-      "speed": 2.0,
-      "detectRange": 6.0,
-      "attackRange": 1.2,
-      "attackCooldown": 2.0,
-      "weaponRange": 1.2,
-      "knockbackForce": 2.8,
-      "stunTime": 0.28,
-      "respawnDelay": 5.0
-    }
-  ]
+  }
 }

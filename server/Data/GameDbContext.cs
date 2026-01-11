@@ -19,6 +19,7 @@ public class GameDbContext : IdentityDbContext<IdentityUser>
     public DbSet<SessionPlayer> SessionPlayers => Set<SessionPlayer>();
     public DbSet<Enemy> Enemies => Set<Enemy>();
     public DbSet<GameSection> GameSections => Set<GameSection>();
+    public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,29 @@ public class GameDbContext : IdentityDbContext<IdentityUser>
         modelBuilder.Entity<GameSection>()
             .Property(g => g.Name)
             .IsRequired();
+
+        modelBuilder.Entity<Checkpoint>()
+            .HasIndex(c => c.CheckpointName)
+            .IsUnique();
+
+        modelBuilder.Entity<Checkpoint>()
+            .Property(c => c.CheckpointName)
+            .IsRequired();
+
+        modelBuilder.Entity<Checkpoint>()
+            .Property(c => c.EnemyPool)
+            .IsRequired();
+
+        // GameSection → Checkpoints relationship (1-n)
+        modelBuilder.Entity<Checkpoint>()
+            .HasOne(c => c.Section)
+            .WithMany(s => s.Checkpoints)
+            .HasForeignKey(c => c.SectionId)
+            .OnDelete(DeleteBehavior.SetNull); // Allow orphaned checkpoints (backward compatibility)
+
+        // Index on SectionId for performance
+        modelBuilder.Entity<Checkpoint>()
+            .HasIndex(c => c.SectionId);
     }
 }
 

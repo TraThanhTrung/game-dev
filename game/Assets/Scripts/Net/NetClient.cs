@@ -129,14 +129,18 @@ public class NetClient : MonoBehaviour
             yield break;
         }
 
+        // Debug: log raw JSON response
+        Debug.Log($"[NetClient] Profile response JSON: {req.downloadHandler.text}");
+
         PlayerProfileResponse result;
         try
         {
             result = JsonUtility.FromJson<PlayerProfileResponse>(req.downloadHandler.text);
         }
-        catch
+        catch (Exception ex)
         {
-            onError?.Invoke("Invalid profile response JSON");
+            Debug.LogError($"[NetClient] Failed to parse profile JSON: {ex.Message}");
+            onError?.Invoke($"Invalid profile response JSON: {ex.Message}");
             yield break;
         }
 
@@ -147,6 +151,52 @@ public class NetClient : MonoBehaviour
         }
 
         onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
+    /// Downloads avatar image from server and converts it to Texture2D.
+    /// </summary>
+    public IEnumerator DownloadAvatarImage(string avatarPath, Action<Texture2D> onSuccess, Action<string> onError)
+    {
+        if (string.IsNullOrEmpty(avatarPath))
+        {
+            onError?.Invoke("Avatar path is empty");
+            yield break;
+        }
+
+        // Build full URL - avatarPath should be relative (e.g., "/avatars/xxx.jpg" or "avatars/xxx.jpg")
+        string url;
+        if (avatarPath.StartsWith("http://") || avatarPath.StartsWith("https://"))
+        {
+            url = avatarPath; // Already a full URL
+        }
+        else
+        {
+            // Ensure path starts with "/" for proper URL construction
+            var path = avatarPath.StartsWith("/") ? avatarPath : $"/{avatarPath}";
+            url = $"{m_BaseUrl}{path}";
+        }
+        
+        Debug.Log($"[NetClient] Downloading avatar from: {url}");
+        
+        using var req = UnityWebRequestTexture.GetTexture(url);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        var texture = DownloadHandlerTexture.GetContent(req);
+        if (texture == null)
+        {
+            onError?.Invoke("Failed to download texture");
+            yield break;
+        }
+
+        Debug.Log($"[NetClient] Avatar downloaded successfully: {texture.width}x{texture.height}");
+        onSuccess?.Invoke(texture);
     }
 
     public IEnumerator LoginPlayer(string playerName, string password, Action onSuccess, Action<string> onError)
@@ -501,6 +551,49 @@ public class NetClient : MonoBehaviour
     }
 
     /// <summary>
+    /// Report damage from player to enemy so server can update enemy HP authoritatively.
+    /// </summary>
+    public IEnumerator ReportEnemyDamage(System.Guid enemyId, int damageAmount, Action<EnemyDamageResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new EnemyDamageRequest
+        {
+            playerId = PlayerId.ToString(),
+            enemyId = enemyId.ToString(),
+            sessionId = SessionId,
+            damageAmount = damageAmount,
+            token = Token
+        });
+
+        using var req = BuildPost("/sessions/enemy-damage", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        EnemyDamageResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<EnemyDamageResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid enemy damage report response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
     /// Request respawn from server (resets position to spawn and sets HP to 50%).
     /// </summary>
     public IEnumerator CreateRoom(Action<CreateRoomResponse> onSuccess, Action<string> onError)
@@ -740,6 +833,16 @@ public class PlayerSnapshot
     public int exp;
     public int expToLevel;
     public int gold;
+    // Player stats (synced from database)
+    public int damage;
+    public float range;
+    public float speed;
+    public float weaponRange;
+    public float knockbackForce;
+    public float knockbackTime;
+    public float stunTime;
+    public float bonusDamagePercent;
+    public float damageReductionPercent;
 }
 
 [Serializable]
@@ -802,6 +905,25 @@ public class DamageReportResponse
 }
 
 [Serializable]
+public class EnemyDamageRequest
+{
+    public string playerId;
+    public string enemyId;
+    public int damageAmount;
+    public string sessionId;
+    public string token;
+}
+
+[Serializable]
+public class EnemyDamageResponse
+{
+    public bool accepted;
+    public int currentHp;
+    public int maxHp;
+    public bool isDead;
+}
+
+[Serializable]
 public class RespawnRequest
 {
     public string playerId;
@@ -827,6 +949,7 @@ public class PlayerProfileResponse
     public int level;
     public int exp;
     public int gold;
+    public string avatarPath;
 }
 
 [Serializable]

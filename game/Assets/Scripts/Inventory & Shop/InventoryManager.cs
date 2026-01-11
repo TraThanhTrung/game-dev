@@ -5,12 +5,26 @@ using UnityEngine;
 
 public class InventoryManager : MonoBehaviour
 {
+    #region Singleton
+    public static InventoryManager Instance { get; private set; }
+    #endregion
+
     public InventorySlot[] itemSlots;
     public UseItem useItem;
     public int gold;
     public TMP_Text goldText;
     public GameObject lootPrefab;
     public Transform player;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
 
 
     private void Start()
@@ -45,7 +59,7 @@ public class InventoryManager : MonoBehaviour
 
         foreach (var slot in itemSlots)     //It it is the SAME item AND there is ROOM left
         {
-            if(slot.itemSO == itemSO && slot.quantity < itemSO.stackSize)
+            if (slot.itemSO == itemSO && slot.quantity < itemSO.stackSize)
             {
                 int availableSpace = itemSO.stackSize - slot.quantity;
                 int amountToAdd = Mathf.Min(availableSpace, quantity);
@@ -82,7 +96,7 @@ public class InventoryManager : MonoBehaviour
     {
         DropLoot(slot.itemSO, 1);
         slot.quantity--;
-        if(slot.quantity <= 0)
+        if (slot.quantity <= 0)
         {
             slot.itemSO = null;
         }
@@ -106,11 +120,23 @@ public class InventoryManager : MonoBehaviour
             useItem.ApplyItemEffects(slot.itemSO);
 
             slot.quantity--;
-            if(slot.quantity <= 0)
+            if (slot.quantity <= 0)
             {
                 slot.itemSO = null;
             }
             slot.UpdateUI();
+        }
+    }
+
+    /// <summary>
+    /// Sync gold from server. Called by ServerStateApplier.
+    /// </summary>
+    public void SyncGold(int newGold)
+    {
+        gold = newGold;
+        if (goldText != null)
+        {
+            goldText.text = gold.ToString();
         }
     }
 }

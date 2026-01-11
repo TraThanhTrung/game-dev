@@ -14,6 +14,7 @@ public class DetailsModel : PageModel
 
     #region Public Properties
     public GameServer.Models.Entities.GameSection? GameSection { get; set; }
+    public List<GameServer.Models.Entities.Checkpoint> Checkpoints { get; set; } = new();
     #endregion
 
     #region Constructor
@@ -32,10 +33,14 @@ public class DetailsModel : PageModel
             return NotFound();
         }
 
+        // Load checkpoints for this section
+        Checkpoints = await _adminService.GetCheckpointsAsync(id);
+
         return Page();
     }
     #endregion
 }
+
 
 
 

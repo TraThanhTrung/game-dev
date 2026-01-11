@@ -1277,9 +1277,10 @@ MonoBehaviour:
   m_PlayerNameText: {fileID: 323715606}
   m_PlayerLevelText: {fileID: 452794996}
   m_PlayerGoldText: {fileID: 271797769}
+  m_PlayerAvatarImage: {fileID: 1884632809}
   m_RoomIdInput: {fileID: 9037031674456633108}
   m_StartButton: {fileID: 4422625704226895597}
-  m_StatusText: {fileID: 0}
+  m_StatusText: {fileID: 1321803955761623458}
   m_GameSceneName: RPG
 --- !u!1 &783430403
 GameObject:
@@ -3619,7 +3620,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &6458479167507125483
 GameObject:
   m_ObjectHideFlags: 0

@@ -52,15 +52,28 @@ public class RoomsController : ControllerBase
         HttpContext.Items["playerId"] = playerId.ToString();
 
         // 1. Create GameSession in DB (SessionTrackingService.StartSessionAsync)
-        var gameSession = await _tracking.StartSessionAsync(playerCount: 0);
+        var gameSession = await _tracking.StartSessionAsync(playerCount: 1);
 
         // 2. Create SessionState in WorldService (in-memory)
         _world.CreateRoom(gameSession.SessionId);
 
-        _logger.LogInformation("Room created: {RoomId} by player {PlayerId}",
+        // 3. Track player join in DB
+        await _tracking.TrackPlayerJoinAsync(gameSession.SessionId, playerId);
+
+        // 4. Move player to the new room session
+        var joinRequest = new JoinSessionRequest
+        {
+            PlayerId = playerId,
+            PlayerName = player.Name,
+            SessionId = gameSession.SessionId.ToString(),
+            Token = request.Token
+        };
+        _world.JoinSession(joinRequest);
+
+        _logger.LogInformation("Room created and joined: {RoomId} by player {PlayerId}",
             gameSession.SessionId, playerId);
 
-        // 3. Return Room ID (GameSession.SessionId as GUID string)
+        // 5. Return Room ID (GameSession.SessionId as GUID string)
         return Ok(new CreateRoomResponse
         {
             RoomId = gameSession.SessionId.ToString()

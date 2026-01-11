@@ -187,6 +187,38 @@ public class SessionsController : ControllerBase
     }
 
     /// <summary>
+    /// Report damage from player to enemy so server can update enemy HP authoritatively.
+    /// </summary>
+    [HttpPost("enemy-damage")]
+    public IActionResult ReportEnemyDamage([FromBody] EnemyDamageRequest request)
+    {
+        if (request.PlayerId == Guid.Empty)
+            return BadRequest("PlayerId required");
+
+        if (request.EnemyId == Guid.Empty)
+            return BadRequest("EnemyId required");
+
+        if (request.DamageAmount <= 0)
+            return BadRequest("DamageAmount must be positive");
+
+        HttpContext.Items["playerId"] = request.PlayerId.ToString();
+
+        var result = _world.ApplyDamageToEnemy(request.PlayerId, request.EnemyId, request.DamageAmount);
+        if (result == null)
+        {
+            return NotFound(new { accepted = false, message = "Enemy not found or player not in session" });
+        }
+
+        return Ok(new EnemyDamageResponse
+        {
+            Accepted = true,
+            CurrentHp = result.Value.hp,
+            MaxHp = result.Value.maxHp,
+            IsDead = result.Value.hp <= 0
+        });
+    }
+
+    /// <summary>
     /// Respawn player at spawn position with 50% health.
     /// </summary>
     [HttpPost("respawn")]

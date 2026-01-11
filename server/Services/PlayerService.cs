@@ -7,6 +7,8 @@ namespace GameServer.Services;
 
 /// <summary>
 /// Handles player persistence (database operations).
+/// Player creation is handled via Admin Panel or PlayerWebService.
+/// This service only finds and updates existing players.
 /// </summary>
 public class PlayerService
 {
@@ -22,57 +24,30 @@ public class PlayerService
     }
 
     /// <summary>
-    /// Find existing player by name, or create new if not exists.
-    /// Returns (player, isNew).
+    /// Find existing player by name. Does NOT create new player.
+    /// Player must be created via Admin Panel or Register page (PlayerWebService).
     /// </summary>
-    public async Task<(PlayerProfile Player, bool IsNew)> FindOrCreatePlayerAsync(string playerName)
+    public async Task<PlayerProfile?> FindPlayerAsync(string playerName)
     {
         // Normalize name
         playerName = playerName.Trim();
 
-        // Try to find existing player
+        // Only find existing player, do NOT create
         var existing = await _db.PlayerProfiles
             .Include(p => p.Stats)
             .Include(p => p.Inventory)
             .FirstOrDefaultAsync(p => p.Name.ToLower() == playerName.ToLower());
 
-        if (existing != null)
+        if (existing == null)
         {
-            _logger.LogInformation("Found existing player: {Name} (ID: {Id})", existing.Name, existing.Id);
-            return (existing, false);
+            _logger.LogWarning("Player {Name} not found in database. Player must be created via Admin Panel or Register page.", playerName);
+        }
+        else
+        {
+            _logger.LogInformation("Found player: {Name} (ID: {Id})", existing.Name, existing.Id);
         }
 
-        // Create new player from config defaults
-        var defaults = _config.PlayerDefaults;
-        var stats = defaults.Stats;
-
-        var newPlayer = new PlayerProfile
-        {
-            Id = Guid.NewGuid(),
-            Name = playerName,
-            TokenHash = Guid.NewGuid().ToString("N"), // Simple token for now
-            Level = defaults.Level,
-            Exp = defaults.Exp,
-            ExpToLevel = _config.GetExpForNextLevel(defaults.Level),
-            Gold = defaults.Gold,
-            CreatedAt = DateTime.UtcNow,
-            Stats = new PlayerStats
-            {
-                Damage = stats.Damage,
-                Range = stats.WeaponRange,
-                KnockbackForce = stats.KnockbackForce,
-                Speed = stats.Speed,
-                MaxHealth = stats.MaxHealth,
-                CurrentHealth = stats.CurrentHealth
-            }
-        };
-        newPlayer.Stats.PlayerId = newPlayer.Id;
-
-        _db.PlayerProfiles.Add(newPlayer);
-        await _db.SaveChangesAsync();
-
-        _logger.LogInformation("Created new player: {Name} (ID: {Id})", newPlayer.Name, newPlayer.Id);
-        return (newPlayer, true);
+        return existing;
     }
 
     /// <summary>
@@ -171,4 +146,3 @@ public class PlayerService
             .ToListAsync();
     }
 }
-

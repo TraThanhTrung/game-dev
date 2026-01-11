@@ -40,6 +40,7 @@ public class ServerStateApplier : MonoBehaviour
     private bool isSavingOnQuit;
     private bool saveCompleted;
     private ExpManager expManager;
+    private EnemySpawner enemySpawner;
     private Vector3 lastAppliedPosition;
     private float positionChangeThreshold = 0.01f; // Only apply position if change is significant
 
@@ -64,6 +65,13 @@ public class ServerStateApplier : MonoBehaviour
         }
 
         expManager = FindObjectOfType<ExpManager>();
+        enemySpawner = FindObjectOfType<EnemySpawner>();
+
+        // Load enemy configs if already connected
+        if (NetClient.Instance != null && NetClient.Instance.IsConnected)
+        {
+            LoadEnemyConfigsAfterJoin();
+        }
 
         // Load polling settings from config
         if (GameConfigLoader.Instance != null && GameConfigLoader.Instance.Config != null)
@@ -160,7 +168,27 @@ public class ServerStateApplier : MonoBehaviour
         Debug.Log($"[StateApplier] DEV MODE: Joined session {NetClient.Instance.SessionId}");
         devModeConnecting = false;
 
+        // Load enemy configs from server after joining session
+        LoadEnemyConfigsAfterJoin();
+
         // Polling will start automatically in Update()
+    }
+
+    /// <summary>
+    /// Load enemy configs from server after joining session.
+    /// Called automatically after successful connection.
+    /// </summary>
+    private void LoadEnemyConfigsAfterJoin()
+    {
+        // Ensure EnemyConfigManager exists
+        if (EnemyConfigManager.Instance == null)
+        {
+            var go = new GameObject("EnemyConfigManager");
+            go.AddComponent<EnemyConfigManager>();
+        }
+
+        // Load all enemy configs from server
+        StartCoroutine(EnemyConfigManager.Instance.LoadAllEnemiesAsync());
     }
 
     private void OnEnable()
@@ -273,6 +301,12 @@ public class ServerStateApplier : MonoBehaviour
         if (m_AutoPoll && !isPolling && NetClient.Instance != null && NetClient.Instance.IsConnected)
         {
             StartPolling();
+
+            // Load enemy configs when connection is established
+            if (EnemyConfigManager.Instance != null && !EnemyConfigManager.Instance.IsLoaded)
+            {
+                StartCoroutine(EnemyConfigManager.Instance.LoadAllEnemiesAsync());
+            }
         }
 
         if (hasTargetPosition)
@@ -443,14 +477,20 @@ public class ServerStateApplier : MonoBehaviour
             if (p.id == myId)
             {
                 ApplySnapshot(p);
-                return;
+                break;
             }
+        }
+
+        // Sync enemies via EnemySpawner
+        if (enemySpawner != null)
+        {
+            enemySpawner.OnStateReceived(state);
         }
 
         // Player not found in state
         if (m_EnableLogging && lastLoggedSequence != state.version)
         {
-            Debug.LogWarning($"[StateApplier] My player not found in state v{state.version} (players: {state.players.Length})");
+            Debug.LogWarning($"[StateApplier] My player not found in state v{state.version} (players: {state.players?.Length ?? 0})");
             lastLoggedSequence = state.version;
         }
     }
@@ -503,12 +543,23 @@ public class ServerStateApplier : MonoBehaviour
         if (StatsManager.Instance != null)
         {
             StatsManager.Instance.ApplySnapshot(snapshot.hp, snapshot.maxHp);
+            // Sync player stats from server (loaded from database)
+            StatsManager.Instance.ApplyServerStats(
+                snapshot.damage, snapshot.range, snapshot.speed,
+                snapshot.weaponRange, snapshot.knockbackForce, snapshot.knockbackTime, snapshot.stunTime,
+                snapshot.bonusDamagePercent, snapshot.damageReductionPercent);
         }
 
         // Sync progression
         if (expManager != null)
         {
             expManager.SyncFromServer(snapshot.level, snapshot.exp, snapshot.expToLevel);
+        }
+
+        // Sync gold via InventoryManager
+        if (InventoryManager.Instance != null)
+        {
+            InventoryManager.Instance.SyncGold(snapshot.gold);
         }
 
         // Log when position or HP changes

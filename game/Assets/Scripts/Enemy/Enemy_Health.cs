@@ -12,6 +12,39 @@ public class Enemy_Health : MonoBehaviour
     public string EnemyTypeId => m_EnemyTypeId;
     #endregion
 
+    #region Public Methods
+    /// <summary>
+    /// Set enemy type ID dynamically (for server-spawned enemies).
+    /// Reloads config from GameConfigLoader after setting typeId.
+    /// Does NOT set currentHealth - caller should set it from snapshot.
+    /// </summary>
+    public void SetEnemyTypeId(string typeId)
+    {
+        if (string.IsNullOrEmpty(typeId) || typeId == m_EnemyTypeId)
+            return;
+
+        m_EnemyTypeId = typeId;
+        
+        // Reload config with new typeId
+        LoadFromConfig();
+        
+        Debug.Log($"[Enemy_Health] Set typeId to {typeId}, loaded config: maxHealth={maxHealth}");
+    }
+
+    /// <summary>
+    /// Trigger defeat event (called externally when enemy dies from server state).
+    /// Used by EnemySpawner when enemy HP reaches 0 from server polling.
+    /// </summary>
+    public void TriggerDefeatEvent()
+    {
+        if (currentHealth <= 0 && !string.IsNullOrEmpty(m_EnemyTypeId))
+        {
+            Debug.Log($"[Enemy_Health] Triggering defeat event for {m_EnemyTypeId}");
+            OnMonsterDefeated?.Invoke(m_EnemyTypeId);
+        }
+    }
+    #endregion
+
     #region Events
     public delegate void MonsterDefeated(string enemyTypeId);
     public static event MonsterDefeated OnMonsterDefeated;
@@ -25,32 +58,39 @@ public class Enemy_Health : MonoBehaviour
     #region Unity Lifecycle
     private void Start()
     {
+        // Only load config if typeId hasn't been set dynamically (for pre-placed enemies)
+        // Server-spawned enemies will have typeId set via SetEnemyTypeId, which already calls LoadFromConfig
         LoadFromConfig();
-        currentHealth = maxHealth;
+        
+        // Only set health to max if not already set (server-spawned enemies have HP from snapshot)
+        if (currentHealth <= 0 && maxHealth > 0)
+        {
+            currentHealth = maxHealth;
+        }
     }
     #endregion
 
     #region Private Methods
     private void LoadFromConfig()
     {
-        // Ensure GameConfigLoader exists
-        GameConfigLoader.EnsureInstance();
-
-        if (GameConfigLoader.Instance == null)
+        // Load from EnemyConfigManager (database via API) instead of GameConfigLoader
+        // Ensure EnemyConfigManager exists
+        if (EnemyConfigManager.Instance == null)
         {
-            Debug.LogWarning($"[Enemy_Health] GameConfigLoader not found. Using default maxHealth={maxHealth}");
-            return;
+            var go = new GameObject("EnemyConfigManager");
+            go.AddComponent<EnemyConfigManager>();
         }
 
-        var enemyConfig = GameConfigLoader.Instance.GetEnemyConfig(m_EnemyTypeId);
+        var enemyConfig = EnemyConfigManager.Instance?.GetEnemyConfig(m_EnemyTypeId);
         if (enemyConfig != null)
         {
             maxHealth = enemyConfig.maxHealth;
-            Debug.Log($"[Enemy_Health] Loaded config for {m_EnemyTypeId}: maxHealth={maxHealth}");
+            Debug.Log($"[Enemy_Health] Loaded config from database for {m_EnemyTypeId}: maxHealth={maxHealth}");
         }
         else
         {
-            Debug.LogWarning($"[Enemy_Health] Config not found for typeId={m_EnemyTypeId}. Using default maxHealth={maxHealth}");
+            Debug.LogWarning($"[Enemy_Health] Config not found in database for typeId={m_EnemyTypeId}. " +
+                $"Make sure EnemyConfigManager has loaded configs from server. Using default maxHealth={maxHealth}");
         }
     }
     #endregion

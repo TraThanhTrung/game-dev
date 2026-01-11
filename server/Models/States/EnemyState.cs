@@ -5,7 +5,8 @@ public enum EnemyStatus
     Idle,
     Chasing,
     Attacking,
-    Knockback
+    Knockback,
+    Dead
 }
 
 public class EnemyState

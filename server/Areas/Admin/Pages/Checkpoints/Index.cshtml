@@ -1,0 +1,124 @@
+@page
+@model GameServer.Areas.Admin.Pages.Checkpoints.IndexModel
+@{
+    ViewData["Title"] = "Checkpoints";
+}
+
+<div class="page-header">
+    <h3 class="page-title">Checkpoints Management</h3>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Checkpoints</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="card-title">Checkpoints List</h4>
+                    <a asp-area="Admin" asp-page="/Checkpoints/Create" class="btn btn-success">
+                        <i class="mdi mdi-plus"></i> Create New
+                    </a>
+                </div>
+                
+                <!-- Filter by GameSection -->
+                <form method="get" class="mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="sectionId" class="form-label">Filter by GameSection:</label>
+                            <select name="sectionId" id="sectionId" class="form-control" onchange="this.form.submit()">
+                                <option value="">All Sections</option>
+                                @foreach (var s in Model.GameSections.Where(x => x.IsActive))
+                                {
+                                    <option value="@s.SectionId" selected="@(Model.FilterSectionId == s.SectionId)">
+                                        @s.Name
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8 d-flex align-items-end">
+                            @if (Model.FilterSectionId.HasValue)
+                            {
+                                <a asp-area="Admin" asp-page="/Checkpoints/Index" class="btn btn-secondary ml-2">
+                                    Clear Filter
+                                </a>
+                            }
+                            @if (Model.FilterSectionId.HasValue)
+                            {
+                                var filteredSection = Model.GameSections.FirstOrDefault(x => x.SectionId == Model.FilterSectionId.Value);
+                                if (filteredSection != null)
+                                {
+                                    <span class="ml-2">Showing checkpoints for: <strong>@filteredSection.Name</strong></span>
+                                }
+                            }
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Section</th>
+                                <th>Position (X, Y)</th>
+                                <th>Enemy Pool</th>
+                                <th>Max Enemies</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var checkpoint in Model.Checkpoints)
+                            {
+                                var sectionName = Model.GameSections.FirstOrDefault(s => s.SectionId == checkpoint.SectionId)?.Name ?? "None";
+                                <tr>
+                                    <td>@checkpoint.CheckpointId</td>
+                                    <td>@checkpoint.CheckpointName</td>
+                                    <td>
+                                        @if (checkpoint.SectionId.HasValue)
+                                        {
+                                            <a asp-area="Admin" asp-page="/GameSections/Details" asp-route-id="@checkpoint.SectionId.Value">
+                                                @sectionName
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">None</span>
+                                        }
+                                    </td>
+                                    <td>(@checkpoint.X, @checkpoint.Y)</td>
+                                    <td><code>@checkpoint.EnemyPool</code></td>
+                                    <td>@checkpoint.MaxEnemies</td>
+                                    <td>
+                                        @if (checkpoint.IsActive)
+                                        {
+                                            <span class="badge badge-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-area="Admin" asp-page="/Checkpoints/Edit" asp-route-id="@checkpoint.CheckpointId" class="btn btn-sm btn-primary">
+                                            <i class="mdi mdi-pencil"></i> Edit
+                                        </a>
+                                        <a asp-area="Admin" asp-page="/Checkpoints/Delete" asp-route-id="@checkpoint.CheckpointId" class="btn btn-sm btn-danger">
+                                            <i class="mdi mdi-delete"></i> Delete
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -45,13 +45,12 @@ public class Enemy_Movement : MonoBehaviour
     #region Private Methods
     private void LoadFromConfig()
     {
-        // Ensure GameConfigLoader exists
-        GameConfigLoader.EnsureInstance();
-
-        if (GameConfigLoader.Instance == null)
+        // Load from EnemyConfigManager (database via API) instead of GameConfigLoader
+        // Ensure EnemyConfigManager exists
+        if (EnemyConfigManager.Instance == null)
         {
-            Debug.LogWarning("[Enemy_Movement] GameConfigLoader not found. Using defaults.");
-            return;
+            var go = new GameObject("EnemyConfigManager");
+            go.AddComponent<EnemyConfigManager>();
         }
 
         // Get typeId from Enemy_Health component
@@ -61,18 +60,19 @@ public class Enemy_Movement : MonoBehaviour
             typeId = m_EnemyHealth.EnemyTypeId;
         }
 
-        var enemyConfig = GameConfigLoader.Instance.GetEnemyConfig(typeId);
+        var enemyConfig = EnemyConfigManager.Instance?.GetEnemyConfig(typeId);
         if (enemyConfig != null)
         {
             m_Speed = enemyConfig.speed;
             m_AttackRange = enemyConfig.attackRange;
             m_AttackCooldown = enemyConfig.attackCooldown;
             m_PlayerDetectRange = enemyConfig.detectRange;
-            Debug.Log($"[Enemy_Movement] Loaded config for {typeId}: speed={m_Speed}, attackRange={m_AttackRange}");
+            Debug.Log($"[Enemy_Movement] Loaded config from database for {typeId}: speed={m_Speed}, attackRange={m_AttackRange}");
         }
         else
         {
-            Debug.LogWarning($"[Enemy_Movement] Config not found for typeId={typeId}. Using defaults.");
+            Debug.LogWarning($"[Enemy_Movement] Config not found in database for typeId={typeId}. " +
+                $"Make sure EnemyConfigManager has loaded configs from server. Using defaults.");
         }
     }
     #endregion

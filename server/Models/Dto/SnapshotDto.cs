@@ -13,7 +13,17 @@ public record PlayerSnapshot(
     int Level,
     int Exp,
     int ExpToLevel,
-    int Gold
+    int Gold,
+    // Player stats (synced from database)
+    int Damage,
+    float Range,
+    float Speed,
+    float WeaponRange,
+    float KnockbackForce,
+    float KnockbackTime,
+    float StunTime,
+    float BonusDamagePercent,
+    float DamageReductionPercent
 );
 
 public record EnemySnapshot(Guid Id, string TypeId, float X, float Y, int Hp, int MaxHp, string Status);

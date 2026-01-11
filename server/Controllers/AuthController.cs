@@ -30,9 +30,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Register or login player by name.
-    /// If player with name exists, returns existing PlayerId.
-    /// If not, creates new player and returns new PlayerId.
+    /// Login player by name.
+    /// Player must already exist in the database (created via Admin Panel or Register page).
     /// </summary>
     [HttpPost("register")]
     public async Task<ActionResult<RegisterResponse>> Register([FromBody] RegisterRequest request)
@@ -42,14 +41,17 @@ public class AuthController : ControllerBase
             return BadRequest("PlayerName is required");
         }
 
-        // Find or create player in database
-        var (player, isNew) = await _playerService.FindOrCreatePlayerAsync(request.PlayerName);
+        // Find player in database (do NOT create automatically)
+        var player = await _playerService.FindPlayerAsync(request.PlayerName);
+        if (player == null)
+        {
+            return NotFound("Player not found. Please register via Admin Panel or Register page first.");
+        }
 
         // Register in WorldService (in-memory state)
-        var result = _world.RegisterOrLoadPlayer(player, isNew);
+        var result = _world.RegisterOrLoadPlayer(player, isNew: false);
 
-        _logger.LogInformation("{Action} player: {Name} (ID: {Id})",
-            isNew ? "Created" : "Loaded", player.Name, player.Id);
+        _logger.LogInformation("Loaded player: {Name} (ID: {Id})", player.Name, player.Id);
 
         return Ok(result);
     }
@@ -100,14 +102,20 @@ public class AuthController : ControllerBase
             return NotFound();
         }
 
-        return Ok(new PlayerProfileDto
+        var profileDto = new PlayerProfileDto
         {
             PlayerId = player.Id,
-            Name = player.Name,
+            Name = player.Name ?? string.Empty,
             Level = player.Level,
             Exp = player.Exp,
-            Gold = player.Gold
-        });
+            Gold = player.Gold,
+            AvatarPath = player.AvatarPath // Will be null if not set in database
+        };
+
+        _logger.LogInformation("Profile requested for PlayerId: {Id}, Name: {Name}, AvatarPath: {AvatarPath}",
+            playerId, profileDto.Name, profileDto.AvatarPath ?? "null");
+
+        return Ok(profileDto);
     }
 
     /// <summary>

@@ -13,6 +13,7 @@ public class IndexModel : PageModel
 
     #region Public Properties
     public List<GameServer.Models.Entities.GameSection> GameSections { get; set; } = new();
+    public Dictionary<int, int> CheckpointCounts { get; set; } = new();
     #endregion
 
     #region Constructor
@@ -26,9 +27,17 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         GameSections = await _adminService.GetGameSectionsAsync();
+        
+        // Load checkpoint counts for each section
+        foreach (var section in GameSections)
+        {
+            var count = await _adminService.GetCheckpointCountForSectionAsync(section.SectionId);
+            CheckpointCounts[section.SectionId] = count;
+        }
     }
     #endregion
 }
+
 
 
 

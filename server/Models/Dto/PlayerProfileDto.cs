@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace GameServer.Models.Dto;
 
 public class PlayerProfileDto
@@ -7,6 +9,9 @@ public class PlayerProfileDto
     public int Level { get; set; }
     public int Exp { get; set; }
     public int Gold { get; set; }
+    
+    [JsonPropertyName("avatarPath")]
+    public string? AvatarPath { get; set; }
 }
 
 

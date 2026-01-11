@@ -82,6 +82,67 @@ public class EnemyConfigService
         return configs;
     }
 
+    /// <summary>
+    /// Get enemy config synchronously (for backward compatibility).
+    /// Tries Redis cache first, then database. Returns null if not found.
+    /// </summary>
+    public GameServer.Services.EnemyConfig? GetEnemy(string typeId)
+    {
+        if (string.IsNullOrWhiteSpace(typeId))
+            return null;
+
+        // Try Redis cache synchronously (if available)
+        try
+        {
+            var cached = _redis.GetEnemyConfigAsync(typeId).GetAwaiter().GetResult();
+            if (cached != null)
+                return cached;
+        }
+        catch
+        {
+            // Redis not available or error, continue to database
+        }
+
+        // Load from database synchronously
+        var enemy = _db.Enemies
+            .FirstOrDefault(e => e.TypeId == typeId && e.IsActive);
+
+        if (enemy == null)
+            return null;
+
+        var config = new GameServer.Services.EnemyConfig
+        {
+            TypeId = enemy.TypeId,
+            ExpReward = enemy.ExpReward,
+            GoldReward = enemy.GoldReward,
+            MaxHealth = enemy.MaxHealth,
+            Damage = enemy.Damage,
+            Speed = enemy.Speed,
+            DetectRange = enemy.DetectRange,
+            AttackRange = enemy.AttackRange,
+            AttackCooldown = enemy.AttackCooldown,
+            WeaponRange = enemy.WeaponRange,
+            KnockbackForce = enemy.KnockbackForce,
+            StunTime = enemy.StunTime,
+            RespawnDelay = enemy.RespawnDelay
+        };
+
+        // Cache in Redis asynchronously (fire and forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _redis.SetEnemyConfigAsync(typeId, config);
+            }
+            catch
+            {
+                // Ignore cache errors
+            }
+        });
+
+        return config;
+    }
+
     public async Task InvalidateCacheAsync(string? typeId = null)
     {
         if (string.IsNullOrWhiteSpace(typeId))

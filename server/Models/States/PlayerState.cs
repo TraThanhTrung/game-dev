@@ -8,9 +8,6 @@ public class PlayerState
     public float Y { get; set; }
     public int Hp { get; set; }
     public int MaxHp { get; set; }
-    public int Damage { get; set; }
-    public float Range { get; set; }
-    public float Speed { get; set; }
     public int Sequence { get; set; }
     public bool IsDead => Hp <= 0;
 
@@ -19,5 +16,16 @@ public class PlayerState
     public int Exp { get; set; }
     public int ExpToLevel { get; set; }
     public int Gold { get; set; }
+
+    // Combat stats (synced from database PlayerStats)
+    public int Damage { get; set; }
+    public float Range { get; set; }
+    public float Speed { get; set; }
+    public float WeaponRange { get; set; }
+    public float KnockbackForce { get; set; }
+    public float KnockbackTime { get; set; }
+    public float StunTime { get; set; }
+    public float BonusDamagePercent { get; set; }
+    public float DamageReductionPercent { get; set; }
 }
 
