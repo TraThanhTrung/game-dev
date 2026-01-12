@@ -56,25 +56,42 @@ public class Player_Combat : MonoBehaviour
             {
                 int damageToDeal = StatsManager.Instance.GetDamageWithBonus();
 
-                Debug.Log($"[Player_Combat] Attacking enemy ID={enemyIdentity.EnemyId} Type={enemyIdentity.EnemyTypeId}");
+                // Capture enemy info before async call (avoid closure capture issues)
+                var capturedEnemyId = enemyIdentity.EnemyId;
+                var capturedEnemyType = enemyIdentity.EnemyTypeId;
+                var capturedEnemyObject = enemyObject; // Capture reference to apply immediate death
+
+                Debug.Log($"[Player_Combat] Attacking enemy ID={capturedEnemyId} Type={capturedEnemyType}");
 
                 // Report damage to server - HP will be synced via polling
                 StartCoroutine(NetClient.Instance.ReportEnemyDamage(
-                    enemyIdentity.EnemyId,
+                    capturedEnemyId,
                     damageToDeal,
                     res =>
                     {
                         if (res != null && res.accepted)
                         {
-                            Debug.Log($"[Player_Combat] Damage reported to server: {damageToDeal} damage to enemy {enemyIdentity.EnemyId} -> HP: {res.currentHp}/{res.maxHp} (Dead: {res.isDead})");
-                            // HP will be updated via polling from server, don't change locally
+                            Debug.Log($"[Player_Combat] Damage accepted: {damageToDeal} dmg to {capturedEnemyId} -> HP: {res.currentHp}/{res.maxHp} (Dead: {res.isDead})");
+
+                            // IMMEDIATELY apply death locally when server confirms kill
+                            // This prevents multiple attacks being sent while waiting for polling sync
+                            if (res.isDead && capturedEnemyObject != null)
+                            {
+                                var enemyHealth = capturedEnemyObject.GetComponent<Enemy_Health>();
+                                if (enemyHealth != null && enemyHealth.currentHealth > 0)
+                                {
+                                    Debug.Log($"[Player_Combat] Immediately killing enemy {capturedEnemyId} (server confirmed dead)");
+                                    // ChangeHealth expects a delta, so pass negative current health to kill
+                                    enemyHealth.ChangeHealth(-enemyHealth.currentHealth);
+                                }
+                            }
                         }
                         else
                         {
-                            Debug.LogWarning($"[Player_Combat] Damage report not accepted for enemy {enemyIdentity.EnemyId}");
+                            Debug.LogWarning($"[Player_Combat] Damage not accepted for enemy {capturedEnemyId}");
                         }
                     },
-                    err => Debug.LogError($"[Player_Combat] Failed to report damage to enemy: {err}")));
+                    err => Debug.LogError($"[Player_Combat] Failed to report damage: {err}")));
             }
             else
             {

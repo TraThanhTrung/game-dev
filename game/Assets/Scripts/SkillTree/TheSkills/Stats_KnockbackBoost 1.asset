@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   skillName: Knockback Boost
   maxLevel: 5
-  skillIcon: {fileID: 21300000, guid: 540443bcf4db6429689c1b0f7644ea36, type: 3}
+  skillIcon: {fileID: 21300000, guid: 3d480e1197592c54783f8d41797f2ae4, type: 3}

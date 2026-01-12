@@ -7,7 +7,6 @@ namespace GameServer.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // Require authentication
 public class CheckpointsController : ControllerBase
 {
     #region Private Fields

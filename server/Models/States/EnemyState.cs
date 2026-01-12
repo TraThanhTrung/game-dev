@@ -31,9 +31,18 @@ public class EnemyState
     public float SpawnY { get; set; }
     public float RespawnTimer { get; set; }
     public float RespawnDelay { get; set; } = 5f;
+    public float BaseRespawnDelay { get; set; } = 5f; // Base delay before SpawnRate adjustment
 
     // Rewards
     public int ExpReward { get; set; } = 25;
     public int GoldReward { get; set; } = 10;
+
+    // Tracking fields (for respawn limitation + section progression)
+    public int? CheckpointId { get; set; } // ID của checkpoint spawn enemy này
+    public int? SectionId { get; set; } // ID của section chứa checkpoint
+    public int EnemyLevel { get; set; } = 1; // Level của enemy (scaled from GameSection.EnemyLevel)
+    
+    // Boss identification
+    public bool IsBoss { get; set; } = false;
 }
 

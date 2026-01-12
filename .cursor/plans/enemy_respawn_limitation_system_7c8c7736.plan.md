@@ -409,4 +409,3 @@ public class EnemySnapshot
 - [ ] Section limitation: Không respawn nếu section đã đạt `EnemyCount`
 - [ ] SpawnRate: RespawnDelay được adjust đúng (baseDelay / spawnRate)
 - [ ] Duration: Respawn dừng sau `Duration` giây
-- [ ] EnemyLevel: Stats được scale đúng (HP, Damage +10% per level)

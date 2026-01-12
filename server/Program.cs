@@ -22,6 +22,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never;
         // Ensure null values are written to JSON
         options.JsonSerializerOptions.WriteIndented = false; // Compact JSON
+        // Handle circular references (e.g., Checkpoint.Section.Checkpoints)
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -128,9 +130,9 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Application Services
 // GameConfigService only loads expCurve and polling settings (no player/enemy configs)
 builder.Services.AddSingleton<GameConfigService>();
+builder.Services.AddSingleton<RedisService>(); // Singleton because it wraps IConnectionMultiplexer (already singleton)
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
-builder.Services.AddScoped<RedisService>();
 builder.Services.AddScoped<TemporarySkillService>();
 builder.Services.AddScoped<EnemyConfigService>();
 builder.Services.AddSingleton<CheckpointService>();
@@ -279,6 +281,20 @@ app.Lifetime.ApplicationStarted.Register(() =>
 {
     app.Logger.LogInformation("Server is ready and accepting connections!");
     app.Logger.LogInformation("Press Ctrl+C to stop.");
+
+    // Preload enemy configs into memory cache to avoid DB/Redis queries during game tick
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            var worldService = app.Services.GetRequiredService<WorldService>();
+            await worldService.PreloadEnemyConfigsAsync();
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Failed to preload enemy configs on startup");
+        }
+    });
 });
 
 app.Run();

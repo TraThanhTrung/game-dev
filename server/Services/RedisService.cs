@@ -181,6 +181,57 @@ public class RedisService
         var key = $"game:section:{sectionId}";
         await SetAsync(key, section, TimeSpan.FromHours(24)); // 24 hour TTL
     }
+
+    public async Task InvalidateGameSectionAsync(int sectionId)
+    {
+        var key = $"game:section:{sectionId}";
+        await DeleteAsync(key);
+    }
+    #endregion
+
+    #region Public Methods - Checkpoint Cache
+    /// <summary>
+    /// Cache checkpoints by section (long TTL, static data)
+    /// </summary>
+    public async Task<List<CheckpointCache>?> GetCheckpointsBySectionAsync(int sectionId)
+    {
+        var key = $"game:checkpoints:section:{sectionId}";
+        return await GetAsync<List<CheckpointCache>>(key);
+    }
+
+    public async Task SetCheckpointsBySectionAsync(int sectionId, List<CheckpointCache> checkpoints)
+    {
+        var key = $"game:checkpoints:section:{sectionId}";
+        await SetAsync(key, checkpoints, TimeSpan.FromHours(24)); // 24 hour TTL
+    }
+
+    public async Task InvalidateCheckpointsBySectionAsync(int sectionId)
+    {
+        var key = $"game:checkpoints:section:{sectionId}";
+        await DeleteAsync(key);
+    }
+
+    /// <summary>
+    /// Invalidate all checkpoint caches (when checkpoint is updated/deleted)
+    /// </summary>
+    public async Task InvalidateAllCheckpointsAsync()
+    {
+        try
+        {
+            var server = _redis.GetServer(_redis.GetEndPoints().First());
+            var keys = server.Keys(pattern: "game:checkpoints:*");
+            var db = _redis.GetDatabase();
+
+            foreach (var key in keys)
+            {
+                await db.KeyDeleteAsync(key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error invalidating all checkpoint caches from Redis");
+        }
+    }
     #endregion
 
     #region Public Methods - Temporary Skill Bonuses
@@ -257,6 +308,21 @@ public class GameSectionCache
     public int EnemyLevel { get; set; }
     public float SpawnRate { get; set; }
     public int? Duration { get; set; }
+}
+
+/// <summary>
+/// Checkpoint for caching
+/// </summary>
+public class CheckpointCache
+{
+    public int CheckpointId { get; set; }
+    public string CheckpointName { get; set; } = string.Empty;
+    public int? SectionId { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
+    public string EnemyPool { get; set; } = "[]";
+    public int MaxEnemies { get; set; }
+    public bool IsActive { get; set; }
 }
 #endregion
 

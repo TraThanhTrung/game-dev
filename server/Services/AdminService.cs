@@ -269,6 +269,14 @@ public class AdminService
         section.CreatedAt = DateTime.UtcNow;
         _db.GameSections.Add(section);
         await _db.SaveChangesAsync();
+
+        // Invalidate Redis cache (will be populated on next access)
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null)
+        {
+            await redis.InvalidateGameSectionAsync(section.SectionId);
+        }
+
         return section;
     }
 
@@ -289,6 +297,16 @@ public class AdminService
         section.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        // Invalidate Redis cache
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null)
+        {
+            await redis.InvalidateGameSectionAsync(sectionId);
+            // Also invalidate checkpoints cache for this section
+            await redis.InvalidateCheckpointsBySectionAsync(sectionId);
+        }
+
         return section;
     }
 
@@ -309,6 +327,15 @@ public class AdminService
 
         _db.GameSections.Remove(section);
         await _db.SaveChangesAsync();
+
+        // Invalidate Redis cache
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null)
+        {
+            await redis.InvalidateGameSectionAsync(sectionId);
+            await redis.InvalidateCheckpointsBySectionAsync(sectionId);
+        }
+
         return true;
     }
 
@@ -365,6 +392,13 @@ public class AdminService
         var checkpointService = _serviceProvider.GetService<CheckpointService>();
         checkpointService?.InvalidateCache();
         
+        // Invalidate Redis cache
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null && checkpoint.SectionId.HasValue)
+        {
+            await redis.InvalidateCheckpointsBySectionAsync(checkpoint.SectionId.Value);
+        }
+        
         return checkpoint;
     }
 
@@ -374,6 +408,7 @@ public class AdminService
         if (checkpoint == null)
             return null;
 
+        var oldSectionId = checkpoint.SectionId;
         checkpoint.CheckpointName = updatedCheckpoint.CheckpointName;
         checkpoint.SectionId = updatedCheckpoint.SectionId;
         checkpoint.X = updatedCheckpoint.X;
@@ -389,6 +424,20 @@ public class AdminService
         var checkpointService = _serviceProvider.GetService<CheckpointService>();
         checkpointService?.InvalidateCache(checkpoint.CheckpointName);
         
+        // Invalidate Redis cache (both old and new section if changed)
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null)
+        {
+            if (oldSectionId.HasValue)
+            {
+                await redis.InvalidateCheckpointsBySectionAsync(oldSectionId.Value);
+            }
+            if (checkpoint.SectionId.HasValue && checkpoint.SectionId != oldSectionId)
+            {
+                await redis.InvalidateCheckpointsBySectionAsync(checkpoint.SectionId.Value);
+            }
+        }
+        
         return checkpoint;
     }
 
@@ -399,12 +448,20 @@ public class AdminService
             return false;
 
         var checkpointName = checkpoint.CheckpointName;
+        var sectionId = checkpoint.SectionId;
         _db.Checkpoints.Remove(checkpoint);
         await _db.SaveChangesAsync();
         
         // Invalidate checkpoint cache
         var checkpointService = _serviceProvider.GetService<CheckpointService>();
         checkpointService?.InvalidateCache(checkpointName);
+        
+        // Invalidate Redis cache
+        var redis = _serviceProvider.GetService<RedisService>();
+        if (redis != null && sectionId.HasValue)
+        {
+            await redis.InvalidateCheckpointsBySectionAsync(sectionId.Value);
+        }
         
         return true;
     }

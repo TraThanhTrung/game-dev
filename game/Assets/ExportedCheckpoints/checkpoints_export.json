@@ -1,0 +1,94 @@
+{
+    "checkpoints": [
+        {
+            "checkpointName": "c5 (5)",
+            "sectionId": 2,
+            "x": 15.90999984741211,
+            "y": 6.789999961853027,
+            "enemyPool": "[\"gnome\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5 (2)",
+            "sectionId": 1,
+            "x": 5.610000133514404,
+            "y": -6.78000020980835,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5 (3)",
+            "sectionId": 1,
+            "x": 19.280000686645509,
+            "y": -4.570000171661377,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c3",
+            "sectionId": 1,
+            "x": 13.0,
+            "y": 15.0,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c1",
+            "sectionId": 1,
+            "x": -5.0,
+            "y": 12.0,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 2,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5",
+            "sectionId": 1,
+            "x": -13.239999771118164,
+            "y": 0.7300000190734863,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c2",
+            "sectionId": 1,
+            "x": 8.0,
+            "y": 13.0,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c4",
+            "sectionId": 1,
+            "x": -1.2300000190734864,
+            "y": 20.079999923706056,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5 (4)",
+            "sectionId": 1,
+            "x": 22.100000381469728,
+            "y": 12.789999961853028,
+            "enemyPool": "[\"gnome\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5 (1)",
+            "sectionId": 1,
+            "x": -6.559999942779541,
+            "y": -5.829999923706055,
+            "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        }
+    ]
+}
