@@ -1334,6 +1334,8 @@ MonoBehaviour:
   knockbackForce: 20
   knockbackTime: 0.15
   stunTime: 0.2
+  bonusDamagePercent: 0
+  damageReductionPercent: 0
   speed: 5
   maxHealth: 20
   currentHealth: 20
@@ -5551,11 +5553,11 @@ PrefabInstance:
     - target: {fileID: 1928116036853841213, guid: 04df915aece7f4193b3b4f5726699f44, type: 3}
       propertyPath: prerequisiteSkillSlots.Array.data[1]
       value: 
-      objectReference: {fileID: 6615157482495153134}
+      objectReference: {fileID: 0}
     - target: {fileID: 1928116036853841213, guid: 04df915aece7f4193b3b4f5726699f44, type: 3}
       propertyPath: prerequisiteSkillSlots.Array.data[2]
       value: 
-      objectReference: {fileID: 3993298229069320097}
+      objectReference: {fileID: 0}
     - target: {fileID: 7481198773274893464, guid: 04df915aece7f4193b3b4f5726699f44, type: 3}
       propertyPath: m_Interactable
       value: 0

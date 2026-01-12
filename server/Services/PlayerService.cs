@@ -58,6 +58,7 @@ public class PlayerService
         return await _db.PlayerProfiles
             .Include(p => p.Stats)
             .Include(p => p.Inventory)
+            .Include(p => p.Skills)
             .FirstOrDefaultAsync(p => p.Id == playerId);
     }
 
@@ -144,5 +145,111 @@ public class PlayerService
         return await _db.InventoryItems
             .Where(i => i.PlayerId == playerId)
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Upgrade a skill for a player and apply bonuses to PlayerStats.
+    /// DEPRECATED: Skills are now temporary and stored in Redis via TemporarySkillService.
+    /// This method is kept for backward compatibility but should not be used.
+    /// </summary>
+    [Obsolete("Skills are now temporary and stored in Redis. Use TemporarySkillService.UpgradeTemporarySkillAsync() instead.")]
+    public async Task<(bool Success, int Level, string? ErrorMessage)> UpgradeSkillAsync(Guid playerId, string skillId)
+    {
+        try
+        {
+            var player = await _db.PlayerProfiles
+                .Include(p => p.Stats)
+                .Include(p => p.Skills)
+                .FirstOrDefaultAsync(p => p.Id == playerId);
+
+            if (player == null)
+            {
+                return (false, 0, "Player not found");
+            }
+
+            if (player.Stats == null)
+            {
+                return (false, 0, "Player stats not found");
+            }
+
+            // Find or create skill unlock
+            var skillUnlock = player.Skills.FirstOrDefault(s => s.SkillId == skillId);
+            if (skillUnlock == null)
+            {
+                skillUnlock = new SkillUnlock
+                {
+                    PlayerId = playerId,
+                    SkillId = skillId,
+                    Level = 0
+                };
+                _db.SkillUnlocks.Add(skillUnlock);
+                player.Skills.Add(skillUnlock);
+            }
+
+            // Increment skill level
+            skillUnlock.Level++;
+
+            // Apply skill bonus to PlayerStats
+            ApplySkillBonusToStats(player.Stats, skillId, 1); // +1 level
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Upgraded skill {SkillId} to level {Level} for player {PlayerId}", 
+                skillId, skillUnlock.Level, playerId);
+
+            return (true, skillUnlock.Level, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error upgrading skill {SkillId} for player {PlayerId}", skillId, playerId);
+            return (false, 0, "Failed to upgrade skill");
+        }
+    }
+
+    /// <summary>
+    /// Get all skills for a player.
+    /// </summary>
+    public async Task<List<SkillUnlock>> GetPlayerSkillsAsync(Guid playerId)
+    {
+        return await _db.SkillUnlocks
+            .Where(s => s.PlayerId == playerId)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Apply skill bonus to PlayerStats based on skill type and level increment.
+    /// </summary>
+    private void ApplySkillBonusToStats(PlayerStats stats, string skillId, int levelIncrement)
+    {
+        switch (skillId)
+        {
+            case "Max Health Boost ":
+                stats.MaxHealth += levelIncrement;
+                break;
+
+            case "Speed Boost":
+                stats.Speed += levelIncrement;
+                break;
+
+            case "Damage Boost":
+                stats.Damage += levelIncrement;
+                break;
+
+            case "Knockback Boost":
+                stats.KnockbackForce += 0.5f * levelIncrement;
+                break;
+
+            case "Exp Bonus":
+                stats.ExpBonusPercent += 0.1f * levelIncrement; // 10% per level
+                break;
+
+            case "Respawn Count":
+                // NOTE: Respawn count not yet implemented - would need to track in PlayerProfile or PlayerStats
+                break;
+
+            default:
+                _logger.LogWarning("Unknown skill type: {SkillId}", skillId);
+                break;
+        }
     }
 }

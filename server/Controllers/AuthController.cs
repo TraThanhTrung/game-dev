@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
         }
 
         // Register in WorldService (in-memory state)
-        var result = _world.RegisterOrLoadPlayer(player, isNew: false);
+        var result = await _world.RegisterOrLoadPlayerAsync(player, isNew: false);
 
         _logger.LogInformation("Loaded player: {Name} (ID: {Id})", player.Name, player.Id);
 
@@ -83,7 +83,7 @@ public class AuthController : ControllerBase
         }
 
         // Register in WorldService (load existing player)
-        var result = _world.RegisterOrLoadPlayer(player, isNew: false);
+        var result = await _world.RegisterOrLoadPlayerAsync(player, isNew: false);
 
         _logger.LogInformation("Player logged in: {Name} (ID: {Id})", player.Name, player.Id);
 

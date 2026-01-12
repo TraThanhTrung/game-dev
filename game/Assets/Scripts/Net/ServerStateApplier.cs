@@ -762,6 +762,7 @@ public class ServerStateApplier : MonoBehaviour
         {
             var logPosDelta = Vector3.Distance(oldPos, targetPosition);
             Debug.Log($"[StateApplier] Applied: pos=({snapshot.x:F1},{snapshot.y:F1}) Δ={logPosDelta:F2} hp={snapshot.hp}/{snapshot.maxHp} seq={snapshot.sequence}");
+            Debug.Log($"[StateApplier] Stats from server: Damage={snapshot.damage}, Speed={snapshot.speed}, Knockback={snapshot.knockbackForce}, BonusDmg%={snapshot.bonusDamagePercent * 100:F1}%");
             lastLoggedSequence = snapshot.sequence;
         }
     }

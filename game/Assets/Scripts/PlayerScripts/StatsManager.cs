@@ -115,4 +115,18 @@ public class StatsManager : MonoBehaviour
         damageReductionPercent = Mathf.Clamp01(damageReductionPercent + amount);
     }
 
+    public void AddDamage(int amount)
+    {
+        damage += amount;
+        if (statsUI != null)
+            statsUI.UpdateDamage();
+    }
+
+    public void AddKnockbackForceBonus(float amount)
+    {
+        knockbackForce = Mathf.Max(0f, knockbackForce + amount);
+        if (statsUI != null)
+            statsUI.UpdateAllStats();
+    }
+
 }

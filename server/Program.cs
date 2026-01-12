@@ -131,6 +131,7 @@ builder.Services.AddSingleton<GameConfigService>();
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<RedisService>();
+builder.Services.AddScoped<TemporarySkillService>();
 builder.Services.AddScoped<EnemyConfigService>();
 builder.Services.AddSingleton<CheckpointService>();
 builder.Services.AddScoped<AdminService>();

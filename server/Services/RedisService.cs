@@ -1,5 +1,6 @@
 using StackExchange.Redis;
 using System.Text.Json;
+using GameServer.Models.Dto;
 
 namespace GameServer.Services;
 
@@ -179,6 +180,36 @@ public class RedisService
     {
         var key = $"game:section:{sectionId}";
         await SetAsync(key, section, TimeSpan.FromHours(24)); // 24 hour TTL
+    }
+    #endregion
+
+    #region Public Methods - Temporary Skill Bonuses
+    /// <summary>
+    /// Get temporary skill bonuses from Redis for a player in a session.
+    /// </summary>
+    public async Task<TemporarySkillBonuses?> GetTemporarySkillBonusesAsync(string sessionId, Guid playerId)
+    {
+        var key = $"session:skills:{sessionId}:{playerId}";
+        return await GetAsync<TemporarySkillBonuses>(key);
+    }
+
+    /// <summary>
+    /// Set temporary skill bonuses in Redis with TTL (4 hours).
+    /// </summary>
+    public async Task SetTemporarySkillBonusesAsync(string sessionId, Guid playerId, TemporarySkillBonuses bonuses)
+    {
+        var key = $"session:skills:{sessionId}:{playerId}";
+        bonuses.LastUpdated = DateTime.UtcNow;
+        await SetAsync(key, bonuses, TimeSpan.FromHours(4)); // 4 hour TTL
+    }
+
+    /// <summary>
+    /// Delete temporary skill bonuses from Redis (optional, when session ends).
+    /// </summary>
+    public async Task DeleteTemporarySkillBonusesAsync(string sessionId, Guid playerId)
+    {
+        var key = $"session:skills:{sessionId}:{playerId}";
+        await DeleteAsync(key);
     }
     #endregion
 }

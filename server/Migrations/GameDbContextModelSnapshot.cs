@@ -299,6 +299,9 @@ namespace GameServer.Migrations
                     b.Property<float>("DamageReductionPercent")
                         .HasColumnType("REAL");
 
+                    b.Property<float>("ExpBonusPercent")
+                        .HasColumnType("REAL");
+
                     b.Property<float>("KnockbackForce")
                         .HasColumnType("REAL");
 

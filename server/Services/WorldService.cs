@@ -53,6 +53,14 @@ public class WorldService
     }
 
     /// <summary>
+    /// Get session ID for a player.
+    /// </summary>
+    public string? GetPlayerSessionId(Guid playerId)
+    {
+        return _playerToSession.TryGetValue(playerId, out var sessionId) ? sessionId : null;
+    }
+
+    /// <summary>
     /// DEPRECATED: Use RegisterOrLoadPlayer() instead.
     /// Players must be created via Admin Panel or Register page, then loaded via RegisterOrLoadPlayer().
     /// This method is kept for backward compatibility but creates a default in-memory player.
@@ -87,11 +95,17 @@ public class WorldService
 
     /// <summary>
     /// Register or load player from database entity.
+    /// Loads temporary skill bonuses from Redis if player rejoins session.
     /// </summary>
-    public RegisterResponse RegisterOrLoadPlayer(PlayerProfile profile, bool isNew)
+    public async Task<RegisterResponse> RegisterOrLoadPlayerAsync(PlayerProfile profile, bool isNew)
     {
         var session = _sessions.GetOrAdd("default", sid => CreateDefaultSession(sid));
         bool isFirstPlayerInSession = false;
+
+        // Load temporary skill bonuses from Redis (before lock to avoid blocking)
+        using var scope = _serviceProvider.CreateScope();
+        var temporarySkillService = scope.ServiceProvider.GetRequiredService<TemporarySkillService>();
+        var bonuses = await temporarySkillService.GetTemporarySkillBonusesAsync(session.SessionId, profile.Id);
 
         lock (_sessionLock)
         {
@@ -110,7 +124,7 @@ public class WorldService
             else
             {
                 // Create player state from database profile
-                // All stats must come from database (PlayerStats entity)
+                // All base stats come from database (PlayerStats entity)
                 var stats = profile.Stats;
                 if (stats == null)
                 {
@@ -125,26 +139,39 @@ public class WorldService
                     X = stats.SpawnX,
                     Y = stats.SpawnY,
                     Hp = isNew ? stats.MaxHealth : stats.CurrentHealth,
-                    MaxHp = stats.MaxHealth,
-                    Damage = stats.Damage,
-                    Range = stats.Range,
-                    Speed = stats.Speed,
-                    WeaponRange = stats.WeaponRange,
-                    KnockbackForce = stats.KnockbackForce,
-                    KnockbackTime = stats.KnockbackTime,
-                    StunTime = stats.StunTime,
-                    BonusDamagePercent = stats.BonusDamagePercent,
-                    DamageReductionPercent = stats.DamageReductionPercent,
                     Level = profile.Level,
                     Exp = profile.Exp,
                     ExpToLevel = profile.ExpToLevel > 0 ? profile.ExpToLevel : _config.GetExpForNextLevel(profile.Level),
                     Gold = profile.Gold,
                     Sequence = 0
                 };
+
+                // Apply base stats + temporary bonuses
+                temporarySkillService.ApplyBonusesToBaseStats(playerState, stats, bonuses);
+
+                // Set other stats from base
+                playerState.Range = stats.Range;
+                playerState.WeaponRange = stats.WeaponRange;
+                playerState.KnockbackTime = stats.KnockbackTime;
+                playerState.StunTime = stats.StunTime;
+                playerState.BonusDamagePercent = stats.BonusDamagePercent;
+                playerState.DamageReductionPercent = stats.DamageReductionPercent;
+
                 session.Players[profile.Id] = playerState;
 
-                _logger.LogInformation("Player {Name} loaded from database: DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp}, LVL={Level}, WPN={WeaponRange}, KB={KnockbackForce}",
-                    profile.Name, playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp, playerState.Level, playerState.WeaponRange, playerState.KnockbackForce);
+                if (bonuses != null)
+                {
+                    _logger.LogInformation("Player {Name} loaded: Base (DMG={BaseDamage}, SPD={BaseSpeed}, HP={BaseHp}) + Temp (DMG+{DamageBonus}, SPD+{SpeedBonus}, HP+{MaxHpBonus}) = Final (DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp})",
+                        profile.Name,
+                        stats.Damage, stats.Speed, stats.MaxHealth,
+                        bonuses.DamageBonus, bonuses.SpeedBonus, bonuses.MaxHealthBonus,
+                        playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp);
+                }
+                else
+                {
+                    _logger.LogInformation("Player {Name} loaded from database: DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp}, LVL={Level}, WPN={WeaponRange}, KB={KnockbackForce}",
+                        profile.Name, playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp, playerState.Level, playerState.WeaponRange, playerState.KnockbackForce);
+                }
             }
             _playerToSession[profile.Id] = session.SessionId;
             _logger.LogInformation("Player {PlayerId} added to session {SessionId}. Session has {EnemyCount} enemies.",
@@ -836,8 +863,10 @@ public class WorldService
             return;
         }
 
-        // Award EXP and Gold
-        player.Exp += enemy.ExpReward;
+        // Award EXP and Gold (apply exp bonus if available)
+        float expMultiplier = 1f + Math.Max(0f, player.ExpBonusPercent);
+        int expReward = (int)(enemy.ExpReward * expMultiplier);
+        player.Exp += expReward;
         player.Gold += enemy.GoldReward;
 
         // Check for level up

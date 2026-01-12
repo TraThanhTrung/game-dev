@@ -46,3 +46,6 @@ public class DetailsModel : PageModel
 
 
 
+
+
+

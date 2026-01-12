@@ -29,5 +29,6 @@ public class PlayerState
     public float StunTime { get; set; }
     public float BonusDamagePercent { get; set; }
     public float DamageReductionPercent { get; set; }
+    public float ExpBonusPercent { get; set; }
 }
 

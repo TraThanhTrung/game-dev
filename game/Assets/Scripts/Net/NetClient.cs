@@ -21,30 +21,30 @@ public class NetClient : MonoBehaviour
 
     private Coroutine pollRoutine;
     private float m_PollInterval = 0.2f; // Default polling interval
-    
+
     // SignalR state
     private bool m_IsSignalRConnected = false;
     private bool m_HasReceivedInitialState = false;
     private string m_SelectedCharacterType = "lancer";
     private GameStateSnapshot m_LatestGameState;
     #endregion
-    
+
     #region Events
     /// <summary>
     /// Event fired when game state is received from SignalR.
     /// </summary>
     public event Action<GameStateSnapshot> OnGameStateReceived;
-    
+
     /// <summary>
     /// Event fired when a player joins the session.
     /// </summary>
     public event Action<string, string> OnPlayerJoined; // playerId, characterType
-    
+
     /// <summary>
     /// Event fired when a player leaves the session.
     /// </summary>
     public event Action<string> OnPlayerLeft; // playerId
-    
+
     /// <summary>
     /// Event fired when SignalR connection state changes.
     /// </summary>
@@ -58,26 +58,26 @@ public class NetClient : MonoBehaviour
     public string Token { get; private set; } = string.Empty;
     public string SessionId { get; private set; } = "default";
     public bool IsConnected => PlayerId != Guid.Empty && !string.IsNullOrEmpty(Token);
-    
+
     /// <summary>
     /// Is SignalR currently connected.
     /// </summary>
     public bool IsSignalRConnected => m_IsSignalRConnected;
-    
+
     /// <summary>
     /// Has received initial state from SignalR.
     /// </summary>
     public bool HasReceivedInitialState => m_HasReceivedInitialState;
-    
+
     /// <summary>
     /// Selected character type for current session.
     /// </summary>
-    public string SelectedCharacterType 
-    { 
-        get => m_SelectedCharacterType; 
-        set => m_SelectedCharacterType = value; 
+    public string SelectedCharacterType
+    {
+        get => m_SelectedCharacterType;
+        set => m_SelectedCharacterType = value;
     }
-    
+
     /// <summary>
     /// Latest game state snapshot from server.
     /// </summary>
@@ -230,9 +230,9 @@ public class NetClient : MonoBehaviour
             var path = avatarPath.StartsWith("/") ? avatarPath : $"/{avatarPath}";
             url = $"{m_BaseUrl}{path}";
         }
-        
+
         Debug.Log($"[NetClient] Downloading avatar from: {url}");
-        
+
         using var req = UnityWebRequestTexture.GetTexture(url);
         yield return req.SendWebRequest();
 
@@ -377,7 +377,7 @@ public class NetClient : MonoBehaviour
         SessionId = m_DefaultSessionId;
         ClearSavedSession();
     }
-    
+
     #region SignalR Methods
     /// <summary>
     /// Connect to SignalR hub and join session.
@@ -391,37 +391,37 @@ public class NetClient : MonoBehaviour
             onConnected?.Invoke();
             yield break;
         }
-        
+
         if (m_EnableSignalRLogging)
         {
             Debug.Log($"[NetClient] Connecting SignalR to session {sessionId}...");
         }
-        
+
         // Since Unity doesn't have native SignalR client, we simulate it with WebSocket polling
         // In production, use SignalR Unity package or implement WebSocket client
         // For now, we use a faster polling approach as SignalR simulation
-        
+
         // Step 1: Signal ready to server via REST
         bool ready = false;
         string readyError = null;
-        
-        yield return SignalReady(sessionId, 
-            () => ready = true, 
+
+        yield return SignalReady(sessionId,
+            () => ready = true,
             (err) => readyError = err);
-        
+
         if (!ready)
         {
             onError?.Invoke(readyError ?? "Failed to signal ready");
             yield break;
         }
-        
+
         // Step 2: Start high-frequency polling (simulating SignalR)
         m_IsSignalRConnected = true;
         m_HasReceivedInitialState = false;
-        
+
         // Start SignalR-like polling at higher frequency
         StartSignalRPolling();
-        
+
         // Wait for first state
         float timeout = 5f;
         while (!m_HasReceivedInitialState && timeout > 0)
@@ -429,21 +429,21 @@ public class NetClient : MonoBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
-        
+
         if (!m_HasReceivedInitialState)
         {
             Debug.LogWarning("[NetClient] Timed out waiting for initial state");
         }
-        
+
         if (m_EnableSignalRLogging)
         {
             Debug.Log("[NetClient] SignalR connected!");
         }
-        
+
         OnSignalRConnectionChanged?.Invoke(true);
         onConnected?.Invoke();
     }
-    
+
     /// <summary>
     /// Disconnect from SignalR hub.
     /// </summary>
@@ -451,19 +451,19 @@ public class NetClient : MonoBehaviour
     {
         if (!m_IsSignalRConnected)
             return;
-        
+
         StopPolling();
         m_IsSignalRConnected = false;
         m_HasReceivedInitialState = false;
-        
+
         OnSignalRConnectionChanged?.Invoke(false);
-        
+
         if (m_EnableSignalRLogging)
         {
             Debug.Log("[NetClient] SignalR disconnected");
         }
     }
-    
+
     /// <summary>
     /// Send input via SignalR (high frequency).
     /// </summary>
@@ -471,14 +471,14 @@ public class NetClient : MonoBehaviour
     {
         if (!m_IsSignalRConnected)
             return;
-        
+
         input.playerId = PlayerId.ToString();
         input.sessionId = SessionId;
-        
+
         // Send via REST (simulating SignalR)
         StartCoroutine(SendInputCoroutine(input));
     }
-    
+
     /// <summary>
     /// Get session metadata from REST API.
     /// </summary>
@@ -487,13 +487,13 @@ public class NetClient : MonoBehaviour
         var url = $"{m_BaseUrl}/sessions/{sessionId}/metadata";
         using var req = UnityWebRequest.Get(url);
         yield return req.SendWebRequest();
-        
+
         if (req.result != UnityWebRequest.Result.Success)
         {
             onError?.Invoke($"{req.responseCode} {req.error}");
             yield break;
         }
-        
+
         try
         {
             var result = JsonUtility.FromJson<SessionMetadataResponse>(req.downloadHandler.text);
@@ -505,7 +505,7 @@ public class NetClient : MonoBehaviour
         }
     }
     #endregion
-    
+
     #region SignalR Private Methods
     private void StartSignalRPolling()
     {
@@ -513,7 +513,7 @@ public class NetClient : MonoBehaviour
         float signalRInterval = 0.05f;
         StartPolling(null, signalRInterval, OnSignalRStateReceived, OnSignalRError);
     }
-    
+
     private void OnSignalRStateReceived(StateResponse state)
     {
         if (!m_HasReceivedInitialState)
@@ -524,19 +524,19 @@ public class NetClient : MonoBehaviour
                 Debug.Log("[NetClient] Received initial state from server");
             }
         }
-        
+
         // Convert to GameStateSnapshot format
         m_LatestGameState = ConvertToGameStateSnapshot(state);
-        
+
         // Fire event for listeners (ServerStateApplier, RemotePlayerManager, etc.)
         OnGameStateReceived?.Invoke(m_LatestGameState);
     }
-    
+
     private void OnSignalRError(string error)
     {
         Debug.LogWarning($"[NetClient] SignalR polling error: {error}");
     }
-    
+
     private GameStateSnapshot ConvertToGameStateSnapshot(StateResponse state)
     {
         var snapshot = new GameStateSnapshot
@@ -545,7 +545,7 @@ public class NetClient : MonoBehaviour
             serverTime = Time.time, // Use client time for now
             confirmedInputSequence = 0
         };
-        
+
         // Convert players
         if (state.players != null)
         {
@@ -566,7 +566,7 @@ public class NetClient : MonoBehaviour
                 });
             }
         }
-        
+
         // Convert enemies
         if (state.enemies != null)
         {
@@ -584,30 +584,30 @@ public class NetClient : MonoBehaviour
                 });
             }
         }
-        
+
         return snapshot;
     }
-    
+
     private IEnumerator SignalReady(string sessionId, Action onSuccess, Action<string> onError)
     {
-        var payload = JsonUtility.ToJson(new ReadyRequestPayload 
-        { 
+        var payload = JsonUtility.ToJson(new ReadyRequestPayload
+        {
             playerId = PlayerId.ToString(),
             characterType = m_SelectedCharacterType
         });
-        
+
         using var req = BuildPost($"/sessions/{sessionId}/ready", payload);
         yield return req.SendWebRequest();
-        
+
         if (req.result != UnityWebRequest.Result.Success)
         {
             onError?.Invoke($"{req.responseCode} {req.error}");
             yield break;
         }
-        
+
         onSuccess?.Invoke();
     }
-    
+
     private IEnumerator SendInputCoroutine(SignalRInputPayload input)
     {
         // Convert to regular InputPayload for existing endpoint
@@ -624,7 +624,7 @@ public class NetClient : MonoBehaviour
             sequence = input.sequence,
             token = Token
         };
-        
+
         yield return SendInput(legacyInput, (err) =>
         {
             if (m_EnableSignalRLogging)
@@ -1051,6 +1051,83 @@ public class NetClient : MonoBehaviour
 
         onSuccess?.Invoke(result);
     }
+
+    /// <summary>
+    /// Upgrade a skill for the current player.
+    /// </summary>
+    public IEnumerator UpgradeSkill(string skillId, Action<SkillUpgradeResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new SkillUpgradeRequest
+        {
+            playerId = PlayerId.ToString(),
+            skillId = skillId,
+            token = Token
+        });
+
+        using var req = BuildPost("/skills/upgrade", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        SkillUpgradeResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<SkillUpgradeResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid skill upgrade response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+    /// <summary>
+    /// Get temporary skills for the current player from server.
+    /// </summary>
+    public IEnumerator GetSkills(Action<GetSkillsResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        string url = $"{m_BaseUrl}/skills/{PlayerId}";
+        using var req = UnityWebRequest.Get(url);
+        req.SetRequestHeader("Authorization", $"Bearer {Token}");
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        GetSkillsResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<GetSkillsResponse>(req.downloadHandler.text);
+        }
+        catch (Exception ex)
+        {
+            onError?.Invoke($"Invalid skills response: {ex.Message}");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
     #endregion
 }
 
@@ -1289,6 +1366,36 @@ public class JoinRoomResponse
 {
     public bool success;
     public string roomId;
+}
+
+[Serializable]
+public class SkillUpgradeRequest
+{
+    public string playerId;
+    public string skillId;
+    public string token;
+}
+
+[Serializable]
+public class SkillUpgradeResponse
+{
+    public bool success;
+    public string skillId;
+    public int level;
+    public string message;
+}
+
+[Serializable]
+public class GetSkillsResponse
+{
+    public List<SkillInfo> skills;
+}
+
+[Serializable]
+public class SkillInfo
+{
+    public string skillId;
+    public int level;
 }
 
 #region SignalR DTOs
