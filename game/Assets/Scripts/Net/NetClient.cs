@@ -115,6 +115,22 @@ public class NetClient : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        // Load ServerConfig from Resources if not assigned
+        if (m_ServerConfig == null)
+        {
+            LoadServerConfigFromResources();
+        }
+
+        // Log current server URL for debugging
+        if (m_ServerConfig != null)
+        {
+            Debug.Log($"[NetClient] ServerConfig loaded: {m_ServerConfig.name}, BaseUrl: {BaseUrl}");
+        }
+        else
+        {
+            Debug.LogWarning($"[NetClient] ServerConfig not found! Using fallback URL: {BaseUrl}");
+        }
+
         // Ensure KillReporter component exists
         if (GetComponent<KillReporter>() == null)
         {
@@ -124,6 +140,36 @@ public class NetClient : MonoBehaviour
 
         // Clear any old saved session to avoid stale data
         ClearSavedSession();
+    }
+    #endregion
+
+    #region Private Methods
+    /// <summary>
+    /// Tự động load ServerConfig từ Resources folder nếu chưa được assign.
+    /// </summary>
+    private void LoadServerConfigFromResources()
+    {
+        // Try to load from Resources/Config/ServerConfig
+        var config = Resources.Load<ServerConfig>("Config/ServerConfig");
+        if (config != null)
+        {
+            m_ServerConfig = config;
+            Debug.Log("[NetClient] Loaded ServerConfig from Resources/Config/ServerConfig");
+            return;
+        }
+
+        // Try alternative path: Resources/ServerConfig
+        config = Resources.Load<ServerConfig>("ServerConfig");
+        if (config != null)
+        {
+            m_ServerConfig = config;
+            Debug.Log("[NetClient] Loaded ServerConfig from Resources/ServerConfig");
+            return;
+        }
+
+        Debug.LogWarning("[NetClient] ServerConfig not found in Resources. Please either:\n" +
+                        "1. Assign ServerConfig asset to NetClient in Inspector, OR\n" +
+                        "2. Place ServerConfig asset in Resources/Config/ServerConfig or Resources/ServerConfig");
     }
     #endregion
 

@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57e5fdad0c428964b80c4b834d8f06a4, type: 3}
   m_Name: ServerConfig
   m_EditorClassIdentifier: 
-  m_BaseUrl: http://localhost:5220
+  m_BaseUrl: https://uvkktuwcda.ap.loclx.io
