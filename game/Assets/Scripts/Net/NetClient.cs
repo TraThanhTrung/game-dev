@@ -28,7 +28,6 @@ public class NetClient : MonoBehaviour
     private string m_SelectedCharacterType = "lancer";
     private GameStateSnapshot m_LatestGameState;
     private int m_CurrentSectionId = -1; // Track current section ID to detect changes (-1 = no section)
-    private bool m_IsLoadingSectionTransition = false; // Track if we're in a section transition
     #endregion
 
     #region Events
@@ -457,6 +456,7 @@ public class NetClient : MonoBehaviour
         StopPolling();
         m_IsSignalRConnected = false;
         m_HasReceivedInitialState = false;
+        m_CurrentSectionId = -1;
 
         OnSignalRConnectionChanged?.Invoke(false);
 
@@ -527,8 +527,7 @@ public class NetClient : MonoBehaviour
             }
         }
 
-        // DEBUG: Log every state update to track section changes
-        Debug.LogWarning($"[SECTION_DEBUG] State received - status: {state.status}, currentSectionId: {state.currentSectionId}, sectionName: {state.sectionName}, m_CurrentSectionId: {m_CurrentSectionId}");
+        // Track section changes (no loading screen, just update tracking)
 
         if (!string.IsNullOrEmpty(state.status))
         {
@@ -565,41 +564,19 @@ public class NetClient : MonoBehaviour
 
         if (state.status == "InProgress")
         {
-            if (state.currentSectionId >= 0)
+            // Simply update current section ID when it changes
+            if (state.currentSectionId >= 0 && m_CurrentSectionId != state.currentSectionId)
             {
-                Debug.LogWarning($"[SECTION_DEBUG] InProgress with sectionId: {state.currentSectionId}, m_CurrentSectionId: {m_CurrentSectionId}");
-
-                // Detect section change: if we had a previous section and it's different from current
-                if (m_CurrentSectionId >= 0 && m_CurrentSectionId != state.currentSectionId)
-                {
-                    Debug.LogError($"[SECTION_DEBUG] *** SECTION CHANGED *** from {m_CurrentSectionId} to {state.currentSectionId} ({state.sectionName})");
-                    OnSectionChanged(state.currentSectionId, state.sectionName ?? "");
-                }
-                else if (m_CurrentSectionId < 0 && state.currentSectionId >= 0)
-                {
-                    // First section loaded (initial game start) - no loading screen needed
-                    Debug.LogWarning($"[SECTION_DEBUG] First section loaded: {state.currentSectionId} ({state.sectionName})");
-                }
-                else
-                {
-                    Debug.LogWarning($"[SECTION_DEBUG] Same section: {state.currentSectionId} (no change)");
-                }
-
-                m_CurrentSectionId = state.currentSectionId;
-            }
-            else
-            {
-                // No current section
                 if (m_CurrentSectionId >= 0)
                 {
-                    Debug.LogWarning($"[SECTION_DEBUG] Section reset: {m_CurrentSectionId} -> -1");
+                    Debug.Log($"[NetClient] Section changed: {m_CurrentSectionId} -> {state.currentSectionId} ({state.sectionName})");
                 }
+                m_CurrentSectionId = state.currentSectionId;
+            }
+            else if (state.currentSectionId < 0)
+            {
                 m_CurrentSectionId = -1;
             }
-        }
-        else
-        {
-            Debug.LogWarning($"[SECTION_DEBUG] Status is NOT InProgress: {state.status}");
         }
 
         m_LatestGameState = ConvertToGameStateSnapshot(state);
@@ -611,128 +588,6 @@ public class NetClient : MonoBehaviour
         Debug.LogWarning($"[NetClient] SignalR polling error: {error}");
     }
 
-    private void OnSectionChanged(int newSectionId, string sectionName)
-    {
-        Debug.LogError($"[SECTION_DEBUG] OnSectionChanged CALLED! newSectionId: {newSectionId}, sectionName: {sectionName}, m_IsLoadingSectionTransition: {m_IsLoadingSectionTransition}");
-
-        if (m_IsLoadingSectionTransition)
-        {
-            Debug.LogError($"[SECTION_DEBUG] Already in transition! Ignoring...");
-            return;
-        }
-
-        Debug.LogError($"[SECTION_DEBUG] OnSectionChanged: Section {newSectionId} ({sectionName}) - Showing loading screen NOW!");
-        m_IsLoadingSectionTransition = true;
-
-        string statusMessage = string.IsNullOrEmpty(sectionName)
-            ? $"Loading Section {newSectionId}..."
-            : $"Loading {sectionName}...";
-
-        Debug.LogError($"[SECTION_DEBUG] Calling LoadingScreenManager.Instance.Show('{statusMessage}')");
-
-        if (LoadingScreenManager.Instance == null)
-        {
-            Debug.LogError("[SECTION_DEBUG] LoadingScreenManager.Instance is NULL!!!");
-            m_IsLoadingSectionTransition = false;
-            return;
-        }
-
-        LoadingScreenManager.Instance.Show(statusMessage);
-        LoadingScreenManager.Instance.SetProgress(0f);
-
-        Debug.LogError($"[SECTION_DEBUG] Loading screen shown! Starting WaitForSectionEnemiesLoaded coroutine");
-        StartCoroutine(WaitForSectionEnemiesLoaded(newSectionId, sectionName));
-    }
-
-    /// <summary>
-    /// Wait for enemies to be loaded from server state, then hide loading screen.
-    /// Always displays loading screen for at least 3 seconds for consistent UX.
-    /// </summary>
-    private IEnumerator WaitForSectionEnemiesLoaded(int sectionId, string sectionName)
-    {
-        const float c_MinLoadingTime = 3f; // Minimum display time: 3 seconds
-
-        Debug.Log($"[NetClient] WaitForSectionEnemiesLoaded started - sectionId: {sectionId}, sectionName: '{sectionName}', minTime: {c_MinLoadingTime}s");
-
-        float startTime = Time.time;
-        float elapsed = 0f;
-        bool enemiesLoaded = false;
-        int checkCount = 0;
-        int lastLogSecond = -1;
-
-        // Poll for enemies while ensuring minimum display time
-        while (elapsed < c_MinLoadingTime)
-        {
-            checkCount++;
-            elapsed = Time.time - startTime;
-
-            // Update progress (0% to 100% over minimum time)
-            float progress = Mathf.Clamp01(elapsed / c_MinLoadingTime);
-            LoadingScreenManager.Instance.SetProgress(progress);
-
-            // Check if we have enemies in the latest state (only check if not already loaded)
-            if (!enemiesLoaded)
-            {
-                int enemyCount = 0;
-                if (m_LatestGameState != null && m_LatestGameState.enemies != null)
-                {
-                    enemyCount = m_LatestGameState.enemies.Count;
-                    if (enemyCount > 0)
-                    {
-                        enemiesLoaded = true;
-                        Debug.Log($"[NetClient] Enemies loaded! Found {enemyCount} enemies after {elapsed:F2}s ({checkCount} checks)");
-
-                        // Update status to show ready
-                        LoadingScreenManager.Instance.SetStatus(string.IsNullOrEmpty(sectionName)
-                            ? $"Section {sectionId} ready!"
-                            : $"{sectionName} ready!");
-                    }
-                }
-
-                // Log every second to track progress
-                int currentSecond = Mathf.FloorToInt(elapsed);
-                if (currentSecond > lastLogSecond)
-                {
-                    lastLogSecond = currentSecond;
-                    Debug.Log($"[NetClient] Loading progress: {elapsed:F2}s/{c_MinLoadingTime:F1}s ({progress * 100:F0}%), enemies loaded: {enemiesLoaded}, enemy count: {enemyCount}");
-                }
-            }
-            else
-            {
-                // Enemies already loaded, just wait for minimum time
-                // Log every second
-                int currentSecond = Mathf.FloorToInt(elapsed);
-                if (currentSecond > lastLogSecond)
-                {
-                    lastLogSecond = currentSecond;
-                    Debug.Log($"[NetClient] Waiting for minimum time: {elapsed:F2}s/{c_MinLoadingTime:F1}s ({progress * 100:F0}%)");
-                }
-            }
-
-            yield return null;
-        }
-
-        // Ensure progress is at 100%
-        LoadingScreenManager.Instance.SetProgress(1.0f);
-
-        // Final status update
-        if (!enemiesLoaded)
-        {
-            Debug.LogWarning($"[NetClient] Minimum loading time reached but no enemies found! Section {sectionId} may have no enemies (waited {elapsed:F2}s)");
-            LoadingScreenManager.Instance.SetStatus(string.IsNullOrEmpty(sectionName)
-                ? $"Section {sectionId} ready!"
-                : $"{sectionName} ready!");
-        }
-
-        Debug.Log($"[NetClient] Minimum loading time reached ({elapsed:F2}s). Hiding loading screen. Enemies loaded: {enemiesLoaded}");
-
-        // Hide loading screen after minimum time
-        LoadingScreenManager.Instance.Hide();
-
-        m_IsLoadingSectionTransition = false;
-
-        Debug.Log($"[NetClient] Section {sectionId} ({sectionName}) loading complete. Total display time: {elapsed:F2}s");
-    }
 
     private GameStateSnapshot ConvertToGameStateSnapshot(StateResponse state)
     {
@@ -1740,4 +1595,5 @@ public class PlayerLeftEventData
 }
 #endregion
 #endregion
+
 

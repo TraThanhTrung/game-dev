@@ -413,10 +413,18 @@ public class WorldService
                     e.MaxHp,
                     e.Status.ToString().ToLower()
                 ))
+                .ToList(),
+            Projectiles = session.Projectiles.Values
+                .Select(p => new ProjectileSnapshot(p.Id, p.OwnerId, p.Type, p.X, p.Y, p.VelocityX, p.VelocityY, p.Damage))
                 .ToList()
         };
 
-        // Log removed for performance (GetState called frequently by clients)
+        // DEBUG: Log section ID changes (only when section changes, not every call)
+        if (session.CurrentSectionId.HasValue && session.CurrentSectionId.Value >= 0)
+        {
+            _logger.LogInformation("[SECTION_DEBUG] GetState returning - sessionId: {SessionId}, version: {Version}, currentSectionId: {CurrentSectionId}, sectionName: {SectionName}",
+                session.SessionId, session.Version, session.CurrentSectionId.Value, response.SectionName);
+        }
 
         return response;
     }
@@ -1926,14 +1934,28 @@ public class WorldService
                         _logger.LogInformation("Advancing to next section {SectionId} ({SectionName}) in session {SessionId}",
                             nextSection.SectionId, nextSection.Name, session.SessionId);
 
-                        // Clear old enemies before initializing next section (lock only for state updates)
+                        // Clear old enemies and update CurrentSectionId BEFORE initializing (so clients see section change immediately)
                         lock (_sessionLock)
                         {
                             session.Enemies.Clear();
                             session.CurrentBossId = null;
                             session.IsBossAlive = false;
+                            // Set CurrentSectionId immediately so clients can detect section change
+                            session.CurrentSectionId = nextSection.SectionId;
+                            // Clear cached section data (will be repopulated by InitializeRoomCheckpointsAsync)
+                            session.CachedSection = null;
+                            session.CachedCheckpoints.Clear();
+                            session.SectionStartTime = null;
+                            // Ensure status is still InProgress when advancing
+                            if (session.Status != SessionStatus.InProgress)
+                            {
+                                session.Status = SessionStatus.InProgress;
+                            }
+                            // Increment version to notify clients of section change
+                            session.Version++;
                         }
 
+                        _logger.LogInformation("Section {SectionId} set in session {SessionId}, initializing checkpoints...", nextSection.SectionId, session.SessionId);
                         await InitializeRoomCheckpointsAsync(session.SessionId, nextSection.SectionId);
                     }
                     else

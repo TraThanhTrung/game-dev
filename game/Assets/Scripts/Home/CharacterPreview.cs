@@ -42,6 +42,33 @@ public class CharacterPreview : MonoBehaviour
         {
             characterAnimator = GetComponentInChildren<Animator>();
         }
+
+        // Try to find text components if not assigned
+        if (characterNameText == null)
+        {
+            characterNameText = GetComponentInChildren<TextMeshProUGUI>();
+            if (characterNameText != null)
+            {
+                Debug.Log("[CharacterPreview] Auto-found characterNameText component");
+            }
+        }
+
+        // Try to find description text (look for second TextMeshProUGUI or one with specific name)
+        if (characterDescText == null)
+        {
+            var allTexts = GetComponentsInChildren<TextMeshProUGUI>();
+            if (allTexts.Length > 1)
+            {
+                // Use second text component as description
+                characterDescText = allTexts[1];
+                Debug.Log("[CharacterPreview] Auto-found characterDescText component");
+            }
+            else if (allTexts.Length == 1 && characterNameText == null)
+            {
+                // Only one text found, use it for name
+                characterNameText = allTexts[0];
+            }
+        }
     }
 
     private void Start()

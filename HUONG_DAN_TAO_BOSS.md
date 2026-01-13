@@ -214,3 +214,4 @@ VALUES
 2. Kiểm tra logs: `"Boss {BossId} defeated"`
 3. Đảm bảo `IsBossAlive = false` sau khi boss chết
 
+
