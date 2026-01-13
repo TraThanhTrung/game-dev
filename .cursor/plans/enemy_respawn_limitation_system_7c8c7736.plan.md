@@ -408,4 +408,3 @@ public class EnemySnapshot
 - [ ] Checkpoint limitation: Không respawn nếu checkpoint đã đạt `MaxEnemies`
 - [ ] Section limitation: Không respawn nếu section đã đạt `EnemyCount`
 - [ ] SpawnRate: RespawnDelay được adjust đúng (baseDelay / spawnRate)
-- [ ] Duration: Respawn dừng sau `Duration` giây

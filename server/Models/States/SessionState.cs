@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace GameServer.Models.States;
 
 public enum SessionStatus
@@ -11,9 +13,9 @@ public class SessionState
 {
     public string SessionId { get; set; } = "default";
     public int Version { get; set; }
-    public Dictionary<Guid, PlayerState> Players { get; set; } = new();
-    public Dictionary<Guid, EnemyState> Enemies { get; set; } = new();
-    public Dictionary<Guid, ProjectileState> Projectiles { get; set; } = new();
+    public ConcurrentDictionary<Guid, PlayerState> Players { get; set; } = new();
+    public ConcurrentDictionary<Guid, EnemyState> Enemies { get; set; } = new();
+    public ConcurrentDictionary<Guid, ProjectileState> Projectiles { get; set; } = new();
 
     // Section progression tracking
     public int? CurrentSectionId { get; set; }
@@ -38,7 +40,7 @@ public class SessionState
     /// Cached checkpoint configs indexed by CheckpointId.
     /// Populated when section is initialized.
     /// </summary>
-    public Dictionary<int, CachedCheckpointConfig> CachedCheckpoints { get; set; } = new();
+    public ConcurrentDictionary<int, CachedCheckpointConfig> CachedCheckpoints { get; set; } = new();
     #endregion
 }
 

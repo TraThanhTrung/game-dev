@@ -18,11 +18,11 @@ public class GameSceneInitializer : MonoBehaviour
     [Header("References")]
     [SerializeField] private GameObject m_LoadingScreenPrefab;
     [SerializeField] private PlayerSpawner m_PlayerSpawner;
-    
+
     [Header("Settings")]
     [SerializeField] private bool m_AutoInitialize = true;
     [SerializeField] private bool m_EnableLogging = true;
-    
+
     // State
     private bool m_IsInitialized;
     private LoadingScreenManager m_LoadingScreen;
@@ -41,8 +41,22 @@ public class GameSceneInitializer : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         Instance = this;
+
+        // Ensure GameCompletionHandler exists
+        if (GameCompletionHandler.Instance == null)
+        {
+            var handlerObj = new GameObject("GameCompletionHandler");
+            handlerObj.AddComponent<GameCompletionHandler>();
+        }
+
+        // Ensure AudioListenerManager exists to prevent duplicate AudioListener warnings
+        if (FindObjectOfType<AudioListenerManager>() == null)
+        {
+            var audioListenerManagerObj = new GameObject("AudioListenerManager");
+            audioListenerManagerObj.AddComponent<AudioListenerManager>();
+        }
     }
 
     private void Start()
@@ -52,13 +66,13 @@ public class GameSceneInitializer : MonoBehaviour
             // Get character type from NetClient
             string characterType = "lancer";
             string sessionId = "default";
-            
+
             if (NetClient.Instance != null)
             {
                 characterType = NetClient.Instance.SelectedCharacterType;
                 sessionId = NetClient.Instance.SessionId;
             }
-            
+
             StartCoroutine(InitializeGameScene(characterType, sessionId));
         }
     }
@@ -83,7 +97,7 @@ public class GameSceneInitializer : MonoBehaviour
             Debug.LogWarning($"{c_LogPrefix} Already initialized!");
             return;
         }
-        
+
         StartCoroutine(InitializeGameScene(characterType, sessionId));
     }
     #endregion
@@ -98,14 +112,14 @@ public class GameSceneInitializer : MonoBehaviour
         {
             Debug.Log($"{c_LogPrefix} Starting initialization: char={characterType}, session={sessionId}");
         }
-        
+
         // Step 1: Ensure InputBlocker exists and blocks input
         InputBlocker.EnsureExists();
         if (InputBlocker.Instance != null)
         {
             InputBlocker.Instance.BlockInput();
         }
-        
+
         // Step 2: Create or get loading screen
         m_LoadingScreen = LoadingScreenManager.Instance;
         if (m_LoadingScreen == null && m_LoadingScreenPrefab != null)
@@ -113,23 +127,23 @@ public class GameSceneInitializer : MonoBehaviour
             var loadingObj = Instantiate(m_LoadingScreenPrefab);
             m_LoadingScreen = loadingObj.GetComponent<LoadingScreenManager>();
         }
-        
+
         // Step 3: Use LoadingScreenManager for the full loading sequence
         if (m_LoadingScreen != null)
         {
             bool loadingComplete = false;
             string loadingError = null;
-            
+
             m_LoadingScreen.StartLoading(characterType, sessionId,
                 () => loadingComplete = true,
                 (err) => { loadingError = err; loadingComplete = true; });
-            
+
             // Wait for loading to complete
             while (!loadingComplete)
             {
                 yield return null;
             }
-            
+
             if (loadingError != null)
             {
                 Debug.LogError($"{c_LogPrefix} Loading failed: {loadingError}");
@@ -141,9 +155,9 @@ public class GameSceneInitializer : MonoBehaviour
             // No loading screen - do minimal initialization
             yield return InitializeWithoutLoadingScreen(characterType, sessionId);
         }
-        
+
         m_IsInitialized = true;
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Initialization complete! Game ready.");
@@ -159,13 +173,13 @@ public class GameSceneInitializer : MonoBehaviour
         {
             Debug.Log($"{c_LogPrefix} Initializing without loading screen");
         }
-        
+
         // Spawn player
         if (m_PlayerSpawner != null)
         {
             yield return m_PlayerSpawner.SpawnLocalPlayer(characterType);
         }
-        
+
         // Connect SignalR
         if (NetClient.Instance != null)
         {
@@ -173,13 +187,13 @@ public class GameSceneInitializer : MonoBehaviour
             yield return NetClient.Instance.ConnectSignalRAsync(sessionId,
                 () => connected = true,
                 (err) => Debug.LogError($"{c_LogPrefix} SignalR error: {err}"));
-            
+
             if (!connected)
             {
                 Debug.LogWarning($"{c_LogPrefix} Failed to connect SignalR");
             }
         }
-        
+
         // Unblock input
         if (InputBlocker.Instance != null)
         {

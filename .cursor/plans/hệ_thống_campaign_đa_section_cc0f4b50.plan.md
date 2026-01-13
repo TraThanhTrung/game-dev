@@ -274,5 +274,3 @@ flowchart TD
 - `server/Services/WorldService.cs` - Triển khai logic tiến triển section
 
 **Không cần thay đổi:**
-
-- Unity client (server-authoritative, client nhận state qua polling)

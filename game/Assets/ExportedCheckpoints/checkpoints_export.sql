@@ -124,3 +124,5 @@ VALUES (
     datetime('now')
 );
 
+
+SELECT * FROM GameSections;

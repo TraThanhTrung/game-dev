@@ -23,11 +23,11 @@ public class LoadingScreenManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI m_StatusText;
     [SerializeField] private TextMeshProUGUI m_ProgressText;
     [SerializeField] private GameObject m_SpinnerObject;
-    
+
     [Header("Settings")]
     [SerializeField] private float m_MinLoadingTime = 1.0f; // Minimum time to show loading screen
     [SerializeField] private bool m_EnableLogging = true;
-    
+
     // Loading state
     private float m_LoadingProgress;
     private string m_CurrentStatus = "Initializing...";
@@ -50,9 +50,9 @@ public class LoadingScreenManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         Instance = this;
-        
+
         // Don't destroy on load - we need this across scenes
         if (transform.parent == null)
         {
@@ -102,10 +102,10 @@ public class LoadingScreenManager : MonoBehaviour
             Debug.LogWarning($"{c_LogPrefix} Already loading!");
             return;
         }
-        
+
         m_OnLoadingComplete = onComplete;
         m_OnLoadingFailed = onFailed;
-        
+
         StartCoroutine(LoadGameAsync(characterType, sessionId));
     }
 
@@ -114,22 +114,33 @@ public class LoadingScreenManager : MonoBehaviour
     /// </summary>
     public void Show(string statusMessage = "Loading...")
     {
+        Debug.Log($"{c_LogPrefix} Show() called with message: '{statusMessage}'");
+
+        m_IsLoading = true;
         m_CurrentStatus = statusMessage;
         m_LoadingProgress = 0f;
-        
+
+        Debug.Log($"{c_LogPrefix} m_LoadingCanvas is null: {m_LoadingCanvas == null}");
         if (m_LoadingCanvas != null)
         {
+            Debug.Log($"{c_LogPrefix} Activating loading canvas (current active state: {m_LoadingCanvas.gameObject.activeSelf})");
             m_LoadingCanvas.gameObject.SetActive(true);
+            Debug.Log($"{c_LogPrefix} Loading canvas activated: {m_LoadingCanvas.gameObject.activeSelf}");
         }
-        
+        else
+        {
+            Debug.LogError($"{c_LogPrefix} m_LoadingCanvas is NULL! Cannot show loading screen!");
+        }
+
         // Ensure input is blocked
         InputBlocker.EnsureExists();
         if (InputBlocker.Instance != null)
         {
             InputBlocker.Instance.BlockInput();
         }
-        
+
         UpdateUI();
+        Debug.Log($"{c_LogPrefix} Show() completed - m_IsLoading: {m_IsLoading}, canvas active: {m_LoadingCanvas?.gameObject.activeSelf ?? false}");
     }
 
     /// <summary>
@@ -138,18 +149,18 @@ public class LoadingScreenManager : MonoBehaviour
     public void Hide()
     {
         m_IsLoading = false;
-        
+
         if (m_LoadingCanvas != null)
         {
             m_LoadingCanvas.gameObject.SetActive(false);
         }
-        
+
         // Unblock input
         if (InputBlocker.Instance != null)
         {
             InputBlocker.Instance.UnblockInput();
         }
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Loading screen hidden, input unblocked");
@@ -162,7 +173,7 @@ public class LoadingScreenManager : MonoBehaviour
     public void SetStatus(string status)
     {
         m_CurrentStatus = status;
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} {status}");
@@ -186,31 +197,31 @@ public class LoadingScreenManager : MonoBehaviour
     {
         m_IsLoading = true;
         float startTime = Time.time;
-        
+
         // Show loading screen
         Show("Starting...");
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Starting game load: character={characterType}, session={sessionId}");
         }
-        
+
         // Step 1: Load game configs via REST (10%)
         SetStatus("Loading game configs...");
         SetProgress(0.05f);
         yield return LoadGameConfigs();
         SetProgress(0.10f);
-        
+
         // Step 2: Load session metadata (20%)
         SetStatus("Loading session info...");
         yield return LoadSessionMetadata(sessionId);
         SetProgress(0.20f);
-        
+
         // Step 3: Load enemy configs (35%)
         SetStatus("Loading enemy configs...");
         yield return LoadEnemyConfigs();
         SetProgress(0.35f);
-        
+
         // Step 4: Validate all resources (45%)
         SetStatus("Validating resources...");
         bool isValid = ValidateResources(characterType);
@@ -221,26 +232,26 @@ public class LoadingScreenManager : MonoBehaviour
             yield break;
         }
         SetProgress(0.45f);
-        
+
         // Step 5: Wait for player prefab to be spawned (done by GameManager/PlayerSpawner) (60%)
         SetStatus("Initializing player...");
         yield return WaitForPlayerInitialization();
         SetProgress(0.60f);
-        
+
         // Step 6: Initialize game objects (70%)
         SetStatus("Initializing game objects...");
         yield return InitializeGameObjects();
         SetProgress(0.70f);
-        
+
         // Step 7: Connect SignalR (85%)
         SetStatus("Connecting to server...");
         bool connected = false;
         string connectError = null;
-        
-        yield return ConnectSignalR(sessionId, 
+
+        yield return ConnectSignalR(sessionId,
             () => connected = true,
             (err) => { connectError = err; });
-        
+
         if (!connected)
         {
             SetStatus($"Connection failed: {connectError}");
@@ -248,28 +259,28 @@ public class LoadingScreenManager : MonoBehaviour
             yield break;
         }
         SetProgress(0.85f);
-        
+
         // Step 8: Wait for initial state (95%)
         SetStatus("Synchronizing game state...");
         yield return WaitForInitialState();
         SetProgress(0.95f);
-        
+
         // Step 9: Apply initial state
         SetStatus("Applying game state...");
         ApplyInitialState();
         SetProgress(1.0f);
-        
+
         // Ensure minimum loading time for UX
         float elapsed = Time.time - startTime;
         if (elapsed < m_MinLoadingTime)
         {
             yield return new WaitForSeconds(m_MinLoadingTime - elapsed);
         }
-        
+
         // Step 10: Ready - disable loading, enable input
         SetStatus("Ready!");
         yield return new WaitForSeconds(0.2f); // Brief pause to show "Ready!"
-        
+
         OnLoadingComplete();
     }
 
@@ -278,7 +289,7 @@ public class LoadingScreenManager : MonoBehaviour
         // Game configs are loaded from shared/game-config.json via GameConfigLoader
         // Wait a frame to ensure configs are loaded
         yield return null;
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Game configs loaded");
@@ -292,12 +303,12 @@ public class LoadingScreenManager : MonoBehaviour
         {
             bool loaded = false;
             string error = null;
-            
+
             StartCoroutine(NetClient.Instance.GetSessionMetadata(sessionId,
                 (metadata) => { loaded = true; },
                 (err) => { error = err; loaded = true; }
             ));
-            
+
             // Wait for response (max 5 seconds)
             float timeout = 5f;
             while (!loaded && timeout > 0)
@@ -305,7 +316,7 @@ public class LoadingScreenManager : MonoBehaviour
                 timeout -= Time.deltaTime;
                 yield return null;
             }
-            
+
             if (error != null)
             {
                 Debug.LogWarning($"{c_LogPrefix} Failed to load session metadata: {error}");
@@ -316,7 +327,7 @@ public class LoadingScreenManager : MonoBehaviour
         {
             Debug.LogWarning($"{c_LogPrefix} NetClient not available for session metadata");
         }
-        
+
         yield return null;
     }
 
@@ -329,14 +340,14 @@ public class LoadingScreenManager : MonoBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
-        
+
         if (EnemyConfigManager.Instance != null)
         {
             // Trigger config load if not already loaded
             if (!EnemyConfigManager.Instance.IsLoaded)
             {
                 StartCoroutine(EnemyConfigManager.Instance.LoadAllEnemiesAsync());
-                
+
                 // Wait for load
                 timeout = 5f;
                 while (!EnemyConfigManager.Instance.IsLoaded && timeout > 0)
@@ -346,7 +357,7 @@ public class LoadingScreenManager : MonoBehaviour
                 }
             }
         }
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Enemy configs loaded");
@@ -357,32 +368,32 @@ public class LoadingScreenManager : MonoBehaviour
     {
         // Check all required resources are available
         bool valid = true;
-        
+
         // Check NetClient
         if (NetClient.Instance == null)
         {
             Debug.LogError($"{c_LogPrefix} NetClient not found!");
             valid = false;
         }
-        
+
         // Check EnemyConfigManager
         if (EnemyConfigManager.Instance == null)
         {
             Debug.LogWarning($"{c_LogPrefix} EnemyConfigManager not found (may be OK if no enemies)");
         }
-        
+
         // Check InputBlocker
         if (InputBlocker.Instance == null)
         {
             Debug.LogWarning($"{c_LogPrefix} InputBlocker not found, creating...");
             InputBlocker.EnsureExists();
         }
-        
+
         if (m_EnableLogging && valid)
         {
             Debug.Log($"{c_LogPrefix} Resources validated successfully");
         }
-        
+
         return valid;
     }
 
@@ -403,11 +414,11 @@ public class LoadingScreenManager : MonoBehaviour
                 }
                 yield break;
             }
-            
+
             timeout -= Time.deltaTime;
             yield return null;
         }
-        
+
         Debug.LogWarning($"{c_LogPrefix} Player not found after timeout (may spawn later)");
     }
 
@@ -415,7 +426,7 @@ public class LoadingScreenManager : MonoBehaviour
     {
         // Initialize any required game objects
         yield return null;
-        
+
         if (m_EnableLogging)
         {
             Debug.Log($"{c_LogPrefix} Game objects initialized");
@@ -429,15 +440,15 @@ public class LoadingScreenManager : MonoBehaviour
             onError?.Invoke("NetClient not available");
             yield break;
         }
-        
+
         bool completed = false;
         string error = null;
-        
+
         StartCoroutine(NetClient.Instance.ConnectSignalRAsync(sessionId,
             () => { completed = true; },
             (err) => { error = err; completed = true; }
         ));
-        
+
         // Wait for connection (max 10 seconds)
         float timeout = 10f;
         while (!completed && timeout > 0)
@@ -445,7 +456,7 @@ public class LoadingScreenManager : MonoBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
-        
+
         if (error != null)
         {
             onError?.Invoke(error);
@@ -471,13 +482,13 @@ public class LoadingScreenManager : MonoBehaviour
                 timeout -= Time.deltaTime;
                 yield return null;
             }
-            
+
             if (timeout <= 0)
             {
                 Debug.LogWarning($"{c_LogPrefix} Timed out waiting for initial state");
             }
         }
-        
+
         yield return null;
     }
 
@@ -497,10 +508,10 @@ public class LoadingScreenManager : MonoBehaviour
         {
             Debug.Log($"{c_LogPrefix} Loading complete! Game ready.");
         }
-        
+
         // Hide loading screen (also unblocks input)
         Hide();
-        
+
         // Notify callback
         m_OnLoadingComplete?.Invoke();
     }
@@ -511,17 +522,17 @@ public class LoadingScreenManager : MonoBehaviour
         {
             m_StatusText.text = m_CurrentStatus;
         }
-        
+
         if (m_ProgressBar != null)
         {
             m_ProgressBar.value = m_LoadingProgress;
         }
-        
+
         if (m_ProgressText != null)
         {
             m_ProgressText.text = $"{Mathf.RoundToInt(m_LoadingProgress * 100)}%";
         }
-        
+
         if (m_SpinnerObject != null)
         {
             m_SpinnerObject.transform.Rotate(0, 0, -200f * Time.deltaTime);

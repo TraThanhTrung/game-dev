@@ -31,10 +31,8 @@ public class SessionsController : ControllerBase
     }
 
     /// <summary>
-    /// HTTP endpoint for player input (fallback mechanism).
-    /// NOTE: Unity client currently uses HTTP polling to simulate SignalR.
-    /// In production, clients should use SignalR Hub.SendInput() for better performance.
-    /// This endpoint is kept for backward compatibility and fallback scenarios.
+    /// HTTP endpoint for player input.
+    /// Unity client uses HTTP polling to send input to the server.
     /// </summary>
     [HttpPost("input")]
     public IActionResult SendInput([FromBody] InputRequest request)
@@ -43,10 +41,6 @@ public class SessionsController : ControllerBase
             return BadRequest("PlayerId required");
 
         HttpContext.Items["playerId"] = request.PlayerId.ToString();
-
-        // Note: Unity client currently simulates SignalR using HTTP polling
-        // This is expected behavior until SignalR Unity client is fully implemented
-        // See: game/Assets/Scripts/Net/NetClient.cs line 400-423
 
         _world.EnqueueInput(request);
         return Ok(new { accepted = true });
@@ -72,7 +66,7 @@ public class SessionsController : ControllerBase
 
     /// <summary>
     /// Get session metadata for loading screen (players, room config).
-    /// Called during loading screen to get session info before connecting SignalR.
+    /// Called during loading screen to get session info.
     /// </summary>
     [HttpGet("{sessionId}/metadata")]
     public ActionResult<SessionMetadataResponse> GetSessionMetadata([FromRoute] string sessionId)
@@ -83,27 +77,19 @@ public class SessionsController : ControllerBase
             return NotFound(new { message = "Session not found" });
         }
 
-        var snapshot = _world.GetSessionSnapshot(sessionId);
-
         var response = new SessionMetadataResponse
         {
             SessionId = sessionId,
             PlayerCount = roomInfo.Value.playerCount,
             Version = roomInfo.Value.version,
-            Players = snapshot?.Players.Select(p => new PlayerMetadata
-            {
-                Id = p.Id,
-                Name = p.Name,
-                CharacterType = p.CharacterType,
-                Level = p.Level
-            }).ToList() ?? new List<PlayerMetadata>()
+            Players = _world.GetPlayerMetadata(sessionId)
         };
 
         return Ok(response);
     }
 
     /// <summary>
-    /// Signal that client is ready to connect to SignalR.
+    /// Signal that client is ready to start playing.
     /// Called after loading screen completes resource validation.
     /// </summary>
     [HttpPost("{sessionId}/ready")]

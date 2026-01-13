@@ -1,5 +1,4 @@
 using GameServer.Data;
-using GameServer.Hubs;
 using GameServer.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -147,13 +146,6 @@ builder.Services.AddScoped<PlayerWebService>(sp =>
 });
 builder.Services.AddHostedService<GameLoopService>();
 
-// SignalR for real-time game state
-builder.Services.AddSignalR(options =>
-{
-    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-    options.MaximumReceiveMessageSize = 64 * 1024; // 64KB max message size
-});
-
 var app = builder.Build();
 
 // Apply database migrations
@@ -243,8 +235,9 @@ app.Use(async (ctx, next) =>
     var path = ctx.Request.Path;
     var query = ctx.Request.QueryString.HasValue ? ctx.Request.QueryString.Value : "";
 
-    // Log request start (only for non-polling requests to reduce spam)
+    // Skip logging for frequent endpoints to reduce spam
     bool isPolling = path.ToString().Contains("/state");
+    bool isInput = path.ToString().Contains("/input");
     bool isOAuthCallback = path.ToString().Contains("/auth/google") || path.ToString().Contains("/signin-google");
 
     // Don't interfere with OAuth flow
@@ -257,8 +250,8 @@ app.Use(async (ctx, next) =>
     // Color-code by status
     var logLevel = status >= 400 ? LogLevel.Warning : LogLevel.Information;
 
-    // Skip logging polling requests and OAuth callbacks unless there's an error
-    if ((isPolling || isOAuthCallback) && status < 400 && sw.ElapsedMilliseconds < 100)
+    // Skip logging frequent requests (polling, input) and OAuth callbacks unless there's an error
+    if ((isPolling || isInput || isOAuthCallback) && status < 400 && sw.ElapsedMilliseconds < 100)
     {
         return; // Don't log successful fast requests
     }
@@ -272,9 +265,6 @@ app.Use(async (ctx, next) =>
 app.MapRazorPages();
 
 app.MapControllers();
-
-// Map SignalR Hub for real-time game state
-app.MapHub<GameHub>("/gamehub");
 
 // Log when server is ready
 app.Lifetime.ApplicationStarted.Register(() =>

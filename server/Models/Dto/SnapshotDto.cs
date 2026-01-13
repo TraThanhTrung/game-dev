@@ -3,12 +3,12 @@ using GameServer.Models.States;
 namespace GameServer.Models.Dto;
 
 public record PlayerSnapshot(
-    Guid Id, 
-    string Name, 
-    float X, 
-    float Y, 
-    int Hp, 
-    int MaxHp, 
+    Guid Id,
+    string Name,
+    float X,
+    float Y,
+    int Hp,
+    int MaxHp,
     int Sequence,
     int Level,
     int Exp,
@@ -34,6 +34,9 @@ public class StateResponse
 {
     public string SessionId { get; set; } = "default";
     public int Version { get; set; }
+    public string Status { get; set; } = "InProgress"; // "InProgress", "Completed", "Failed"
+    public int? CurrentSectionId { get; set; } // Current section ID (null if no section)
+    public string? SectionName { get; set; } // Current section name (null if no section)
     public List<PlayerSnapshot> Players { get; set; } = new();
     public List<EnemySnapshot> Enemies { get; set; } = new();
     public List<ProjectileSnapshot> Projectiles { get; set; } = new();
@@ -64,7 +67,7 @@ public class PlayerMetadata
 }
 
 /// <summary>
-/// Request to signal client is ready for SignalR connection.
+/// Request to signal client is ready to start playing.
 /// </summary>
 public class ReadyRequest
 {

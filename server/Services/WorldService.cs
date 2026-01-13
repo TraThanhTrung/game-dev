@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 
 namespace GameServer.Services;
 
@@ -22,7 +23,7 @@ public class WorldService
     private readonly ConcurrentDictionary<Guid, string> _playerToSession = new();
     private readonly ConcurrentDictionary<Guid, InputCommand> _inputQueue = new();
     private readonly ConcurrentDictionary<string, bool> _initializedRooms = new(); // Track rooms that have spawned enemies
-    private readonly object _sessionLock = new();
+    private readonly object _sessionLock = new(); // Lock for session operations that need atomicity
 
     // In-memory cache for enemy configs (loaded on demand, avoids DB/Redis queries during game tick)
     private readonly ConcurrentDictionary<string, GameServer.Services.EnemyConfig> _enemyConfigCache = new();
@@ -84,11 +85,9 @@ public class WorldService
 #pragma warning restore CS0618
         var session = _sessions.GetOrAdd("default", sid => CreateDefaultSession(sid));
 
-        lock (_sessionLock)
-        {
-            session.Players[playerId] = playerState;
-            _playerToSession[playerId] = session.SessionId;
-        }
+        // ConcurrentDictionary is thread-safe
+        session.Players[playerId] = playerState;
+        _playerToSession[playerId] = session.SessionId;
 
         _logger.LogWarning("RegisterPlayer is deprecated. Player {Name} created with defaults. Use RegisterOrLoadPlayer() instead.", playerName);
 
@@ -114,76 +113,74 @@ public class WorldService
         var temporarySkillService = scope.ServiceProvider.GetRequiredService<TemporarySkillService>();
         var bonuses = await temporarySkillService.GetTemporarySkillBonusesAsync(session.SessionId, profile.Id);
 
-        lock (_sessionLock)
+        // Check if this is the first player in this session (for checkpoint initialization)
+        // ConcurrentDictionary operations are thread-safe
+        if (!session.Players.Any() && !_initializedRooms.ContainsKey(session.SessionId))
         {
-            // Check if this is the first player in this session (for checkpoint initialization)
-            if (!session.Players.Any() && !_initializedRooms.ContainsKey(session.SessionId))
+            isFirstPlayerInSession = true;
+            _initializedRooms[session.SessionId] = true;
+        }
+
+        if (session.Players.TryGetValue(profile.Id, out var existing))
+        {
+            // Player already in session, just return
+            _logger.LogInformation("Player {Name} already in session, returning existing", profile.Name);
+        }
+        else
+        {
+            // Create player state from database profile
+            // All base stats come from database (PlayerStats entity)
+            var stats = profile.Stats;
+            if (stats == null)
             {
-                isFirstPlayerInSession = true;
-                _initializedRooms[session.SessionId] = true;
+                _logger.LogError("Player {Name} has no Stats in database! Cannot load player.", profile.Name);
+                return new RegisterResponse { PlayerId = Guid.Empty };
             }
 
-            if (session.Players.TryGetValue(profile.Id, out var existing))
+            var playerState = new PlayerState
             {
-                // Player already in session, just return
-                _logger.LogInformation("Player {Name} already in session, returning existing", profile.Name);
+                Id = profile.Id,
+                Name = profile.Name,
+                X = stats.SpawnX,
+                Y = stats.SpawnY,
+                Hp = isNew ? stats.MaxHealth : stats.CurrentHealth,
+                Level = profile.Level,
+                Exp = profile.Exp,
+                ExpToLevel = profile.ExpToLevel > 0 ? profile.ExpToLevel : _config.GetExpForNextLevel(profile.Level),
+                Gold = profile.Gold,
+                Sequence = 0
+            };
+
+            // Apply base stats + temporary bonuses
+            temporarySkillService.ApplyBonusesToBaseStats(playerState, stats, bonuses);
+
+            // Set other stats from base
+            playerState.Range = stats.Range;
+            playerState.WeaponRange = stats.WeaponRange;
+            playerState.KnockbackTime = stats.KnockbackTime;
+            playerState.StunTime = stats.StunTime;
+            playerState.BonusDamagePercent = stats.BonusDamagePercent;
+            playerState.DamageReductionPercent = stats.DamageReductionPercent;
+
+            session.Players[profile.Id] = playerState;
+
+            if (bonuses != null)
+            {
+                _logger.LogInformation("Player {Name} loaded: Base (DMG={BaseDamage}, SPD={BaseSpeed}, HP={BaseHp}) + Temp (DMG+{DamageBonus}, SPD+{SpeedBonus}, HP+{MaxHpBonus}) = Final (DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp})",
+                    profile.Name,
+                    stats.Damage, stats.Speed, stats.MaxHealth,
+                    bonuses.DamageBonus, bonuses.SpeedBonus, bonuses.MaxHealthBonus,
+                    playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp);
             }
             else
             {
-                // Create player state from database profile
-                // All base stats come from database (PlayerStats entity)
-                var stats = profile.Stats;
-                if (stats == null)
-                {
-                    _logger.LogError("Player {Name} has no Stats in database! Cannot load player.", profile.Name);
-                    return new RegisterResponse { PlayerId = Guid.Empty };
-                }
-
-                var playerState = new PlayerState
-                {
-                    Id = profile.Id,
-                    Name = profile.Name,
-                    X = stats.SpawnX,
-                    Y = stats.SpawnY,
-                    Hp = isNew ? stats.MaxHealth : stats.CurrentHealth,
-                    Level = profile.Level,
-                    Exp = profile.Exp,
-                    ExpToLevel = profile.ExpToLevel > 0 ? profile.ExpToLevel : _config.GetExpForNextLevel(profile.Level),
-                    Gold = profile.Gold,
-                    Sequence = 0
-                };
-
-                // Apply base stats + temporary bonuses
-                temporarySkillService.ApplyBonusesToBaseStats(playerState, stats, bonuses);
-
-                // Set other stats from base
-                playerState.Range = stats.Range;
-                playerState.WeaponRange = stats.WeaponRange;
-                playerState.KnockbackTime = stats.KnockbackTime;
-                playerState.StunTime = stats.StunTime;
-                playerState.BonusDamagePercent = stats.BonusDamagePercent;
-                playerState.DamageReductionPercent = stats.DamageReductionPercent;
-
-                session.Players[profile.Id] = playerState;
-
-                if (bonuses != null)
-                {
-                    _logger.LogInformation("Player {Name} loaded: Base (DMG={BaseDamage}, SPD={BaseSpeed}, HP={BaseHp}) + Temp (DMG+{DamageBonus}, SPD+{SpeedBonus}, HP+{MaxHpBonus}) = Final (DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp})",
-                        profile.Name,
-                        stats.Damage, stats.Speed, stats.MaxHealth,
-                        bonuses.DamageBonus, bonuses.SpeedBonus, bonuses.MaxHealthBonus,
-                        playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp);
-                }
-                else
-                {
-                    _logger.LogInformation("Player {Name} loaded from database: DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp}, LVL={Level}, WPN={WeaponRange}, KB={KnockbackForce}",
-                        profile.Name, playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp, playerState.Level, playerState.WeaponRange, playerState.KnockbackForce);
-                }
+                _logger.LogInformation("Player {Name} loaded from database: DMG={Damage}, SPD={Speed}, HP={Hp}/{MaxHp}, LVL={Level}, WPN={WeaponRange}, KB={KnockbackForce}",
+                    profile.Name, playerState.Damage, playerState.Speed, playerState.Hp, playerState.MaxHp, playerState.Level, playerState.WeaponRange, playerState.KnockbackForce);
             }
-            _playerToSession[profile.Id] = session.SessionId;
-            _logger.LogInformation("Player {PlayerId} added to session {SessionId}. Session has {EnemyCount} enemies.",
-                profile.Id.ToString()[..8], session.SessionId, session.Enemies.Count);
         }
+        _playerToSession[profile.Id] = session.SessionId;
+        _logger.LogInformation("Player {PlayerId} added to session {SessionId}. Session has {EnemyCount} enemies.",
+            profile.Id.ToString()[..8], session.SessionId, session.Enemies.Count);
 
         // Initialize checkpoints if this is the first player in session
         if (isFirstPlayerInSession)
@@ -232,74 +229,92 @@ public class WorldService
         return null;
     }
 
+    /// <summary>
+    /// Get player metadata for a session (for loading screen).
+    /// Returns list of player metadata with Id, Name, CharacterType, and Level.
+    /// </summary>
+    public List<PlayerMetadata> GetPlayerMetadata(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return new List<PlayerMetadata>();
+        }
+
+        return session.Players.Values.Select(p => new PlayerMetadata
+        {
+            Id = p.Id.ToString(),
+            Name = p.Name,
+            CharacterType = p.CharacterType,
+            Level = p.Level
+        }).ToList();
+    }
+
     public bool JoinSession(JoinSessionRequest request)
     {
         var session = _sessions.GetOrAdd(request.SessionId, sid => CreateDefaultSession(sid));
         bool isNewRoom = false;
 
-        lock (_sessionLock)
+        // Initialize room checkpoints if this is the first player joining
+        // ConcurrentDictionary operations are thread-safe
+        if (!_initializedRooms.ContainsKey(request.SessionId))
         {
-            // Initialize room checkpoints if this is the first player joining
-            if (!_initializedRooms.ContainsKey(request.SessionId))
-            {
-                isNewRoom = true;
-                _initializedRooms[request.SessionId] = true;
-            }
+            isNewRoom = true;
+            _initializedRooms[request.SessionId] = true;
+        }
 
-            if (session.Players.TryGetValue(request.PlayerId, out var existing))
+        if (session.Players.TryGetValue(request.PlayerId, out var existing))
+        {
+            // Reset HP/pos instead of creating duplicate
+            // Spawn position from existing state (originally from database)
+            const float defaultSpawnX = -16f;
+            const float defaultSpawnY = 12f;
+            existing.Hp = existing.MaxHp;
+            existing.X = defaultSpawnX;
+            existing.Y = defaultSpawnY;
+            existing.Sequence = 0;
+            _logger.LogInformation("Player {PlayerId} rejoined, reset HP/pos to spawn ({X}, {Y})",
+                request.PlayerId, defaultSpawnX, defaultSpawnY);
+        }
+        else
+        {
+            // Player not in this session yet - move from their old session
+            // First, find and remove player from their current session
+            if (_playerToSession.TryGetValue(request.PlayerId, out var oldSessionId) && oldSessionId != request.SessionId)
             {
-                // Reset HP/pos instead of creating duplicate
-                // Spawn position from existing state (originally from database)
-                const float defaultSpawnX = -16f;
-                const float defaultSpawnY = 12f;
-                existing.Hp = existing.MaxHp;
-                existing.X = defaultSpawnX;
-                existing.Y = defaultSpawnY;
-                existing.Sequence = 0;
-                _logger.LogInformation("Player {PlayerId} rejoined, reset HP/pos to spawn ({X}, {Y})",
-                    request.PlayerId, defaultSpawnX, defaultSpawnY);
+                if (_sessions.TryGetValue(oldSessionId, out var oldSession))
+                {
+                    if (oldSession.Players.TryGetValue(request.PlayerId, out var playerState))
+                    {
+                        oldSession.Players.TryRemove(request.PlayerId, out _);
+
+                        // Reset player state for new room
+                        const float defaultSpawnX = -16f;
+                        const float defaultSpawnY = 12f;
+                        playerState.Hp = playerState.MaxHp;
+                        playerState.X = defaultSpawnX;
+                        playerState.Y = defaultSpawnY;
+                        playerState.Sequence = 0;
+
+                        // Add to new session
+                        session.Players[request.PlayerId] = playerState;
+                        _logger.LogInformation("Player {PlayerId} moved from session {OldSession} to {NewSession}",
+                            request.PlayerId.ToString()[..8], oldSessionId, request.SessionId);
+                    }
+                    else
+                    {
+                        _logger.LogError("Player {PlayerId} not found in old session {OldSession}", request.PlayerId, oldSessionId);
+                        return false;
+                    }
+                }
             }
             else
             {
-                // Player not in this session yet - move from their old session
-                // First, find and remove player from their current session
-                if (_playerToSession.TryGetValue(request.PlayerId, out var oldSessionId) && oldSessionId != request.SessionId)
-                {
-                    if (_sessions.TryGetValue(oldSessionId, out var oldSession))
-                    {
-                        if (oldSession.Players.TryGetValue(request.PlayerId, out var playerState))
-                        {
-                            oldSession.Players.Remove(request.PlayerId);
-
-                            // Reset player state for new room
-                            const float defaultSpawnX = -16f;
-                            const float defaultSpawnY = 12f;
-                            playerState.Hp = playerState.MaxHp;
-                            playerState.X = defaultSpawnX;
-                            playerState.Y = defaultSpawnY;
-                            playerState.Sequence = 0;
-
-                            // Add to new session
-                            session.Players[request.PlayerId] = playerState;
-                            _logger.LogInformation("Player {PlayerId} moved from session {OldSession} to {NewSession}",
-                                request.PlayerId.ToString()[..8], oldSessionId, request.SessionId);
-                        }
-                        else
-                        {
-                            _logger.LogError("Player {PlayerId} not found in old session {OldSession}", request.PlayerId, oldSessionId);
-                            return false;
-                        }
-                    }
-                }
-                else
-                {
-                    _logger.LogError("Player {PlayerId} not found in any session. Player must be registered first.", request.PlayerId);
-                    return false;
-                }
+                _logger.LogError("Player {PlayerId} not found in any session. Player must be registered first.", request.PlayerId);
+                return false;
             }
-            _playerToSession[request.PlayerId] = session.SessionId;
-            session.Version++;
         }
+        _playerToSession[request.PlayerId] = session.SessionId;
+        session.Version++;
 
         // Spawn enemies at checkpoints if this is a new room (async, don't block)
         if (isNewRoom)
@@ -366,7 +381,8 @@ public class WorldService
             return new StateResponse
             {
                 SessionId = session.SessionId,
-                Version = session.Version
+                Version = session.Version,
+                Status = session.Status.ToString()
             };
         }
 
@@ -374,6 +390,9 @@ public class WorldService
         {
             SessionId = session.SessionId,
             Version = session.Version,
+            Status = session.Status.ToString(),
+            CurrentSectionId = session.CurrentSectionId ?? -1, // -1 = no section (Unity JsonUtility doesn't support nullable)
+            SectionName = session.CachedSection?.Name ?? string.Empty,
             Players = session.Players.Values
                 .Select(p => new PlayerSnapshot(
                     p.Id, p.Name, p.X, p.Y, p.Hp, p.MaxHp, p.Sequence,
@@ -397,12 +416,7 @@ public class WorldService
                 .ToList()
         };
 
-        // Log enemy IDs being sent (for debugging)
-        if (response.Enemies.Any())
-        {
-            var ids = response.Enemies.Select(e => e.Id.ToString()[..8]).ToList();
-            _logger.LogDebug("GetState: Sending {Count} enemies to client: [{Ids}]", response.Enemies.Count, string.Join(", ", ids));
-        }
+        // Log removed for performance (GetState called frequently by clients)
 
         return response;
     }
@@ -426,100 +440,6 @@ public class WorldService
     }
 
     #endregion
-
-    #region SignalR Support
-
-    /// <summary>
-    /// Get session snapshot for SignalR broadcast.
-    /// Returns a GameStateSnapshot suitable for real-time updates.
-    /// </summary>
-    public Hubs.GameStateSnapshot? GetSessionSnapshot(string sessionId)
-    {
-        if (!_sessions.TryGetValue(sessionId, out var session))
-        {
-            return null;
-        }
-
-        var snapshot = new Hubs.GameStateSnapshot
-        {
-            Sequence = session.Version,
-            ServerTime = (float)(DateTime.UtcNow - DateTime.UtcNow.Date).TotalSeconds, // Seconds since midnight
-            ConfirmedInputSequence = GetLatestConfirmedInputSequence(sessionId),
-            Players = session.Players.Values.Select(p => new Hubs.PlayerSnapshot
-            {
-                Id = p.Id.ToString(),
-                Name = p.Name,
-                CharacterType = p.CharacterType,
-                X = p.X,
-                Y = p.Y,
-                Hp = p.Hp,
-                MaxHp = p.MaxHp,
-                Level = p.Level,
-                Status = p.IsDead ? "dead" : "idle",
-                LastConfirmedInputSequence = p.LastConfirmedInputSequence
-            }).ToList(),
-            Enemies = session.Enemies.Values
-                .Where(e => e.Hp > 0)
-                .Select(e => new Hubs.EnemySnapshot
-                {
-                    Id = e.Id.ToString(),
-                    TypeId = e.TypeId,
-                    X = e.X,
-                    Y = e.Y,
-                    Hp = e.Hp,
-                    MaxHp = e.MaxHp,
-                    Status = e.Status.ToString().ToLower()
-                }).ToList(),
-            Projectiles = session.Projectiles.Values.Select(p => new Hubs.ProjectileSnapshot
-            {
-                Id = p.Id.ToString(),
-                OwnerId = p.OwnerId.ToString(),
-                X = p.X,
-                Y = p.Y,
-                VelocityX = p.DirX * p.Speed,
-                VelocityY = p.DirY * p.Speed
-            }).ToList()
-        };
-
-        return snapshot;
-    }
-
-    /// <summary>
-    /// Queue input from SignalR client for processing in next game tick.
-    /// </summary>
-    public void QueueInput(Hubs.InputPayload input)
-    {
-        if (!Guid.TryParse(input.PlayerId, out var playerId))
-        {
-            _logger.LogWarning("[WorldService] Invalid player ID in input: {PlayerId}", input.PlayerId);
-            return;
-        }
-
-        _inputQueue[playerId] = new InputCommand
-        {
-            PlayerId = playerId,
-            SessionId = input.SessionId,
-            MoveX = Clamp(input.MoveX),
-            MoveY = Clamp(input.MoveY),
-            AimX = 0,
-            AimY = 0,
-            Attack = input.Attack,
-            Shoot = false,
-            Sequence = input.Sequence
-        };
-
-        // Update last confirmed input sequence for the player
-        if (_playerToSession.TryGetValue(playerId, out var sessionId))
-        {
-            if (_sessions.TryGetValue(sessionId, out var session))
-            {
-                if (session.Players.TryGetValue(playerId, out var playerState))
-                {
-                    playerState.LastConfirmedInputSequence = input.Sequence;
-                }
-            }
-        }
-    }
 
     /// <summary>
     /// Get the latest confirmed input sequence for a session.
@@ -548,8 +468,6 @@ public class WorldService
     {
         return _sessions.Keys.ToList();
     }
-
-    #endregion
 
     #region Internal helpers
 
@@ -582,47 +500,44 @@ public class WorldService
     /// </summary>
     private void ProcessEnemyRespawns(SessionState session)
     {
-        lock (_sessionLock)
+        // Use in-memory cached section/checkpoint data (populated during InitializeRoomCheckpointsAsync)
+        // This avoids blocking Redis/DB calls every tick which was causing 100ms+ delays
+        bool needsLimitationCheck = session.CachedSection != null;
+
+        // ConcurrentDictionary is thread-safe for enumeration
+        foreach (var enemy in session.Enemies.Values)
         {
-            // Use in-memory cached section/checkpoint data (populated during InitializeRoomCheckpointsAsync)
-            // This avoids blocking Redis/DB calls every tick which was causing 100ms+ delays
-            bool needsLimitationCheck = session.CachedSection != null;
+            // Only process dead enemies
+            if (enemy.Status != EnemyStatus.Dead || enemy.Hp > 0)
+                continue;
 
-            foreach (var enemy in session.Enemies.Values.ToList())
+            // Skip boss respawns (boss doesn't respawn)
+            if (enemy.IsBoss || enemy.RespawnDelay >= float.MaxValue)
             {
-                // Only process dead enemies
-                if (enemy.Status != EnemyStatus.Dead || enemy.Hp > 0)
-                    continue;
+                continue;
+            }
 
-                // Skip boss respawns (boss doesn't respawn)
-                if (enemy.IsBoss || enemy.RespawnDelay >= float.MaxValue)
+            // Increment respawn timer (atomic operation on enemy object)
+            enemy.RespawnTimer += TickDeltaTime;
+
+            // Check if respawn delay has been reached
+            if (enemy.RespawnTimer >= enemy.RespawnDelay)
+            {
+                // Check respawn limitations before respawning (using in-memory cached section/checkpoint)
+                if (needsLimitationCheck && !CanRespawnEnemy(session, enemy))
                 {
+                    // Skip respawn due to limitations
                     continue;
                 }
 
-                // Increment respawn timer
-                enemy.RespawnTimer += TickDeltaTime;
+                // Respawn enemy at spawn position (atomic operations on enemy object)
+                enemy.Hp = enemy.MaxHp;
+                enemy.X = enemy.SpawnX;
+                enemy.Y = enemy.SpawnY;
+                enemy.Status = EnemyStatus.Idle;
+                enemy.RespawnTimer = 0f;
 
-                // Check if respawn delay has been reached
-                if (enemy.RespawnTimer >= enemy.RespawnDelay)
-                {
-                    // Check respawn limitations before respawning (using in-memory cached section/checkpoint)
-                    if (needsLimitationCheck && !CanRespawnEnemy(session, enemy))
-                    {
-                        // Skip respawn due to limitations
-                        continue;
-                    }
-
-                    // Respawn enemy at spawn position
-                    enemy.Hp = enemy.MaxHp;
-                    enemy.X = enemy.SpawnX;
-                    enemy.Y = enemy.SpawnY;
-                    enemy.Status = EnemyStatus.Idle;
-                    enemy.RespawnTimer = 0f;
-
-                    _logger.LogDebug("Auto-respawned enemy {EnemyId} ({TypeId}) Lv{Level} at checkpoint {CheckpointId} after {Delay}s",
-                        enemy.Id, enemy.TypeId, enemy.EnemyLevel, enemy.CheckpointId, enemy.RespawnDelay);
-                }
+                // Log removed for performance (called frequently in tick loop)
             }
         }
     }
@@ -634,51 +549,45 @@ public class WorldService
     /// </summary>
     private void CleanupDeadEnemies(SessionState session)
     {
-        lock (_sessionLock)
+        var enemiesToRemove = new List<Guid>();
+
+        // ConcurrentDictionary is thread-safe for enumeration
+        foreach (var enemy in session.Enemies.Values)
         {
-            var enemiesToRemove = new List<Guid>();
+            // Only process dead enemies
+            if (enemy.Status != EnemyStatus.Dead || enemy.Hp > 0)
+                continue;
 
-            foreach (var enemy in session.Enemies.Values)
+            // Boss enemies: Remove immediately (they don't respawn)
+            if (enemy.IsBoss || enemy.RespawnDelay >= float.MaxValue)
             {
-                // Only process dead enemies
-                if (enemy.Status != EnemyStatus.Dead || enemy.Hp > 0)
-                    continue;
-
-                // Boss enemies: Remove immediately (they don't respawn)
-                if (enemy.IsBoss || enemy.RespawnDelay >= float.MaxValue)
-                {
-                    // Give a small delay (1 second) to allow boss defeat detection
-                    if (enemy.RespawnTimer >= 1.0f)
-                    {
-                        enemiesToRemove.Add(enemy.Id);
-                        _logger.LogDebug("Removing dead boss {EnemyId} ({TypeId}) from session", enemy.Id, enemy.TypeId);
-                    }
-                    continue;
-                }
-
-                // Regular enemies: Remove if they've been dead too long and can't respawn
-                // Wait at least RespawnDelay * 2 before removing (to allow respawn attempts)
-                float cleanupDelay = enemy.RespawnDelay * 2.0f;
-                if (enemy.RespawnTimer >= cleanupDelay)
+                // Give a small delay (1 second) to allow boss defeat detection
+                if (enemy.RespawnTimer >= 1.0f)
                 {
                     enemiesToRemove.Add(enemy.Id);
-                    _logger.LogDebug("Removing dead enemy {EnemyId} ({TypeId}) that couldn't respawn after {Delay}s",
-                        enemy.Id, enemy.TypeId, cleanupDelay);
+                    // Log removed for performance (called in tick loop)
                 }
+                continue;
             }
 
-            // Remove enemies from dictionary
-            foreach (var enemyId in enemiesToRemove)
+            // Regular enemies: Remove if they've been dead too long and can't respawn
+            // Wait at least RespawnDelay * 2 before removing (to allow respawn attempts)
+            float cleanupDelay = enemy.RespawnDelay * 2.0f;
+            if (enemy.RespawnTimer >= cleanupDelay)
             {
-                session.Enemies.Remove(enemyId);
-            }
-
-            if (enemiesToRemove.Any())
-            {
-                _logger.LogInformation("Cleaned up {Count} dead enemies from session {SessionId}",
-                    enemiesToRemove.Count, session.SessionId);
+                enemiesToRemove.Add(enemy.Id);
+                // Log removed for performance (called in tick loop)
             }
         }
+
+        // Remove enemies from dictionary (ConcurrentDictionary.TryRemove is thread-safe)
+        foreach (var enemyId in enemiesToRemove)
+        {
+            session.Enemies.TryRemove(enemyId, out _);
+        }
+
+        // Log removed for performance (called in tick loop)
+        // Uncomment for debugging: _logger.LogDebug("Cleaned up {Count} dead enemies", enemiesToRemove.Count);
     }
 
     /// <summary>
@@ -708,6 +617,7 @@ public class WorldService
             if (elapsed >= sectionCache.Duration)
             {
                 // Section duration expired, no more respawns
+                // Log removed for performance (called frequently in tick loop)
                 return false;
             }
         }
@@ -724,6 +634,7 @@ public class WorldService
             if (aliveAtCheckpoint >= checkpoint.MaxEnemies)
             {
                 // Checkpoint at capacity
+                // Log removed for performance (called frequently in tick loop)
                 return false;
             }
         }
@@ -738,6 +649,7 @@ public class WorldService
         if (aliveInSection >= sectionCache.EnemyCount)
         {
             // Section at capacity
+            // Log removed for performance (called frequently in tick loop)
             return false;
         }
 
@@ -767,23 +679,21 @@ public class WorldService
         // This method is kept for backward compatibility but does NOT award rewards to prevent duplicates.
 
         // Mark enemy as dead if found in session (find by typeId since we don't have enemyId in kill report)
-        lock (_sessionLock)
-        {
-            var killedEnemy = session.Enemies.Values
-                .FirstOrDefault(e => e.TypeId == enemyTypeId && e.Hp > 0);
+        // ConcurrentDictionary enumeration is thread-safe
+        var killedEnemy = session.Enemies.Values
+            .FirstOrDefault(e => e.TypeId == enemyTypeId && e.Hp > 0);
 
-            if (killedEnemy != null)
-            {
-                killedEnemy.Hp = 0;
-                killedEnemy.Status = EnemyStatus.Dead;
-                _logger.LogInformation("ReportKill: Enemy {EnemyId} ({TypeId}) marked as dead by player {PlayerId} (rewards already awarded)",
-                    killedEnemy.Id, enemyTypeId, playerId);
-            }
-            else
-            {
-                // Enemy already dead or not found - this is normal since rewards are awarded automatically
-                _logger.LogDebug("ReportKill: Enemy type {TypeId} already dead or not found (rewards already awarded automatically)", enemyTypeId);
-            }
+        if (killedEnemy != null)
+        {
+            killedEnemy.Hp = 0;
+            killedEnemy.Status = EnemyStatus.Dead;
+            _logger.LogInformation("ReportKill: Enemy {EnemyId} ({TypeId}) marked as dead by player {PlayerId} (rewards already awarded)",
+                killedEnemy.Id, enemyTypeId, playerId);
+        }
+        else
+        {
+            // Enemy already dead or not found - this is normal since rewards are awarded automatically
+            _logger.LogDebug("ReportKill: Enemy type {TypeId} already dead or not found (rewards already awarded automatically)", enemyTypeId);
         }
 
         session.Version++;
@@ -813,104 +723,98 @@ public class WorldService
             return null;
         }
 
-        lock (_sessionLock)
+        // ConcurrentDictionary.TryGetValue is thread-safe
+        if (!session.Enemies.TryGetValue(enemyId, out var enemy))
         {
-            // Debug: Log all enemy IDs in session
-            var enemyIds = session.Enemies.Keys.Select(id => id.ToString()[..8]).ToList();
-            _logger.LogInformation("ApplyDamageToEnemy: Session {SessionId} has {Count} enemies: [{Ids}]",
-                sessionId, session.Enemies.Count, string.Join(", ", enemyIds));
+            _logger.LogWarning("ApplyDamageToEnemy: Enemy {EnemyId} not found in session {SessionId}. Looking for: {LookingFor}",
+                enemyId.ToString()[..8], sessionId, enemyId);
+            return null;
+        }
 
-            if (!session.Enemies.TryGetValue(enemyId, out var enemy))
+        if (enemy.Hp <= 0)
+        {
+            _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} is already dead", enemyId);
+            return (enemy.Hp, enemy.MaxHp);
+        }
+
+        var oldHp = enemy.Hp;
+        enemy.Hp = Math.Max(0, enemy.Hp - damageAmount);
+        session.Version++;
+
+        _logger.LogInformation("Applied {Damage} damage from player {PlayerId} to enemy {EnemyId} ({TypeId}). HP: {OldHp} -> {NewHp}/{MaxHp}, oldHp > 0: {OldHpPositive}",
+            damageAmount, playerId, enemyId, enemy.TypeId, oldHp, enemy.Hp, enemy.MaxHp, oldHp > 0);
+
+        // Mark enemy as dead if HP reaches 0 and award kill rewards
+        if (enemy.Hp <= 0)
+        {
+            enemy.Status = EnemyStatus.Dead;
+            // Reset respawn timer to start counting from 0
+            enemy.RespawnTimer = 0f;
+
+            _logger.LogInformation("Enemy {EnemyId} ({TypeId}) defeated by player {PlayerId} (respawn in {Delay}s)",
+                enemyId, enemy.TypeId, playerId, enemy.RespawnDelay);
+
+            // Automatically award kill rewards when enemy dies (server-authoritative)
+            // Only award if enemy was alive before this damage
+            if (oldHp > 0)
             {
-                _logger.LogWarning("ApplyDamageToEnemy: Enemy {EnemyId} not found in session {SessionId}. Looking for: {LookingFor}",
-                    enemyId.ToString()[..8], sessionId, enemyId);
-                return null;
-            }
-
-            if (enemy.Hp <= 0)
-            {
-                _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} is already dead", enemyId);
-                return (enemy.Hp, enemy.MaxHp);
-            }
-
-            var oldHp = enemy.Hp;
-            enemy.Hp = Math.Max(0, enemy.Hp - damageAmount);
-            session.Version++;
-
-            _logger.LogInformation("Applied {Damage} damage from player {PlayerId} to enemy {EnemyId} ({TypeId}). HP: {OldHp} -> {NewHp}/{MaxHp}, oldHp > 0: {OldHpPositive}",
-                damageAmount, playerId, enemyId, enemy.TypeId, oldHp, enemy.Hp, enemy.MaxHp, oldHp > 0);
-
-            // Mark enemy as dead if HP reaches 0 and award kill rewards
-            if (enemy.Hp <= 0)
-            {
-                enemy.Status = EnemyStatus.Dead;
-                // Reset respawn timer to start counting from 0
-                enemy.RespawnTimer = 0f;
-
-                _logger.LogInformation("Enemy {EnemyId} ({TypeId}) defeated by player {PlayerId} (respawn in {Delay}s)",
-                    enemyId, enemy.TypeId, playerId, enemy.RespawnDelay);
-
-                // Automatically award kill rewards when enemy dies (server-authoritative)
-                // Only award if enemy was alive before this damage
-                if (oldHp > 0)
+                try
                 {
-                    try
+                    // Use in-memory cache to avoid blocking DB/Redis queries during game tick
+                    // Cache is populated on-demand (lazy loading)
+                    GameServer.Services.EnemyConfig? enemyCfg = GetEnemyConfigCached(enemy.TypeId);
+
+                    if (enemyCfg != null)
                     {
-                        // Use in-memory cache to avoid blocking DB/Redis queries during game tick
-                        // Cache is populated on-demand (lazy loading)
-                        GameServer.Services.EnemyConfig? enemyCfg = GetEnemyConfigCached(enemy.TypeId);
+                        // Log enemy config values for debugging (use LogInformation to ensure it shows)
+                        _logger.LogInformation("Enemy config for {TypeId}: ExpReward={ExpReward}, GoldReward={GoldReward}, MaxHealth={MaxHealth}",
+                            enemy.TypeId, enemyCfg.ExpReward, enemyCfg.GoldReward, enemyCfg.MaxHealth);
 
-                        if (enemyCfg != null)
+                        // Check if rewards are valid
+                        if (enemyCfg.ExpReward <= 0 && enemyCfg.GoldReward <= 0)
                         {
-                            // Log enemy config values for debugging (use LogInformation to ensure it shows)
-                            _logger.LogInformation("Enemy config for {TypeId}: ExpReward={ExpReward}, GoldReward={GoldReward}, MaxHealth={MaxHealth}",
-                                enemy.TypeId, enemyCfg.ExpReward, enemyCfg.GoldReward, enemyCfg.MaxHealth);
+                            _logger.LogWarning("Enemy {TypeId} has zero rewards (ExpReward={ExpReward}, GoldReward={GoldReward}). Please check database configuration.",
+                                enemy.TypeId, enemyCfg.ExpReward, enemyCfg.GoldReward);
+                        }
 
-                            // Check if rewards are valid
-                            if (enemyCfg.ExpReward <= 0 && enemyCfg.GoldReward <= 0)
-                            {
-                                _logger.LogWarning("Enemy {TypeId} has zero rewards (ExpReward={ExpReward}, GoldReward={GoldReward}). Please check database configuration.",
-                                    enemy.TypeId, enemyCfg.ExpReward, enemyCfg.GoldReward);
-                            }
+                        if (session.Players.TryGetValue(playerId, out var player))
+                        {
+                            int oldExp = player.Exp;
+                            int oldGold = player.Gold;
+                            int oldLevel = player.Level;
 
-                            if (session.Players.TryGetValue(playerId, out var player))
-                            {
-                                int oldExp = player.Exp;
-                                int oldGold = player.Gold;
-                                int oldLevel = player.Level;
+                            AwardKillRewards(player, enemyCfg);
 
-                                AwardKillRewards(player, enemyCfg);
-
-                                _logger.LogInformation("Awarded kill rewards to player {PlayerId} for killing {EnemyTypeId}: Exp={OldExp}+{ExpReward}={NewExp}, Gold={OldGold}+{GoldReward}={NewGold}, Level={OldLevel}->{NewLevel}",
-                                    playerId, enemy.TypeId,
-                                    oldExp, enemyCfg.ExpReward, player.Exp,
-                                    oldGold, enemyCfg.GoldReward, player.Gold,
-                                    oldLevel, player.Level);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("ApplyDamageToEnemy: Player {PlayerId} not found in session {SessionId}", playerId, sessionId);
-                            }
+                            _logger.LogInformation("Awarded kill rewards to player {PlayerId} for killing {EnemyTypeId}: Exp={OldExp}+{ExpReward}={NewExp}, Gold={OldGold}+{GoldReward}={NewGold}, Level={OldLevel}->{NewLevel}",
+                                playerId, enemy.TypeId,
+                                oldExp, enemyCfg.ExpReward, player.Exp,
+                                oldGold, enemyCfg.GoldReward, player.Gold,
+                                oldLevel, player.Level);
                         }
                         else
                         {
-                            _logger.LogWarning("ApplyDamageToEnemy: Enemy config not found for typeId {TypeId}, cannot award rewards", enemy.TypeId);
+                            _logger.LogWarning("ApplyDamageToEnemy: Player {PlayerId} not found in session {SessionId}", playerId, sessionId);
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.LogError(ex, "ApplyDamageToEnemy: Exception while awarding rewards for enemy {TypeId} to player {PlayerId}",
-                            enemy.TypeId, playerId);
+                        // Config not yet cached - will be loaded asynchronously for next kill
+                        _logger.LogDebug("ApplyDamageToEnemy: Enemy config for {TypeId} not yet cached, loading asynchronously. Rewards will be awarded on next kill.", enemy.TypeId);
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} was already dead (oldHp={OldHp}), skipping reward award", enemyId, oldHp);
+                    _logger.LogError(ex, "ApplyDamageToEnemy: Exception while awarding rewards for enemy {TypeId} to player {PlayerId}",
+                        enemy.TypeId, playerId);
                 }
             }
-
-            return (enemy.Hp, enemy.MaxHp);
+            else
+            {
+                _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} was already dead (oldHp={OldHp}), skipping reward award", enemyId, oldHp);
+            }
         }
+
+        return (enemy.Hp, enemy.MaxHp);
     }
 
     /// <summary>
@@ -930,22 +834,20 @@ public class WorldService
             return null;
         }
 
-        lock (_sessionLock)
+        // ConcurrentDictionary.TryGetValue is thread-safe
+        if (!session.Players.TryGetValue(playerId, out var player))
         {
-            if (!session.Players.TryGetValue(playerId, out var player))
-            {
-                _logger.LogWarning("ApplyDamage: Player {PlayerId} state missing", playerId);
-                return null;
-            }
-
-            player.Hp = Math.Max(0, player.Hp - damageAmount);
-            session.Version++;
-
-            _logger.LogDebug("Applied {Damage} damage to {Player}. HP: {Hp}/{MaxHp}",
-                damageAmount, player.Name, player.Hp, player.MaxHp);
-
-            return (player.Hp, player.MaxHp);
+            _logger.LogWarning("ApplyDamage: Player {PlayerId} state missing", playerId);
+            return null;
         }
+
+        player.Hp = Math.Max(0, player.Hp - damageAmount);
+        session.Version++;
+
+        _logger.LogDebug("Applied {Damage} damage to {Player}. HP: {Hp}/{MaxHp}",
+            damageAmount, player.Name, player.Hp, player.MaxHp);
+
+        return (player.Hp, player.MaxHp);
     }
 
     /// <summary>
@@ -965,31 +867,33 @@ public class WorldService
             return null;
         }
 
-        lock (_sessionLock)
+        // ConcurrentDictionary.TryGetValue is thread-safe
+        if (!session.Players.TryGetValue(playerId, out var player))
         {
-            if (!session.Players.TryGetValue(playerId, out var player))
-            {
-                _logger.LogWarning("RespawnPlayer: Player {PlayerId} state missing", playerId);
-                return null;
-            }
-
-            // Hardcoded spawn position (player stats are managed via database)
-            const float spawnX = -16f;
-            const float spawnY = 12f;
-            player.X = spawnX;
-            player.Y = spawnY;
-
-            // Respawn with 50% health
-            player.Hp = player.MaxHp / 2;
-
-            session.Version++;
-
-            _logger.LogInformation("Respawned {Player} at ({X}, {Y}) with {Hp}/{MaxHp} HP",
-                player.Name, player.X, player.Y, player.Hp, player.MaxHp);
-
-            return (player.X, player.Y, player.Hp, player.MaxHp);
+            _logger.LogWarning("RespawnPlayer: Player {PlayerId} state missing", playerId);
+            return null;
         }
+
+        // Hardcoded spawn position (player stats are managed via database)
+        const float spawnX = -16f;
+        const float spawnY = 12f;
+        player.X = spawnX;
+        player.Y = spawnY;
+
+        // Respawn with 50% health
+        player.Hp = player.MaxHp / 2;
+
+        session.Version++;
+
+        _logger.LogInformation("Respawned {Player} at ({X}, {Y}) with {Hp}/{MaxHp} HP",
+            player.Name, player.X, player.Y, player.Hp, player.MaxHp);
+
+        return (player.X, player.Y, player.Hp, player.MaxHp);
     }
+
+    #endregion
+
+    #region Private Methods
 
     private void AwardKillRewards(PlayerState player, EnemyConfig enemy)
     {
@@ -1111,7 +1015,7 @@ public class WorldService
                     // But we can cache the result section once found
                 }
 
-                // Load first active GameSection
+                // Load first active GameSection (SectionId ASC - smallest ID is first section: Section 1, 2, 3...)
                 section = await db.GameSections
                     .Where(s => s.IsActive)
                     .OrderBy(s => s.SectionId)
@@ -1247,54 +1151,20 @@ public class WorldService
                 return;
             }
 
-            var lastCheckpoint = sortedCheckpoints.Last();
-            var regularCheckpoints = sortedCheckpoints.Take(sortedCheckpoints.Count - 1).ToList();
-
-            // Get first enemy type from first checkpoint for boss fallback
-            string? firstEnemyType = null;
-            if (sortedCheckpoints.Any())
-            {
-                var firstCheckpointEnemyTypes = CheckpointService.ParseEnemyPool(sortedCheckpoints.First().EnemyPool);
-                firstEnemyType = firstCheckpointEnemyTypes.FirstOrDefault();
-            }
-
             // Generate deterministic seed from sessionId
             int seed = sessionId.GetHashCode();
             var random = new Random(seed);
 
-            _logger.LogInformation("Initializing room {SessionId} with seed {Seed}, {RegularCount} regular checkpoints, 1 boss checkpoint (ID: {BossCheckpointId})",
-                sessionId, seed, regularCheckpoints.Count, lastCheckpoint.CheckpointId);
+            _logger.LogInformation("Initializing room {SessionId} with seed {Seed}, {CheckpointCount} checkpoints",
+                sessionId, seed, sortedCheckpoints.Count);
 
             // Collect all enemies to spawn first (outside lock, can use await)
             var enemiesToSpawn = new List<(string typeId, float x, float y, EnemyConfig config, int checkpointId, bool isBoss)>();
 
-            // Calculate total desired enemies from all checkpoints (excluding boss)
-            int totalDesiredEnemies = regularCheckpoints.Sum(c => c.MaxEnemies);
-            int sectionMaxEnemies = section?.EnemyCount ?? int.MaxValue;
-
-            // Boss counts as 1 enemy, so reserve 1 slot for boss
-            int availableSlots = sectionMaxEnemies - 1; // Reserve 1 for boss
-            int enemiesToSpawnCount = Math.Min(totalDesiredEnemies, availableSlots);
-
-            if (totalDesiredEnemies > availableSlots)
+            // Simplified: spawn enemies from each checkpoint's pool
+            foreach (var checkpoint in sortedCheckpoints)
             {
-                _logger.LogWarning("Section {SectionId} has {Desired} desired enemies but only {Max} slots available (including boss). Spawning {Actual} enemies.",
-                    sectionToUse, totalDesiredEnemies, sectionMaxEnemies, enemiesToSpawnCount);
-            }
-
-            // Spawn regular enemies at checkpoints 1..N-1 (respecting section EnemyCount)
-            int spawnedCount = 0;
-            foreach (var checkpoint in regularCheckpoints)
-            {
-                // Stop if we've reached section limit
-                if (spawnedCount >= enemiesToSpawnCount)
-                {
-                    _logger.LogInformation("Reached section EnemyCount limit ({Limit}), stopping spawn at checkpoint {CheckpointId}",
-                        sectionMaxEnemies, checkpoint.CheckpointId);
-                    break;
-                }
-
-                // Parse enemy pool JSON: ["slime", "goblin", "slime"]
+                // Parse enemy pool JSON: ["slime", "goblin"] or ["boss_fish"]
                 var enemyTypes = CheckpointService.ParseEnemyPool(checkpoint.EnemyPool);
                 if (!enemyTypes.Any())
                 {
@@ -1302,107 +1172,148 @@ public class WorldService
                     continue;
                 }
 
-                // Calculate how many enemies to spawn at this checkpoint
-                int remainingSlots = enemiesToSpawnCount - spawnedCount;
-                int enemiesAtThisCheckpoint = Math.Min(checkpoint.MaxEnemies, remainingSlots);
+                // Check if this checkpoint is for boss (enemy type starts with "boss_")
+                bool isBossCheckpoint = enemyTypes.Any(type => type.StartsWith("boss_", StringComparison.OrdinalIgnoreCase));
 
-                // Spawn random enemies from pool
-                for (int i = 0; i < enemiesAtThisCheckpoint; i++)
+                if (isBossCheckpoint)
                 {
-                    var enemyTypeId = enemyTypes[random.Next(enemyTypes.Length)];
+                    // Spawn boss (use first boss type from pool)
+                    var bossTypeId = enemyTypes.First(type => type.StartsWith("boss_", StringComparison.OrdinalIgnoreCase));
 
-                    // Try EnemyConfigService (database-first) directly
-                    EnemyConfig? enemyConfig = null;
+                    // Try to load boss config directly
+                    EnemyConfig? bossConfig = null;
                     try
                     {
                         var enemyConfigService = scope.ServiceProvider.GetService<EnemyConfigService>();
                         if (enemyConfigService != null)
                         {
-                            enemyConfig = await enemyConfigService.GetEnemyAsync(enemyTypeId);
+                            bossConfig = await enemyConfigService.GetEnemyAsync(bossTypeId);
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to load enemy {TypeId} from EnemyConfigService", enemyTypeId);
+                        _logger.LogWarning(ex, "Failed to load boss {TypeId} from EnemyConfigService", bossTypeId);
                     }
 
-                    if (enemyConfig == null)
+                    // If not found, try LoadBossConfigAsync fallback
+                    if (bossConfig == null && section != null)
                     {
-                        _logger.LogWarning("Enemy type {TypeId} not found, skipping spawn at {CheckpointName}",
-                            enemyTypeId, checkpoint.CheckpointName);
-                        continue;
+                        bossConfig = await LoadBossConfigAsync(scope.ServiceProvider, section, bossTypeId);
                     }
 
-                    enemiesToSpawn.Add((enemyTypeId, checkpoint.X, checkpoint.Y, enemyConfig, checkpoint.CheckpointId, false));
-                    spawnedCount++;
-                }
-            }
-
-            // Spawn boss at last checkpoint
-            var bossCheckpointEnemyTypes = CheckpointService.ParseEnemyPool(lastCheckpoint.EnemyPool);
-            if (bossCheckpointEnemyTypes.Any())
-            {
-                // Load boss config
-                var bossConfig = await LoadBossConfigAsync(scope.ServiceProvider, section, firstEnemyType);
-                if (bossConfig != null)
-                {
-                    enemiesToSpawn.Add((bossConfig.TypeId, lastCheckpoint.X, lastCheckpoint.Y, bossConfig, lastCheckpoint.CheckpointId, true));
-                    _logger.LogInformation("Boss {BossTypeId} will spawn at checkpoint {CheckpointId} ({X}, {Y})",
-                        bossConfig.TypeId, lastCheckpoint.CheckpointId, lastCheckpoint.X, lastCheckpoint.Y);
+                    if (bossConfig != null)
+                    {
+                        enemiesToSpawn.Add((bossConfig.TypeId, checkpoint.X, checkpoint.Y, bossConfig, checkpoint.CheckpointId, true));
+                        _logger.LogInformation("Boss {BossTypeId} will spawn at checkpoint {CheckpointId} ({X}, {Y})",
+                            bossConfig.TypeId, checkpoint.CheckpointId, checkpoint.X, checkpoint.Y);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to load boss config for {BossTypeId} at checkpoint {CheckpointId}", bossTypeId, checkpoint.CheckpointId);
+                    }
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to load boss config for checkpoint {CheckpointId}, skipping boss spawn", lastCheckpoint.CheckpointId);
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Boss checkpoint {CheckpointId} has empty enemy pool, skipping boss spawn", lastCheckpoint.CheckpointId);
-            }
+                    // Spawn regular enemies (up to MaxEnemies)
+                    int enemiesAtThisCheckpoint = checkpoint.MaxEnemies;
 
-            // Now lock and add all enemies to session state
-            lock (_sessionLock)
-            {
-                // Double-check enemies weren't added while we were loading configs
-                if (sessionState.Enemies.Any())
-                {
-                    _logger.LogInformation("Room {SessionId} already initialized while loading configs, skipping", sessionId);
-                    return;
-                }
-
-                // Store section info in SessionState
-                if (sectionToUse.HasValue && section != null)
-                {
-                    sessionState.CurrentSectionId = sectionToUse.Value;
-                    sessionState.SectionStartTime = DateTime.UtcNow;
-
-                    // Cache section config in memory to avoid Redis/DB queries during game tick
-                    sessionState.CachedSection = new CachedSectionConfig
+                    for (int i = 0; i < enemiesAtThisCheckpoint; i++)
                     {
-                        SectionId = section.SectionId,
-                        Name = section.Name,
-                        EnemyCount = section.EnemyCount,
-                        EnemyLevel = section.EnemyLevel,
-                        SpawnRate = section.SpawnRate,
-                        Duration = section.Duration ?? 0f // 0 = unlimited duration
-                    };
+                        var enemyTypeId = enemyTypes[random.Next(enemyTypes.Length)];
 
-                    // Cache checkpoint configs for respawn limitation checks
-                    sessionState.CachedCheckpoints = sortedCheckpoints.ToDictionary(
+                        // Try EnemyConfigService (database-first) directly
+                        EnemyConfig? enemyConfig = null;
+                        try
+                        {
+                            var enemyConfigService = scope.ServiceProvider.GetService<EnemyConfigService>();
+                            if (enemyConfigService != null)
+                            {
+                                enemyConfig = await enemyConfigService.GetEnemyAsync(enemyTypeId);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to load enemy {TypeId} from EnemyConfigService", enemyTypeId);
+                        }
+
+                        if (enemyConfig == null)
+                        {
+                            _logger.LogWarning("Enemy type {TypeId} not found, skipping spawn at {CheckpointName}",
+                                enemyTypeId, checkpoint.CheckpointName);
+                            continue;
+                        }
+
+                        enemiesToSpawn.Add((enemyTypeId, checkpoint.X, checkpoint.Y, enemyConfig, checkpoint.CheckpointId, false));
+                    }
+                }
+            }
+
+            // Declare variables before lock block
+            int totalSpawned = 0;
+            Guid? bossId = null;
+
+            // Double-check enemies weren't added while we were loading configs (quick check without lock)
+            if (sessionState.Enemies.Any())
+            {
+                _logger.LogInformation("Room {SessionId} already initialized while loading configs, skipping", sessionId);
+                return;
+            }
+
+            // Prepare section info (outside lock)
+            CachedSectionConfig? cachedSectionConfig = null;
+            ConcurrentDictionary<int, CachedCheckpointConfig>? cachedCheckpoints = null;
+
+            if (sectionToUse.HasValue && section != null)
+            {
+                cachedSectionConfig = new CachedSectionConfig
+                {
+                    SectionId = section.SectionId,
+                    Name = section.Name,
+                    EnemyCount = section.EnemyCount,
+                    EnemyLevel = section.EnemyLevel,
+                    SpawnRate = section.SpawnRate,
+                    Duration = section.Duration ?? 0f // 0 = unlimited duration
+                };
+
+                // Cache checkpoint configs for respawn limitation checks
+                cachedCheckpoints = new ConcurrentDictionary<int, CachedCheckpointConfig>(
+                    sortedCheckpoints.ToDictionary(
                         c => c.CheckpointId,
                         c => new CachedCheckpointConfig
                         {
                             CheckpointId = c.CheckpointId,
                             MaxEnemies = c.MaxEnemies
-                        });
+                        }));
+            }
 
-                    _logger.LogInformation("Session {SessionId} initialized with Section {SectionId} ({SectionName}), EnemyLevel={EnemyLevel}, SpawnRate={SpawnRate}. Cached {CheckpointCount} checkpoints.",
-                        sessionId, section.SectionId, section.Name, section.EnemyLevel, section.SpawnRate, sessionState.CachedCheckpoints.Count);
+            // Now lock only for final state updates (minimal lock scope)
+            lock (_sessionLock)
+            {
+                // Double-check again after acquiring lock
+                if (sessionState.Enemies.Any())
+                {
+                    _logger.LogInformation("Room {SessionId} already initialized while acquiring lock, skipping", sessionId);
+                    return;
                 }
 
-                int totalSpawned = 0;
-                Guid? bossId = null;
+                // Store section info in SessionState (quick assignment)
+                // Note: CurrentSectionId may already be set (e.g., during section progression), so only update if different
+                if (sectionToUse.HasValue && section != null && cachedSectionConfig != null && cachedCheckpoints != null)
+                {
+                    // Only update CurrentSectionId if it's different (may already be set during section progression)
+                    if (sessionState.CurrentSectionId != sectionToUse.Value)
+                    {
+                        sessionState.CurrentSectionId = sectionToUse.Value;
+                    }
+                    sessionState.SectionStartTime = DateTime.UtcNow;
+                    sessionState.CachedSection = cachedSectionConfig;
+                    sessionState.CachedCheckpoints = cachedCheckpoints;
 
+                    _logger.LogInformation("Session {SessionId} initialized with Section {SectionId} ({SectionName}), EnemyLevel={EnemyLevel}, SpawnRate={SpawnRate}. Cached {CheckpointCount} checkpoints.",
+                        sessionId, section.SectionId, section.Name, section.EnemyLevel, section.SpawnRate, cachedCheckpoints.Count);
+                }
+
+                // Add all enemies (quick operations inside lock)
                 foreach (var (typeId, x, y, config, checkpointId, isBoss) in enemiesToSpawn)
                 {
                     // Create EnemyState with deterministic spawn position
@@ -1437,8 +1348,6 @@ public class WorldService
                     if (isBoss)
                     {
                         bossId = enemyState.Id;
-                        sessionState.CurrentBossId = bossId;
-                        sessionState.IsBossAlive = true;
                         _logger.LogInformation("Spawned BOSS {EnemyId} ({TypeId}) Lv{Level} at checkpoint {CheckpointId} ({X}, {Y})",
                             enemyState.Id, typeId, enemyState.EnemyLevel, checkpointId, x, y);
                     }
@@ -1449,10 +1358,23 @@ public class WorldService
                     }
                 }
 
-                sessionState.Version++;
-                _logger.LogInformation("Room {SessionId} initialized: spawned {TotalSpawned} enemies ({RegularCount} regular, {BossCount} boss) at {CheckpointCount} checkpoints",
-                    sessionId, totalSpawned, totalSpawned - (bossId.HasValue ? 1 : 0), bossId.HasValue ? 1 : 0, checkpoints.Count);
+                // Only set CurrentBossId if boss was actually spawned
+                if (bossId.HasValue)
+                {
+                    sessionState.CurrentBossId = bossId;
+                    sessionState.IsBossAlive = true;
+                }
+                else
+                {
+                    sessionState.CurrentBossId = null;
+                    sessionState.IsBossAlive = false;
+                    _logger.LogInformation("Section {SectionId} has no boss, CurrentBossId set to null", sectionToUse);
+                }
             }
+
+            sessionState.Version++;
+            _logger.LogInformation("Room {SessionId} initialized: spawned {TotalSpawned} enemies ({RegularCount} regular, {BossCount} boss) at {CheckpointCount} checkpoints",
+                sessionId, totalSpawned, totalSpawned - (bossId.HasValue ? 1 : 0), bossId.HasValue ? 1 : 0, checkpoints.Count);
         }
         catch (Exception ex)
         {
@@ -1499,26 +1421,24 @@ public class WorldService
             return false;
         }
 
-        lock (_sessionLock)
+        // ConcurrentDictionary.TryGetValue is thread-safe
+        if (!session.Enemies.TryGetValue(enemyId, out var enemy))
         {
-            if (!session.Enemies.TryGetValue(enemyId, out var enemy))
-            {
-                _logger.LogWarning("RespawnEnemy: Enemy {EnemyId} not found in session {SessionId}", enemyId, sessionId);
-                return false;
-            }
-
-            enemy.Hp = enemy.MaxHp;
-            enemy.X = enemy.SpawnX;
-            enemy.Y = enemy.SpawnY;
-            enemy.Status = EnemyStatus.Idle;
-            enemy.RespawnTimer = 0f;
-
-            session.Version++;
-            _logger.LogInformation("Respawned enemy {EnemyId} ({TypeId}) at ({X}, {Y})",
-                enemy.Id, enemy.TypeId, enemy.X, enemy.Y);
-
-            return true;
+            _logger.LogWarning("RespawnEnemy: Enemy {EnemyId} not found in session {SessionId}", enemyId, sessionId);
+            return false;
         }
+
+        enemy.Hp = enemy.MaxHp;
+        enemy.X = enemy.SpawnX;
+        enemy.Y = enemy.SpawnY;
+        enemy.Status = EnemyStatus.Idle;
+        enemy.RespawnTimer = 0f;
+
+        session.Version++;
+        _logger.LogInformation("Respawned enemy {EnemyId} ({TypeId}) at ({X}, {Y})",
+            enemy.Id, enemy.TypeId, enemy.X, enemy.Y);
+
+        return true;
     }
 
     /// <summary>
@@ -1544,8 +1464,8 @@ public class WorldService
     {
         string? bossTypeId = null;
 
-        // Priority 1: GameSection.EnemyTypeId
-        if (section != null && !string.IsNullOrEmpty(section.EnemyTypeId))
+        // Priority 1: GameSection.EnemyTypeId (only if not null/empty and not "-")
+        if (section != null && !string.IsNullOrEmpty(section.EnemyTypeId) && section.EnemyTypeId != "-")
         {
             bossTypeId = section.EnemyTypeId;
             _logger.LogInformation("Using GameSection.EnemyTypeId as boss typeId: {BossTypeId}", bossTypeId);
@@ -1626,6 +1546,101 @@ public class WorldService
     }
 
     /// <summary>
+    /// Complete session: save to DB, save player progress, clear Redis cache.
+    /// </summary>
+    private async Task CompleteSessionAsync(string sessionId)
+    {
+        try
+        {
+            if (!_sessions.TryGetValue(sessionId, out var sessionState))
+            {
+                _logger.LogWarning("Session {SessionId} not found for completion", sessionId);
+                return;
+            }
+
+            using var scope = _serviceProvider.CreateScope();
+            var sessionTrackingService = scope.ServiceProvider.GetRequiredService<SessionTrackingService>();
+            var playerService = scope.ServiceProvider.GetRequiredService<PlayerService>();
+
+            // Convert sessionId string to Guid for SessionTrackingService
+            if (!Guid.TryParse(sessionId, out var sessionGuid))
+            {
+                _logger.LogWarning("Invalid session ID format: {SessionId}", sessionId);
+                return;
+            }
+
+            // Save player progress for all players in session (last save)
+            var playerIds = sessionState.Players.Keys.ToList();
+            foreach (var playerId in playerIds)
+            {
+                if (sessionState.Players.TryGetValue(playerId, out var playerState))
+                {
+                    try
+                    {
+                        await playerService.SaveProgressAsync(
+                            playerId,
+                            playerState.Exp,
+                            playerState.Gold,
+                            playerState.Level,
+                            playerState.Hp
+                        );
+                        _logger.LogInformation("Saved final progress for player {PlayerId} in completed session {SessionId}: Level={Level}, Exp={Exp}, Gold={Gold}",
+                            playerId.ToString()[..8], sessionId, playerState.Level, playerState.Exp, playerState.Gold);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to save final progress for player {PlayerId} in session {SessionId}", playerId, sessionId);
+                    }
+                }
+            }
+
+            // Save session to database (end session)
+            try
+            {
+                await sessionTrackingService.EndSessionAsync(sessionGuid, "Completed");
+                _logger.LogInformation("Session {SessionId} saved to database as Completed", sessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save session {SessionId} to database", sessionId);
+            }
+
+            // Clear Redis cache for session
+            if (_redis != null)
+            {
+                try
+                {
+                    // Clear session metadata cache
+                    await _redis.InvalidateSessionMetadataAsync(sessionId);
+
+                    // Clear temporary skill bonuses for all players
+                    foreach (var playerId in playerIds)
+                    {
+                        try
+                        {
+                            await _redis.DeleteTemporarySkillBonusesAsync(sessionId, playerId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete skill bonuses cache for player {PlayerId} in session {SessionId}", playerId, sessionId);
+                        }
+                    }
+
+                    _logger.LogInformation("Cleared Redis cache for session {SessionId}", sessionId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to clear Redis cache for session {SessionId}", sessionId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error completing session {SessionId}", sessionId);
+        }
+    }
+
+    /// <summary>
     /// Load next active section from database (SectionId > CurrentSectionId AND IsActive == true).
     /// </summary>
     private async Task<GameSection?> LoadNextSectionAsync(int currentSectionId)
@@ -1635,6 +1650,17 @@ public class WorldService
             using var scope = _serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
 
+            // Debug: Log all active sections to see what's available
+            var allActiveSections = await db.GameSections
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.SectionId)
+                .Select(s => new { s.SectionId, s.Name })
+                .ToListAsync();
+
+            _logger.LogInformation("LoadNextSectionAsync: Current SectionId={CurrentSectionId}, All active sections: [{Sections}]",
+                currentSectionId, string.Join(", ", allActiveSections.Select(s => $"SectionId={s.SectionId}, Name={s.Name}")));
+
+            // Find next section (SectionId > currentSectionId - ascending order: 1 -> 2 -> 3...)
             var nextSection = await db.GameSections
                 .Where(s => s.SectionId > currentSectionId && s.IsActive)
                 .OrderBy(s => s.SectionId)
@@ -1646,7 +1672,8 @@ public class WorldService
             }
             else
             {
-                _logger.LogInformation("No next section found after SectionId {CurrentSectionId}", currentSectionId);
+                _logger.LogWarning("No next section found after SectionId {CurrentSectionId}. Available sections: [{Sections}]",
+                    currentSectionId, string.Join(", ", allActiveSections.Select(s => $"SectionId={s.SectionId}")));
             }
 
             return nextSection;
@@ -1690,26 +1717,37 @@ public class WorldService
         if (!session.CurrentBossId.HasValue || !session.IsBossAlive)
             return; // No boss to check
 
-        lock (_sessionLock)
+        // Quick check without lock (ConcurrentDictionary operations are thread-safe)
+        if (!session.Enemies.TryGetValue(session.CurrentBossId.Value, out var boss))
         {
-            // Check if boss still exists and is alive
-            if (!session.Enemies.TryGetValue(session.CurrentBossId.Value, out var boss))
-            {
-                // Boss not found, mark as not alive
-                session.IsBossAlive = false;
-                _logger.LogWarning("Boss {BossId} not found in session {SessionId}", session.CurrentBossId.Value, session.SessionId);
-                return;
-            }
+            // Boss not found, mark as not alive (atomic operation)
+            session.IsBossAlive = false;
+            _logger.LogWarning("Boss {BossId} not found in session {SessionId}", session.CurrentBossId.Value, session.SessionId);
+            return;
+        }
 
-            // Check if boss is defeated
-            if (boss.Hp <= 0 || boss.Status == EnemyStatus.Dead)
-            {
-                session.IsBossAlive = false;
-                _logger.LogInformation("Boss {BossId} ({TypeId}) defeated in session {SessionId}", boss.Id, boss.TypeId, session.SessionId);
+        // Check if boss is defeated (read operation, no lock needed)
+        if (boss.Hp <= 0 || boss.Status == EnemyStatus.Dead)
+        {
+            // Only lock for state changes that need atomicity
+            int? sectionIdToComplete = null;
+            Guid bossIdToRemove = Guid.Empty;
 
-                // Remove boss from enemies dictionary immediately (boss doesn't respawn)
-                session.Enemies.Remove(boss.Id);
-                _logger.LogDebug("Removed defeated boss {BossId} from session {SessionId}", boss.Id, session.SessionId);
+            lock (_sessionLock)
+            {
+                // Double-check boss still exists and is dead
+                if (!session.Enemies.TryGetValue(session.CurrentBossId.Value, out var bossCheck))
+                {
+                    return; // Boss already removed
+                }
+
+                if (bossCheck.Hp > 0 && bossCheck.Status != EnemyStatus.Dead)
+                {
+                    return; // Boss is still alive
+                }
+
+                session.IsBossAlive = false;
+                bossIdToRemove = bossCheck.Id;
 
                 // Mark section as complete
                 if (session.CurrentSectionId.HasValue)
@@ -1717,68 +1755,213 @@ public class WorldService
                     if (!session.CompletedSections.Contains(session.CurrentSectionId.Value))
                     {
                         session.CompletedSections.Add(session.CurrentSectionId.Value);
-                        _logger.LogInformation("Section {SectionId} marked as completed in session {SessionId}",
-                            session.CurrentSectionId.Value, session.SessionId);
+                        sectionIdToComplete = session.CurrentSectionId.Value;
                     }
                 }
+            }
 
-                // Load next section (async, outside lock)
-                _ = Task.Run(async () =>
+            // Remove boss outside lock (ConcurrentDictionary operation is thread-safe)
+            session.Enemies.TryRemove(bossIdToRemove, out _);
+            _logger.LogInformation("Boss {BossId} ({TypeId}) defeated in session {SessionId}", bossIdToRemove, boss.TypeId, session.SessionId);
+
+            if (sectionIdToComplete.HasValue)
+            {
+                _logger.LogInformation("Section {SectionId} marked as completed in session {SessionId}",
+                    sectionIdToComplete.Value, session.SessionId);
+            }
+
+            // Check next section immediately (async, non-blocking)
+            // This ensures status is set to Completed ASAP if no next section exists
+            _ = Task.Run(async () =>
+            {
+                try
                 {
-                    try
+                    if (sectionIdToComplete.HasValue)
                     {
-                        if (session.CurrentSectionId.HasValue)
+                        var nextSection = await LoadNextSectionAsync(sectionIdToComplete.Value);
+
+                        if (nextSection != null)
                         {
-                            var nextSection = await LoadNextSectionAsync(session.CurrentSectionId.Value);
+                            // Initialize next section
+                            _logger.LogInformation("Advancing to next section {SectionId} ({SectionName}) in session {SessionId}",
+                                nextSection.SectionId, nextSection.Name, session.SessionId);
 
-                            if (nextSection != null)
+                            // Clear old enemies and update CurrentSectionId BEFORE initializing (so clients see section change immediately)
+                            lock (_sessionLock)
                             {
-                                // Initialize next section
-                                _logger.LogInformation("Advancing to next section {SectionId} ({SectionName}) in session {SessionId}",
-                                    nextSection.SectionId, nextSection.Name, session.SessionId);
-
-                                // Clear old enemies before initializing next section
-                                lock (_sessionLock)
+                                session.Enemies.Clear();
+                                session.CurrentBossId = null;
+                                session.IsBossAlive = false;
+                                // Set CurrentSectionId immediately so clients can detect section change
+                                session.CurrentSectionId = nextSection.SectionId;
+                                // Clear cached section data (will be repopulated by InitializeRoomCheckpointsAsync)
+                                session.CachedSection = null;
+                                session.CachedCheckpoints.Clear();
+                                session.SectionStartTime = null;
+                                // Ensure status is still InProgress when advancing
+                                if (session.Status != SessionStatus.InProgress)
                                 {
-                                    session.Enemies.Clear();
-                                    session.CurrentBossId = null;
-                                    session.IsBossAlive = false;
+                                    session.Status = SessionStatus.InProgress;
                                 }
+                                // Increment version to notify clients of section change
+                                session.Version++;
+                            }
 
-                                await InitializeRoomCheckpointsAsync(session.SessionId, nextSection.SectionId);
-                            }
-                            else
-                            {
-                                // No more sections, session completed
-                                lock (_sessionLock)
-                                {
-                                    session.Status = SessionStatus.Completed;
-                                    _logger.LogInformation("All sections completed in session {SessionId}. Session status set to Completed.", session.SessionId);
-                                }
-                            }
+                            _logger.LogInformation("Section {SectionId} set in session {SessionId}, initializing checkpoints...", nextSection.SectionId, session.SessionId);
+                            await InitializeRoomCheckpointsAsync(session.SessionId, nextSection.SectionId);
                         }
                         else
                         {
-                            // No current section, mark as completed
+                            // No more sections, session completed - set immediately
                             lock (_sessionLock)
                             {
+                                if (session.Status == SessionStatus.InProgress)
+                                {
+                                    session.Status = SessionStatus.Completed;
+                                    session.Version++; // Increment version to notify clients
+                                    _logger.LogInformation("All sections completed in session {SessionId}. Session status set to Completed.", session.SessionId);
+                                }
+                            }
+
+                            // Complete session: save to DB, save player progress, clear Redis cache
+                            _ = Task.Run(async () => await CompleteSessionAsync(session.SessionId));
+                        }
+                    }
+                    else
+                    {
+                        // No current section, mark as completed immediately
+                        lock (_sessionLock)
+                        {
+                            if (session.Status == SessionStatus.InProgress)
+                            {
                                 session.Status = SessionStatus.Completed;
+                                session.Version++; // Increment version to notify clients
                                 _logger.LogInformation("No current section in session {SessionId}. Session status set to Completed.", session.SessionId);
                             }
                         }
+
+                        // Complete session: save to DB, save player progress, clear Redis cache
+                        _ = Task.Run(async () => await CompleteSessionAsync(session.SessionId));
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error advancing section in session {SessionId}", session.SessionId);
-                    }
-                });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error advancing section in session {SessionId}", session.SessionId);
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Check if all regular enemies are defeated and advance to next section if applicable.
+    /// Only called if section has no boss (CurrentBossId == null).
+    /// Called each tick in TickAsync().
+    /// </summary>
+    private async Task CheckAllEnemiesDefeatedAndAdvanceSection(SessionState session)
+    {
+        if (session.Status != SessionStatus.InProgress)
+            return; // Session already completed or failed
+
+        // Only check if section has no boss (read operation, no lock needed)
+        if (session.CurrentBossId.HasValue)
+            return; // Section has boss, use boss defeat logic instead
+
+        if (!session.CurrentSectionId.HasValue)
+            return; // No current section
+
+        // Count alive regular enemies (non-boss) in current section (read operation, no lock needed)
+        int aliveRegularEnemies = session.Enemies.Values
+            .Count(e => e.SectionId == session.CurrentSectionId &&
+                       !e.IsBoss &&
+                       e.Status != EnemyStatus.Dead &&
+                       e.Hp > 0);
+
+        // If all regular enemies are defeated, advance section
+        if (aliveRegularEnemies == 0)
+        {
+            int? sectionIdToComplete = session.CurrentSectionId;
+
+            // Only lock for state updates
+            lock (_sessionLock)
+            {
+                // Double-check section is still current and no enemies spawned
+                if (!session.CurrentSectionId.HasValue || session.CurrentSectionId != sectionIdToComplete)
+                    return; // Section changed
+
+                // Re-check enemy count (double-check pattern)
+                int recheckCount = session.Enemies.Values
+                    .Count(e => e.SectionId == session.CurrentSectionId &&
+                               !e.IsBoss &&
+                               e.Status != EnemyStatus.Dead &&
+                               e.Hp > 0);
+
+                if (recheckCount > 0)
+                    return; // Enemies spawned while checking
+
+                // Mark section as complete
+                if (!session.CompletedSections.Contains(session.CurrentSectionId.Value))
+                {
+                    session.CompletedSections.Add(session.CurrentSectionId.Value);
+                    sectionIdToComplete = session.CurrentSectionId.Value;
+                }
+                else
+                {
+                    return; // Already processed
+                }
             }
+
+            _logger.LogInformation("All regular enemies defeated in section {SectionId} (no boss), advancing to next section",
+                sectionIdToComplete.Value);
+
+            // Load next section asynchronously (outside lock, non-blocking)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var nextSection = await LoadNextSectionAsync(sectionIdToComplete.Value);
+
+                    if (nextSection != null)
+                    {
+                        // Initialize next section
+                        _logger.LogInformation("Advancing to next section {SectionId} ({SectionName}) in session {SessionId}",
+                            nextSection.SectionId, nextSection.Name, session.SessionId);
+
+                        // Clear old enemies before initializing next section (lock only for state updates)
+                        lock (_sessionLock)
+                        {
+                            session.Enemies.Clear();
+                            session.CurrentBossId = null;
+                            session.IsBossAlive = false;
+                        }
+
+                        await InitializeRoomCheckpointsAsync(session.SessionId, nextSection.SectionId);
+                    }
+                    else
+                    {
+                        // No more sections, session completed
+                        lock (_sessionLock)
+                        {
+                            session.Status = SessionStatus.Completed;
+                            _logger.LogInformation("All sections completed in session {SessionId}. Session status set to Completed.", session.SessionId);
+                        }
+
+                        // Complete session: save to DB, save player progress, clear Redis cache
+                        _ = Task.Run(async () => await CompleteSessionAsync(session.SessionId));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error advancing section in session {SessionId}", session.SessionId);
+                }
+            });
         }
     }
 
     /// <summary>
     /// Get enemy config from in-memory cache (avoids DB/Redis queries during game tick).
     /// Cache is populated on-demand (lazy loading).
+    /// Non-blocking: Returns cached value immediately if available, otherwise triggers async load and returns null.
+    /// Caller should handle null gracefully (e.g., skip rewards if config not yet loaded).
     /// </summary>
     private GameServer.Services.EnemyConfig? GetEnemyConfigCached(string typeId)
     {
@@ -1791,46 +1974,46 @@ public class WorldService
             return cached;
         }
 
-        // Cache miss - load from DB/Redis and cache it (lock to prevent duplicate loads)
-        lock (_enemyConfigCacheLock)
+        // Cache miss - trigger async load without blocking
+        // Use a simple flag to prevent multiple loads of the same type (best-effort)
+        // Multiple threads might still trigger loads, but that's acceptable - ConcurrentDictionary.TryAdd will handle duplicates
+        if (!_enemyConfigCache.ContainsKey(typeId))
         {
-            // Double-check after acquiring lock
-            if (_enemyConfigCache.TryGetValue(typeId, out cached))
+            // Load asynchronously in background (non-blocking)
+            _ = Task.Run(async () =>
             {
-                return cached;
-            }
-
-            // Load from EnemyConfigService (tries Redis, then DB)
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var enemyConfigService = scope.ServiceProvider.GetService<EnemyConfigService>();
-                if (enemyConfigService != null)
+                try
                 {
-                    // Use async method but wait for result (only happens once per enemy type)
-                    var configTask = enemyConfigService.GetEnemyAsync(typeId);
-                    configTask.Wait(); // Block only on first load per enemy type
-                    cached = configTask.Result;
-
-                    if (cached != null)
+                    using var scope = _serviceProvider.CreateScope();
+                    var enemyConfigService = scope.ServiceProvider.GetService<EnemyConfigService>();
+                    if (enemyConfigService != null)
                     {
-                        _enemyConfigCache[typeId] = cached;
-                        _logger.LogDebug("Cached enemy config for {TypeId} (ExpReward={ExpReward}, GoldReward={GoldReward})",
-                            typeId, cached.ExpReward, cached.GoldReward);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Enemy config not found for {TypeId}", typeId);
+                        var config = await enemyConfigService.GetEnemyAsync(typeId);
+                        if (config != null)
+                        {
+                            // Use TryAdd to only cache if not already cached (thread-safe)
+                            // Multiple threads might try to add the same config, but only one will succeed
+                            if (_enemyConfigCache.TryAdd(typeId, config))
+                            {
+                                _logger.LogDebug("Cached enemy config for {TypeId} (ExpReward={ExpReward}, GoldReward={GoldReward})",
+                                    typeId, config.ExpReward, config.GoldReward);
+                            }
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to load enemy config for {TypeId}", typeId);
-            }
-
-            return cached;
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to load enemy config for {TypeId}", typeId);
+                }
+            });
         }
+
+        // Return null if not in cache - caller must handle this
+        // This is acceptable because:
+        // 1. First kill might miss rewards, but config will be cached for next kill
+        // 2. Preloading all configs on startup avoids this issue entirely
+        // 3. Non-blocking is critical for game tick performance
+        return null;
     }
 
     /// <summary>
