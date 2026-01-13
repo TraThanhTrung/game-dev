@@ -50,7 +50,8 @@ public class SessionsController : ControllerBase
     public ActionResult<StateResponse> GetState([FromRoute] string sessionId, [FromQuery] int? sinceVersion)
     {
         var state = _world.GetState(sessionId, sinceVersion);
-        if (sinceVersion.HasValue && sinceVersion.Value >= state.Version && state.Players.Count == 0 && state.Enemies.Count == 0 && state.Projectiles.Count == 0)
+        // Return NoContent if client already has latest version (optimization)
+        if (sinceVersion.HasValue && sinceVersion.Value >= state.Version)
         {
             return NoContent();
         }
@@ -100,8 +101,14 @@ public class SessionsController : ControllerBase
 
         HttpContext.Items["playerId"] = request.PlayerId.ToString();
 
-        _logger.LogInformation("[Sessions] Player {PlayerId} ready for session {SessionId}",
-            request.PlayerId.ToString()[..8], sessionId);
+        // Update player's CharacterType if provided
+        if (!string.IsNullOrEmpty(request.CharacterType))
+        {
+            _world.SetPlayerCharacterType(request.PlayerId, request.CharacterType);
+        }
+
+        _logger.LogInformation("[Sessions] Player {PlayerId} ready for session {SessionId} with character {CharacterType}",
+            request.PlayerId.ToString()[..8], sessionId, request.CharacterType ?? "default");
 
         return Ok(new { ready = true, sessionId });
     }

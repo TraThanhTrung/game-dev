@@ -5,6 +5,7 @@ namespace GameServer.Models.Dto;
 public record PlayerSnapshot(
     Guid Id,
     string Name,
+    string CharacterType, // "lancer" or "warrious"
     float X,
     float Y,
     int Hp,

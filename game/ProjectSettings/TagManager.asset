@@ -12,6 +12,7 @@ TagManager:
   - Death
   - Checkpoint
   - Confiner
+  - RemotePlayer
   layers:
   - Default
   - TransparentFX
@@ -22,6 +23,7 @@ TagManager:
   - Tilemap
   - Obstacle
   - Player
+  - RemotePlayer
   - Enemy
   - Item
   - Building
@@ -30,7 +32,6 @@ TagManager:
   - NPC
   - Damageable(Obstacles)
   - PopUps
-  - 
   - 
   - 
   - 

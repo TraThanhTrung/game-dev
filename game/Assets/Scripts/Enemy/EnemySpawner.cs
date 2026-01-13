@@ -16,9 +16,11 @@ public class EnemySpawner : MonoBehaviour
 
     #region Private Fields
     [SerializeField] private bool m_EnableLogging = true;
+    [SerializeField] private float m_PositionLerpSpeed = 10f; // Speed for interpolating enemy positions
 
     private Dictionary<Guid, GameObject> m_SpawnedEnemies = new Dictionary<Guid, GameObject>();
     private Dictionary<Guid, EnemyState> m_EnemyStates = new Dictionary<Guid, EnemyState>();
+    private Dictionary<Guid, Vector3> m_TargetPositions = new Dictionary<Guid, Vector3>(); // Target positions for interpolation
     #endregion
 
     #region Unity Lifecycle
@@ -178,6 +180,7 @@ public class EnemySpawner : MonoBehaviour
 
         m_SpawnedEnemies.Clear();
         m_EnemyStates.Clear();
+        m_TargetPositions.Clear();
     }
     #endregion
 
@@ -241,6 +244,21 @@ public class EnemySpawner : MonoBehaviour
             MaxHp = snapshot.maxHp
         };
 
+        // Store target position for interpolation
+        m_TargetPositions[enemyId] = position;
+
+        // Add StateInterpolator component for smooth position sync in multiplayer
+        if (NetClient.Instance != null && NetClient.Instance.IsConnected)
+        {
+            var interpolator = enemyObject.GetComponent<StateInterpolator>();
+            if (interpolator == null)
+            {
+                interpolator = enemyObject.AddComponent<StateInterpolator>();
+            }
+            // Force initial position
+            interpolator.ForcePosition(position);
+        }
+
         if (m_EnableLogging)
             Debug.Log($"[EnemySpawner] Spawned enemy {enemyId} ({snapshot.typeId}) at ({snapshot.x}, {snapshot.y})");
     }
@@ -255,12 +273,51 @@ public class EnemySpawner : MonoBehaviour
             // Enemy was destroyed but still in dictionary, remove it
             m_SpawnedEnemies.Remove(enemyId);
             m_EnemyStates.Remove(enemyId);
+            m_TargetPositions.Remove(enemyId);
             return;
         }
 
-        // NOTE: Server only manages HP and respawn logic.
-        // Position and movement are handled 100% client-side by Enemy_Movement AI script.
-        // We do NOT update position here to allow client-side AI to control movement freely.
+        // Check if multiplayer mode is active
+        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsConnected;
+
+        // Update position from server in multiplayer mode (server-authoritative)
+        if (isMultiplayer)
+        {
+            Vector3 serverPosition = new Vector3(snapshot.x, snapshot.y, 0);
+
+            // Update target position
+            m_TargetPositions[enemyId] = serverPosition;
+
+            // Use StateInterpolator if available for smooth movement
+            var interpolator = enemyObject.GetComponent<StateInterpolator>();
+            if (interpolator != null)
+            {
+                // Use current time as server time (polling mode doesn't have precise server timestamp)
+                float serverTime = Time.time;
+                int sequence = 0; // StateResponse doesn't have sequence per enemy, use 0
+                interpolator.AddSnapshot(serverPosition, serverTime, sequence, snapshot.hp, snapshot.maxHp, snapshot.status);
+            }
+            else
+            {
+                // Fallback: direct position update with lerp
+                Vector3 currentPos = enemyObject.transform.position;
+                float distance = Vector3.Distance(currentPos, serverPosition);
+
+                // Only update if position changed significantly (avoid micro-jitter)
+                if (distance > 0.01f)
+                {
+                    enemyObject.transform.position = Vector3.Lerp(currentPos, serverPosition, Time.deltaTime * m_PositionLerpSpeed);
+                }
+            }
+
+            // Sync animation state from server status
+            var enemyMovement = enemyObject.GetComponent<Enemy_Movement>();
+            if (enemyMovement != null && !string.IsNullOrEmpty(snapshot.status))
+            {
+                enemyMovement.SyncStateFromServer(snapshot.status);
+            }
+        }
+        // In single-player mode, position is handled by local AI (Enemy_Movement)
 
         // Update HP (server-authoritative for damage/healing only)
         var enemyHealth = enemyObject.GetComponent<Enemy_Health>();
@@ -317,6 +374,7 @@ public class EnemySpawner : MonoBehaviour
             }
             m_SpawnedEnemies.Remove(enemyId);
             m_EnemyStates.Remove(enemyId);
+            m_TargetPositions.Remove(enemyId);
         }
     }
 

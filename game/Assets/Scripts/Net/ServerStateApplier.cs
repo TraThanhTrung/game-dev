@@ -72,6 +72,9 @@ public class ServerStateApplier : MonoBehaviour
         expManager = FindObjectOfType<ExpManager>();
         enemySpawner = FindObjectOfType<EnemySpawner>();
 
+        // Initialize RemotePlayerManager with local player ID
+        InitializeRemotePlayerManager();
+
         // Load enemy configs if already connected
         if (NetClient.Instance != null && NetClient.Instance.IsConnected)
         {
@@ -95,10 +98,7 @@ public class ServerStateApplier : MonoBehaviour
             // Apply position change threshold from config
             positionChangeThreshold = pollingConfig.positionChangeThreshold;
 
-            if (m_EnableLogging)
-            {
-                Debug.Log($"[StateApplier] Loaded polling config: interval={pollingConfig.stateIntervalSeconds}s, lerpSpeed={m_LerpSpeed}, threshold={positionChangeThreshold}");
-            }
+            // Config loaded - no need to log (reduce spam)
         }
 
         // Log status on start for debugging
@@ -369,6 +369,60 @@ public class ServerStateApplier : MonoBehaviour
         {
             expManager.SyncFromServer(snapshot.level, 0, 100); // Basic level sync from SignalR
         }
+    }
+
+    /// <summary>
+    /// Initialize RemotePlayerManager with local player ID.
+    /// </summary>
+    private void InitializeRemotePlayerManager()
+    {
+        var remotePlayerManager = RemotePlayerManager.Instance;
+        if (remotePlayerManager == null)
+        {
+            // Try to find existing RemotePlayerManager in scene
+            remotePlayerManager = FindObjectOfType<RemotePlayerManager>();
+        }
+
+        if (remotePlayerManager != null && NetClient.Instance != null)
+        {
+            string localPlayerId = NetClient.Instance.PlayerId.ToString();
+            remotePlayerManager.SetLocalPlayerId(localPlayerId);
+            
+            if (m_EnableLogging)
+            {
+                Debug.Log($"[StateApplier] Initialized RemotePlayerManager with local player ID: {localPlayerId}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Convert PlayerSnapshot[] to RemotePlayerSnapshot[] for RemotePlayerManager.
+    /// </summary>
+    private System.Collections.Generic.List<RemotePlayerSnapshot> ConvertToRemotePlayerSnapshots(PlayerSnapshot[] players)
+    {
+        var result = new System.Collections.Generic.List<RemotePlayerSnapshot>();
+        
+        if (players == null)
+            return result;
+
+        foreach (var p in players)
+        {
+            result.Add(new RemotePlayerSnapshot
+            {
+                id = p.id,
+                name = p.name,
+                characterType = p.characterType ?? "lancer", // Use characterType from server, fallback to default
+                x = p.x,
+                y = p.y,
+                hp = p.hp,
+                maxHp = p.maxHp,
+                level = p.level,
+                status = p.hp <= 0 ? "dead" : "idle",
+                lastConfirmedInputSequence = p.sequence
+            });
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -676,18 +730,25 @@ public class ServerStateApplier : MonoBehaviour
             }
         }
 
+        // Update remote players via RemotePlayerManager (polling mode)
+        var remotePlayerManager = RemotePlayerManager.Instance;
+        if (remotePlayerManager != null)
+        {
+            // Convert PlayerSnapshot[] to RemotePlayerSnapshot[] for RemotePlayerManager
+            var playerSnapshots = ConvertToRemotePlayerSnapshots(state.players);
+            // Use current time as server time (polling mode doesn't have server timestamp)
+            float serverTime = Time.time;
+            remotePlayerManager.UpdateFromSnapshot(playerSnapshots, serverTime, state.version);
+        }
+
         // Sync enemies via EnemySpawner
         if (enemySpawner != null)
         {
             enemySpawner.OnStateReceived(state);
         }
 
-        // Player not found in state
-        if (m_EnableLogging && lastLoggedSequence != state.version)
-        {
-            Debug.LogWarning($"[StateApplier] My player not found in state v{state.version} (players: {state.players?.Length ?? 0})");
-            lastLoggedSequence = state.version;
-        }
+        // Player not found in state - only log if it's a real issue (not just version gap)
+        // Removed verbose logging to reduce spam
     }
 
     private void OnPollError(string error)
@@ -757,14 +818,8 @@ public class ServerStateApplier : MonoBehaviour
             InventoryManager.Instance.SyncGold(snapshot.gold);
         }
 
-        // Log when position or HP changes
-        if (m_EnableLogging && snapshot.sequence != lastLoggedSequence)
-        {
-            var logPosDelta = Vector3.Distance(oldPos, targetPosition);
-            Debug.Log($"[StateApplier] Applied: pos=({snapshot.x:F1},{snapshot.y:F1}) Δ={logPosDelta:F2} hp={snapshot.hp}/{snapshot.maxHp} seq={snapshot.sequence}");
-            Debug.Log($"[StateApplier] Stats from server: Damage={snapshot.damage}, Speed={snapshot.speed}, Knockback={snapshot.knockbackForce}, BonusDmg%={snapshot.bonusDamagePercent * 100:F1}%");
-            lastLoggedSequence = snapshot.sequence;
-        }
+        // Removed verbose position/HP logging to reduce spam
+        // Only log errors or important events
     }
 
     /// <summary>

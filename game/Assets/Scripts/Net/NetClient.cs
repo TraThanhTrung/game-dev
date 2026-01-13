@@ -21,6 +21,9 @@ public class NetClient : MonoBehaviour
 
     private Coroutine pollRoutine;
     private float m_PollInterval = 0.2f; // Default polling interval
+    private float m_BasePollInterval = 0.2f; // Base polling interval (for adaptive polling)
+    private int m_LastReceivedVersion = 0; // Track last received version for smart polling
+    private int m_UnchangedStateCount = 0; // Count consecutive unchanged states
 
     // SignalR state
     private bool m_IsSignalRConnected = false;
@@ -354,6 +357,7 @@ public class NetClient : MonoBehaviour
         if (intervalSeconds > 0f)
         {
             m_PollInterval = intervalSeconds;
+            m_BasePollInterval = intervalSeconds; // Update base interval too
         }
     }
 
@@ -723,14 +727,33 @@ public class NetClient : MonoBehaviour
 
     private IEnumerator PollLoop(int? sinceVersion, float intervalSeconds, Action<StateResponse> onState, Action<string> onError)
     {
-        int? version = sinceVersion;
+        int? version = sinceVersion ?? m_LastReceivedVersion;
+        float currentInterval = intervalSeconds;
+        
         while (true)
         {
             yield return PollState(version, state =>
             {
                 if (state.version > 0)
                 {
-                    version = state.version;
+                    // Smart polling: track version changes
+                    bool versionChanged = state.version != m_LastReceivedVersion;
+                    
+                    if (versionChanged)
+                    {
+                        // State changed - reset adaptive polling
+                        m_LastReceivedVersion = state.version;
+                        m_UnchangedStateCount = 0;
+                        currentInterval = m_BasePollInterval; // Reset to base interval
+                        version = state.version;
+                    }
+                    else
+                    {
+                        // State unchanged - increase polling interval (adaptive polling)
+                        m_UnchangedStateCount++;
+                        // Gradually increase interval up to 1 second max
+                        currentInterval = Mathf.Min(m_BasePollInterval * (1f + m_UnchangedStateCount * 0.1f), 1f);
+                    }
 
                     // Check session status for game completion/failure
                     if (!string.IsNullOrEmpty(state.status))
@@ -769,24 +792,34 @@ public class NetClient : MonoBehaviour
                         }
                     }
 
-                    onState?.Invoke(state);
+                    // Only invoke callback if state actually changed
+                    if (versionChanged)
+                    {
+                        onState?.Invoke(state);
+                    }
                 }
             }, onError);
 
-            yield return new WaitForSeconds(intervalSeconds);
+            yield return new WaitForSeconds(currentInterval);
         }
     }
 
     private IEnumerator PollState(int? sinceVersion, Action<StateResponse> onState, Action<string> onError)
     {
         var url = $"{m_BaseUrl}/sessions/{SessionId}/state";
-        if (sinceVersion.HasValue)
-        {
-            url += $"?sinceVersion={sinceVersion.Value}";
-        }
+        // Always include sinceVersion to enable server-side optimization
+        int versionToSend = sinceVersion ?? m_LastReceivedVersion;
+        url += $"?sinceVersion={versionToSend}";
 
         using var req = UnityWebRequest.Get(url);
         yield return req.SendWebRequest();
+
+        // 204 NoContent means no update (server optimization)
+        if (req.responseCode == 204)
+        {
+            // No state change - callback won't be invoked
+            yield break;
+        }
 
         if (req.result == UnityWebRequest.Result.Success && !string.IsNullOrEmpty(req.downloadHandler.text))
         {
@@ -795,6 +828,7 @@ public class NetClient : MonoBehaviour
         }
         else if (req.result != UnityWebRequest.Result.Success && req.responseCode != 204)
         {
+            // Only log errors, not normal 204 responses
             onError?.Invoke(req.error);
         }
     }
@@ -1305,6 +1339,7 @@ public class PlayerSnapshot
 {
     public string id;
     public string name;
+    public string characterType; // "lancer" or "warrious"
     public float x;
     public float y;
     public int hp;

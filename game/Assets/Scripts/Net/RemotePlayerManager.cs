@@ -61,6 +61,21 @@ public class RemotePlayerManager : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        // Auto-initialize local player ID if NetClient is already available
+        if (string.IsNullOrEmpty(m_LocalPlayerId) && NetClient.Instance != null)
+        {
+            string localPlayerId = NetClient.Instance.PlayerId.ToString();
+            SetLocalPlayerId(localPlayerId);
+            
+            if (m_EnableLogging)
+            {
+                Debug.Log($"{c_LogPrefix} Auto-initialized with local player ID: {localPlayerId}");
+            }
+        }
+    }
+
     private void OnDestroy()
     {
         if (Instance == this)
@@ -95,22 +110,63 @@ public class RemotePlayerManager : MonoBehaviour
     public void UpdateFromSnapshot(List<RemotePlayerSnapshot> players, float serverTime, int sequence)
     {
         if (players == null)
+        {
+            if (m_EnableLogging)
+            {
+                Debug.LogWarning($"{c_LogPrefix} UpdateFromSnapshot called with null players list");
+            }
             return;
+        }
+        
+        // Ensure local player ID is set
+        if (string.IsNullOrEmpty(m_LocalPlayerId) && NetClient.Instance != null)
+        {
+            string localPlayerId = NetClient.Instance.PlayerId.ToString();
+            SetLocalPlayerId(localPlayerId);
+            if (m_EnableLogging)
+            {
+                Debug.Log($"{c_LogPrefix} Auto-set local player ID: {localPlayerId}");
+            }
+        }
         
         var activePlayers = new HashSet<string>();
+        
+        if (m_EnableLogging && players.Count > 0)
+        {
+            Debug.Log($"{c_LogPrefix} UpdateFromSnapshot: {players.Count} players, localPlayerId={m_LocalPlayerId}");
+        }
         
         foreach (var player in players)
         {
             // Skip local player
             if (player.id == m_LocalPlayerId)
+            {
+                if (m_EnableLogging)
+                {
+                    Debug.Log($"{c_LogPrefix} Skipping local player: {player.id}");
+                }
                 continue;
+            }
             
             activePlayers.Add(player.id);
             
             // Get or create remote player
             if (!m_RemotePlayers.TryGetValue(player.id, out var remotePlayer))
             {
+                if (m_EnableLogging)
+                {
+                    Debug.Log($"{c_LogPrefix} Creating new remote player: {player.id} ({player.characterType})");
+                }
                 remotePlayer = CreateRemotePlayer(player.id, player.name, player.characterType);
+            }
+            else
+            {
+                // Check if character type changed (shouldn't happen, but handle it)
+                if (remotePlayer.CharacterType != player.characterType && m_EnableLogging)
+                {
+                    Debug.LogWarning($"{c_LogPrefix} Character type mismatch for {player.id}: existing={remotePlayer.CharacterType}, server={player.characterType}. " +
+                        "This should not happen - character type should be set when player joins.");
+                }
             }
             
             // Update state
@@ -122,6 +178,10 @@ public class RemotePlayerManager : MonoBehaviour
                     player.status,
                     serverTime, sequence
                 );
+            }
+            else if (m_EnableLogging)
+            {
+                Debug.LogWarning($"{c_LogPrefix} Failed to create remote player: {player.id}");
             }
         }
         

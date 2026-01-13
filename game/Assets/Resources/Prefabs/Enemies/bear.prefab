@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8735928572990618784}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: DetectionPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -49,7 +49,7 @@ GameObject:
   - component: {fileID: 8735928574227347422}
   - component: {fileID: 8735928574227347421}
   - component: {fileID: 8735928574227347420}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: bear
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -266,7 +266,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8735928574457034053}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Attackpoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}

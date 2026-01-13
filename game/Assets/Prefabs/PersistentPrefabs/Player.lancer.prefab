@@ -82,8 +82,9 @@ GameObject:
   - component: {fileID: 7237397551424734774}
   - component: {fileID: 3186760893889263053}
   - component: {fileID: 3186760893889263052}
+  - component: {fileID: 3618770429450325516}
   m_Layer: 8
-  m_Name: Player
+  m_Name: Player.lancer
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -232,6 +233,8 @@ MonoBehaviour:
   anim: {fileID: 7237397551424734730}
   isShooting: 0
   player_Combat: {fileID: 7237397551424734772}
+  m_EnableNetworking: 1
+  m_EnableLogging: 0
 --- !u!114 &7237397551424734731
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -331,3 +334,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_SendInterval: 0.1
+--- !u!114 &3618770429450325516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7237397551424734732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0c53fceb4072f040a92e000dd551d4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_CorrectionThreshold: 0.5
+  m_EnableLogging: 0
+  m_SmoothCorrections: 1
+  m_CorrectionSpeed: 15

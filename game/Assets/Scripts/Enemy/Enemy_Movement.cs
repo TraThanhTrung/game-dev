@@ -82,6 +82,38 @@ public class Enemy_Movement : MonoBehaviour
 
     private void Update()
     {
+        // Check if multiplayer is active
+        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsConnected;
+
+        if (isMultiplayer)
+        {
+            // In multiplayer, position is controlled by server via EnemySpawner
+            // But we still need to update animations and handle knockback
+            if (m_EnemyState == EnemyState.Knockback)
+            {
+                // Allow knockback to continue (will be reset by server position sync)
+            }
+            else
+            {
+                // Stop all movement - server controls position
+                if (m_Rb != null)
+                {
+                    m_Rb.velocity = Vector2.zero;
+                }
+            }
+
+            // Update attack timer for animations
+            if (m_AttackCooldownTimer > 0)
+            {
+                m_AttackCooldownTimer -= Time.deltaTime;
+            }
+
+            // Note: Animation states are synced from server via SyncStateFromServer()
+            // Don't run local AI detection in multiplayer
+            return;
+        }
+
+        // Single-player mode: use local AI
         if (m_EnemyState != EnemyState.Knockback)
         {
             CheckForPlayer();
@@ -183,6 +215,46 @@ public class Enemy_Movement : MonoBehaviour
             m_Anim.SetBool("isChasing", true);
         else if (m_EnemyState == EnemyState.Attacking)
             m_Anim.SetBool("isAttacking", true);
+    }
+
+    /// <summary>
+    /// Sync enemy state from server status string (for multiplayer).
+    /// Called by EnemySpawner when receiving server state.
+    /// </summary>
+    public void SyncStateFromServer(string serverStatus)
+    {
+        if (string.IsNullOrEmpty(serverStatus))
+            return;
+
+        // Convert server status string to EnemyState enum
+        EnemyState serverState = EnemyState.Idle;
+        switch (serverStatus.ToLower())
+        {
+            case "idle":
+                serverState = EnemyState.Idle;
+                break;
+            case "chasing":
+                serverState = EnemyState.Chasing;
+                break;
+            case "attacking":
+                serverState = EnemyState.Attacking;
+                break;
+            case "knockback":
+                serverState = EnemyState.Knockback;
+                break;
+            case "dead":
+                // Dead state is handled separately
+                return;
+            default:
+                serverState = EnemyState.Idle;
+                break;
+        }
+
+        // Only change state if different (avoid unnecessary animation updates)
+        if (serverState != m_EnemyState)
+        {
+            ChangeState(serverState);
+        }
     }
 
 

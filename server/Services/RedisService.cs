@@ -263,6 +263,50 @@ public class RedisService
         await DeleteAsync(key);
     }
     #endregion
+
+    #region Public Methods - Session State Cache
+    /// <summary>
+    /// Cache session state response in Redis.
+    /// Only cache for sessions with 2+ players (multiplayer optimization).
+    /// </summary>
+    public async Task CacheSessionStateAsync(string sessionId, int version, StateResponse state)
+    {
+        var key = $"session:state:{sessionId}:{version}";
+        // Cache for 10 seconds (enough for polling interval)
+        await SetAsync(key, state, TimeSpan.FromSeconds(10));
+    }
+
+    /// <summary>
+    /// Get cached session state from Redis.
+    /// </summary>
+    public async Task<StateResponse?> GetCachedSessionStateAsync(string sessionId, int version)
+    {
+        var key = $"session:state:{sessionId}:{version}";
+        return await GetAsync<StateResponse>(key);
+    }
+
+    /// <summary>
+    /// Invalidate all cached states for a session (when session ends or resets).
+    /// </summary>
+    public async Task InvalidateSessionStateCacheAsync(string sessionId)
+    {
+        try
+        {
+            var server = _redis.GetServer(_redis.GetEndPoints().First());
+            var keys = server.Keys(pattern: $"session:state:{sessionId}:*");
+            var db = _redis.GetDatabase();
+
+            foreach (var key in keys)
+            {
+                await db.KeyDeleteAsync(key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error invalidating session state cache for {SessionId}", sessionId);
+        }
+    }
+    #endregion
 }
 
 #region Cache DTOs

@@ -61,6 +61,28 @@ public class WorldService
     }
 
     /// <summary>
+    /// Set player's CharacterType (called when player signals ready with character selection).
+    /// </summary>
+    public void SetPlayerCharacterType(Guid playerId, string characterType)
+    {
+        if (string.IsNullOrEmpty(characterType))
+            return;
+
+        if (_playerToSession.TryGetValue(playerId, out var sessionId))
+        {
+            if (_sessions.TryGetValue(sessionId, out var session))
+            {
+                if (session.Players.TryGetValue(playerId, out var player))
+                {
+                    player.CharacterType = characterType;
+                    _logger.LogInformation("Set CharacterType for player {PlayerId} to {CharacterType}",
+                        playerId.ToString()[..8], characterType);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Get session ID for a player.
     /// </summary>
     public string? GetPlayerSessionId(Guid playerId)
@@ -376,6 +398,7 @@ public class WorldService
             };
         }
 
+        // Early return if client already has latest version
         if (sinceVersion.HasValue && sinceVersion.Value >= session.Version)
         {
             return new StateResponse
@@ -386,6 +409,49 @@ public class WorldService
             };
         }
 
+        // Try Redis cache first (only for multiplayer sessions with 2+ players)
+        // Note: Single player sessions don't use cache (optimization for 2+ players only)
+        if (_redis != null && session.Players.Count >= 2)
+        {
+            try
+            {
+                var cachedState = _redis.GetCachedSessionStateAsync(session.SessionId, session.Version).GetAwaiter().GetResult();
+                if (cachedState != null)
+                {
+                    // Cache hit - return cached state (avoids rebuilding state for multiple clients)
+                    _logger.LogDebug("Redis cache HIT for session {SessionId} version {Version} ({PlayerCount} players)",
+                        sessionId, session.Version, session.Players.Count);
+                    return cachedState;
+                }
+                else
+                {
+                    // Cache miss - will build new state below
+                    _logger.LogDebug("Redis cache MISS for session {SessionId} version {Version} ({PlayerCount} players)",
+                        sessionId, session.Version, session.Players.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                // If cache fails, fall back to building state
+                _logger.LogWarning(ex, "Failed to get cached state for {SessionId}, building new state", sessionId);
+            }
+        }
+        else if (session.Players.Count < 2)
+        {
+            // Single player mode - cache disabled (not needed for optimization)
+            _logger.LogTrace("Single player session {SessionId} - Redis cache disabled (only used for 2+ players)", sessionId);
+        }
+
+        // Cache miss or single player - build state
+        return BuildStateResponse(session);
+    }
+
+    /// <summary>
+    /// Build StateResponse from session state.
+    /// Extracted to separate method for reuse in caching.
+    /// </summary>
+    private StateResponse BuildStateResponse(SessionState session)
+    {
         var response = new StateResponse
         {
             SessionId = session.SessionId,
@@ -395,7 +461,7 @@ public class WorldService
             SectionName = session.CachedSection?.Name ?? string.Empty,
             Players = session.Players.Values
                 .Select(p => new PlayerSnapshot(
-                    p.Id, p.Name, p.X, p.Y, p.Hp, p.MaxHp, p.Sequence,
+                    p.Id, p.Name, p.CharacterType, p.X, p.Y, p.Hp, p.MaxHp, p.Sequence,
                     p.Level, p.Exp, p.ExpToLevel, p.Gold,
                     // Player stats (synced from database)
                     p.Damage, p.Range, p.Speed,
@@ -415,16 +481,9 @@ public class WorldService
                 ))
                 .ToList(),
             Projectiles = session.Projectiles.Values
-                .Select(p => new ProjectileSnapshot(p.Id, p.OwnerId, p.Type, p.X, p.Y, p.VelocityX, p.VelocityY, p.Damage))
+                .Select(p => new ProjectileSnapshot(p.Id, p.OwnerId, p.X, p.Y, p.DirX, p.DirY, p.Radius))
                 .ToList()
         };
-
-        // DEBUG: Log section ID changes (only when section changes, not every call)
-        if (session.CurrentSectionId.HasValue && session.CurrentSectionId.Value >= 0)
-        {
-            _logger.LogInformation("[SECTION_DEBUG] GetState returning - sessionId: {SessionId}, version: {Version}, currentSectionId: {CurrentSectionId}, sectionName: {SectionName}",
-                session.SessionId, session.Version, session.CurrentSectionId.Value, response.SectionName);
-        }
 
         return response;
     }
@@ -434,6 +493,7 @@ public class WorldService
         foreach (var session in _sessions.Values)
         {
             ProcessInputs(session);
+            ProcessEnemyAI(session); // Process enemy movement and AI
             ProcessEnemyRespawns(session);
             CleanupDeadEnemies(session); // Clean up dead enemies that won't respawn
 
@@ -444,6 +504,27 @@ public class WorldService
             CheckAllPlayersDead(session);
 
             session.Version++;
+
+            // Cache session state in Redis (only for multiplayer sessions with 2+ players)
+            // Optimization: Single player sessions don't need caching (fewer requests)
+            if (_redis != null && session.Players.Count >= 2)
+            {
+                // Build state and cache it asynchronously (don't block tick)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var state = BuildStateResponse(session);
+                        await _redis.CacheSessionStateAsync(session.SessionId, session.Version, state);
+                        _logger.LogTrace("Cached session state for {SessionId} version {Version} ({PlayerCount} players)",
+                            session.SessionId, session.Version, session.Players.Count);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error caching session state for {SessionId}", session.SessionId);
+                    }
+                });
+            }
         }
     }
 
@@ -494,6 +575,150 @@ public class WorldService
             player.X += dir.x * player.Speed * TickDeltaTime;
             player.Y += dir.y * player.Speed * TickDeltaTime;
             player.Sequence = Math.Max(player.Sequence, cmd.Sequence);
+        }
+    }
+
+    /// <summary>
+    /// Process enemy AI: detect players, chase, attack.
+    /// Updates enemy positions server-authoritatively.
+    /// </summary>
+    private void ProcessEnemyAI(SessionState session)
+    {
+        // Get all alive players in session
+        var alivePlayers = session.Players.Values
+            .Where(p => p.Hp > 0)
+            .ToList();
+
+        if (alivePlayers.Count == 0)
+        {
+            // No players alive, enemies should be idle
+            foreach (var enemy in session.Enemies.Values)
+            {
+                if (enemy.Status != EnemyStatus.Dead && enemy.Hp > 0)
+                {
+                    enemy.Status = EnemyStatus.Idle;
+                }
+            }
+            return;
+        }
+
+        // Process each alive enemy
+        foreach (var enemy in session.Enemies.Values)
+        {
+            // Skip dead enemies or enemies in knockback
+            if (enemy.Status == EnemyStatus.Dead || enemy.Hp <= 0 || enemy.Status == EnemyStatus.Knockback)
+                continue;
+
+            // Update attack timer
+            if (enemy.AttackTimer > 0)
+            {
+                enemy.AttackTimer -= TickDeltaTime;
+            }
+
+            // Find nearest player within detect range
+            PlayerState? nearestPlayer = null;
+            float nearestDistance = float.MaxValue;
+
+            foreach (var player in alivePlayers)
+            {
+                float dx = player.X - enemy.X;
+                float dy = player.Y - enemy.Y;
+                float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+                if (distance <= enemy.DetectRange && distance < nearestDistance)
+                {
+                    nearestPlayer = player;
+                    nearestDistance = distance;
+                }
+            }
+
+            // If player detected
+            if (nearestPlayer != null)
+            {
+                // Add buffer zone: player must be further than AttackRange * 1.15 to exit attack state
+                // This prevents rapid attack/retreat spam when player is at the edge of attack range
+                float attackRangeWithBuffer = enemy.AttackRange * 1.15f;
+
+                // Check if player is out of attack range with buffer (priority: check this first)
+                if (nearestDistance > attackRangeWithBuffer)
+                {
+                    // Player moved out of attack range - chase player
+                    enemy.Status = EnemyStatus.Chasing;
+
+                    // Calculate direction to player
+                    float dx = nearestPlayer.X - enemy.X;
+                    float dy = nearestPlayer.Y - enemy.Y;
+                    float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+                    if (distance > 0.001f) // Avoid division by zero
+                    {
+                        // Normalize direction
+                        float dirX = dx / distance;
+                        float dirY = dy / distance;
+
+                        // Move enemy towards player
+                        enemy.X += dirX * enemy.Speed * TickDeltaTime;
+                        enemy.Y += dirY * enemy.Speed * TickDeltaTime;
+                    }
+                }
+                // Check if in attack range and cooldown ready
+                else if (nearestDistance <= enemy.AttackRange && enemy.AttackTimer <= 0)
+                {
+                    // Only attack if transitioning from non-attacking state (prevent spam damage)
+                    // This ensures damage is only applied once when entering attack state
+                    bool isNewAttack = enemy.Status != EnemyStatus.Attacking;
+
+                    // Set attacking state and reset cooldown
+                    enemy.Status = EnemyStatus.Attacking;
+                    enemy.AttackTimer = enemy.AttackCooldown;
+
+                    // Apply damage only when starting a new attack (not every tick while attacking)
+                    if (isNewAttack)
+                    {
+                        int damage = enemy.Damage;
+                        nearestPlayer.Hp = Math.Max(0, nearestPlayer.Hp - damage);
+                    }
+                }
+                // Player is between AttackRange and attackRangeWithBuffer (buffer zone)
+                else if (nearestDistance > enemy.AttackRange && nearestDistance <= attackRangeWithBuffer)
+                {
+                    // In buffer zone: if cooldown is ready, continue chasing to get closer
+                    // If cooldown not ready, stay in attacking state (prevent immediate re-attack)
+                    if (enemy.AttackTimer <= 0)
+                    {
+                        // Cooldown ready but in buffer zone - chase to get closer before attacking
+                        enemy.Status = EnemyStatus.Chasing;
+
+                        // Calculate direction to player
+                        float dx = nearestPlayer.X - enemy.X;
+                        float dy = nearestPlayer.Y - enemy.Y;
+                        float distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+                        if (distance > 0.001f)
+                        {
+                            float dirX = dx / distance;
+                            float dirY = dy / distance;
+                            enemy.X += dirX * enemy.Speed * TickDeltaTime;
+                            enemy.Y += dirY * enemy.Speed * TickDeltaTime;
+                        }
+                    }
+                    else
+                    {
+                        // Cooldown not ready - stay in attacking state (prevent spam)
+                        enemy.Status = EnemyStatus.Attacking;
+                    }
+                }
+                else
+                {
+                    // In attack range but cooldown not ready - stay in attacking state but don't move
+                    enemy.Status = EnemyStatus.Attacking;
+                }
+            }
+            else
+            {
+                // No player detected - return to idle
+                enemy.Status = EnemyStatus.Idle;
+            }
         }
     }
 
@@ -1410,6 +1635,7 @@ public class WorldService
             DetectRange = config.DetectRange,
             AttackRange = config.AttackRange,
             AttackCooldown = config.AttackCooldown,
+            AttackTimer = 0f, // Can attack immediately on spawn
             RespawnDelay = config.RespawnDelay,
             BaseRespawnDelay = config.RespawnDelay,
             ExpReward = config.ExpReward,
