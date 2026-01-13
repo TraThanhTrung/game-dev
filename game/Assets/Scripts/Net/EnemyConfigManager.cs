@@ -106,7 +106,7 @@ public class EnemyConfigManager : MonoBehaviour
                 // Parse JSON array response from server
                 // Server returns: [{...}, {...}, ...]
                 var json = req.downloadHandler.text;
-                
+
                 if (m_EnableLogging)
                     Debug.Log($"[EnemyConfigManager] Received JSON response (length: {json.Length})");
 
@@ -203,7 +203,7 @@ public class EnemyConfigManager : MonoBehaviour
         {
             if (m_EnableLogging)
                 Debug.LogWarning($"[EnemyConfigManager] Config for {typeId} not in cache, loading from server...");
-            
+
             // Trigger async load (will update cache when complete)
             StartCoroutine(LoadSingleEnemyAsync(typeId));
         }
@@ -219,7 +219,7 @@ public class EnemyConfigManager : MonoBehaviour
         m_ConfigCache.Clear();
         m_IsLoaded = false;
         m_CacheTime = 0f;
-        
+
         if (m_EnableLogging)
             Debug.Log("[EnemyConfigManager] Cache invalidated");
     }
@@ -247,15 +247,12 @@ public class EnemyConfigManager : MonoBehaviour
     #region Private Methods
     private string GetBaseUrl()
     {
-        // Get base URL from NetClient
+        // Get base URL from NetClient (which uses ServerConfig)
         if (NetClient.Instance != null)
         {
-            var field = typeof(NetClient).GetField("m_BaseUrl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-            {
-                return field.GetValue(NetClient.Instance) as string ?? "http://localhost:5220";
-            }
+            return NetClient.Instance.BaseUrl;
         }
+        // Fallback
         return "http://localhost:5220";
     }
 
@@ -276,7 +273,7 @@ public class EnemyConfigManager : MonoBehaviour
         {
             // Trim whitespace and ensure it's a valid JSON array
             jsonArray = jsonArray.Trim();
-            
+
             // Remove any leading/trailing whitespace or brackets if malformed
             if (!jsonArray.StartsWith("["))
             {
@@ -326,7 +323,7 @@ public class EnemyConfigManager : MonoBehaviour
                 {
                     var json = req.downloadHandler.text;
                     var dto = JsonUtility.FromJson<EnemyConfigDto>(json);
-                    
+
                     if (dto == null)
                     {
                         Debug.LogError($"[EnemyConfigManager] Failed to parse enemy config for {typeId}: DTO is null");

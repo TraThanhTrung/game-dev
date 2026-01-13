@@ -28,7 +28,7 @@ public class ServerStateApplier : MonoBehaviour
 
     [Header("Dev Mode (for testing without Login scene)")]
     [SerializeField] private bool m_DevModeAutoConnect = false;
-    [SerializeField] private string m_DevServerUrl = "http://localhost:5220";
+    [SerializeField] private ServerConfig m_ServerConfig;
     [SerializeField] private string m_DevPlayerName = "DevPlayer";
 
     private Vector3 targetPosition;
@@ -139,7 +139,11 @@ public class ServerStateApplier : MonoBehaviour
             yield return null; // Wait a frame for Awake
         }
 
-        NetClient.Instance.ConfigureBaseUrl(m_DevServerUrl);
+        // Configure base URL from ServerConfig or use NetClient's default
+        if (m_ServerConfig != null)
+        {
+            NetClient.Instance.ConfigureBaseUrl(m_ServerConfig.GetBaseUrl());
+        }
 
         // Register
         bool registered = false;
@@ -387,7 +391,7 @@ public class ServerStateApplier : MonoBehaviour
         {
             string localPlayerId = NetClient.Instance.PlayerId.ToString();
             remotePlayerManager.SetLocalPlayerId(localPlayerId);
-            
+
             if (m_EnableLogging)
             {
                 Debug.Log($"[StateApplier] Initialized RemotePlayerManager with local player ID: {localPlayerId}");
@@ -401,7 +405,7 @@ public class ServerStateApplier : MonoBehaviour
     private System.Collections.Generic.List<RemotePlayerSnapshot> ConvertToRemotePlayerSnapshots(PlayerSnapshot[] players)
     {
         var result = new System.Collections.Generic.List<RemotePlayerSnapshot>();
-        
+
         if (players == null)
             return result;
 
@@ -522,16 +526,20 @@ public class ServerStateApplier : MonoBehaviour
 
     private string GetBaseUrl()
     {
-        // Try to get from NetClient, fallback to dev URL
+        // Get from NetClient (which uses ServerConfig)
         if (NetClient.Instance != null)
         {
-            var field = typeof(NetClient).GetField("m_BaseUrl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
-            {
-                return field.GetValue(NetClient.Instance) as string ?? m_DevServerUrl;
-            }
+            return NetClient.Instance.BaseUrl;
         }
-        return m_DevServerUrl;
+
+        // Fallback to ServerConfig if NetClient not available
+        if (m_ServerConfig != null)
+        {
+            return m_ServerConfig.GetBaseUrl();
+        }
+
+        // Final fallback
+        return "http://localhost:5220";
     }
 #endif
 

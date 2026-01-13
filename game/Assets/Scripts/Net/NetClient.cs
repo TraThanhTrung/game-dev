@@ -15,7 +15,7 @@ public class NetClient : MonoBehaviour
     #endregion
 
     #region Private Fields
-    [SerializeField] private string m_BaseUrl = "http://localhost:5220";
+    [SerializeField] private ServerConfig m_ServerConfig;
     [SerializeField] private string m_DefaultSessionId = "default";
     [SerializeField] private bool m_EnableSignalRLogging = true;
 
@@ -86,6 +86,21 @@ public class NetClient : MonoBehaviour
     /// Latest game state snapshot from server.
     /// </summary>
     public GameStateSnapshot LatestGameState => m_LatestGameState;
+
+    /// <summary>
+    /// Base URL của server. Lấy từ ServerConfig nếu có, fallback về default.
+    /// </summary>
+    public string BaseUrl
+    {
+        get
+        {
+            if (m_ServerConfig != null)
+            {
+                return m_ServerConfig.GetBaseUrl();
+            }
+            return "http://localhost:5220";
+        }
+    }
     #endregion
 
     #region Unity Lifecycle
@@ -113,11 +128,23 @@ public class NetClient : MonoBehaviour
     #endregion
 
     #region Public Methods
+    /// <summary>
+    /// Cấu hình base URL. Nếu có ServerConfig, sẽ update ServerConfig.
+    /// Giữ lại method này để backward compatibility.
+    /// </summary>
     public void ConfigureBaseUrl(string baseUrl)
     {
         if (!string.IsNullOrWhiteSpace(baseUrl))
         {
-            m_BaseUrl = baseUrl.TrimEnd('/');
+            if (m_ServerConfig != null)
+            {
+                m_ServerConfig.BaseUrl = baseUrl;
+            }
+            else
+            {
+                // Fallback: tạo ServerConfig nếu chưa có
+                Debug.LogWarning("[NetClient] ServerConfig not assigned. Consider assigning ServerConfig asset in Inspector.");
+            }
         }
     }
 
@@ -171,7 +198,7 @@ public class NetClient : MonoBehaviour
             yield break;
         }
 
-        var url = $"{m_BaseUrl}/auth/profile/{PlayerId}";
+        var url = $"{BaseUrl}/auth/profile/{PlayerId}";
         using var req = UnityWebRequest.Get(url);
         yield return req.SendWebRequest();
 
@@ -232,7 +259,7 @@ public class NetClient : MonoBehaviour
         {
             // Ensure path starts with "/" for proper URL construction
             var path = avatarPath.StartsWith("/") ? avatarPath : $"/{avatarPath}";
-            url = $"{m_BaseUrl}{path}";
+            url = $"{BaseUrl}{path}";
         }
 
         Debug.Log($"[NetClient] Downloading avatar from: {url}");
@@ -490,7 +517,7 @@ public class NetClient : MonoBehaviour
     /// </summary>
     public IEnumerator GetSessionMetadata(string sessionId, Action<SessionMetadataResponse> onSuccess, Action<string> onError)
     {
-        var url = $"{m_BaseUrl}/sessions/{sessionId}/metadata";
+        var url = $"{BaseUrl}/sessions/{sessionId}/metadata";
         using var req = UnityWebRequest.Get(url);
         yield return req.SendWebRequest();
 
@@ -729,7 +756,7 @@ public class NetClient : MonoBehaviour
     {
         int? version = sinceVersion ?? m_LastReceivedVersion;
         float currentInterval = intervalSeconds;
-        
+
         while (true)
         {
             yield return PollState(version, state =>
@@ -738,7 +765,7 @@ public class NetClient : MonoBehaviour
                 {
                     // Smart polling: track version changes
                     bool versionChanged = state.version != m_LastReceivedVersion;
-                    
+
                     if (versionChanged)
                     {
                         // State changed - reset adaptive polling
@@ -806,7 +833,7 @@ public class NetClient : MonoBehaviour
 
     private IEnumerator PollState(int? sinceVersion, Action<StateResponse> onState, Action<string> onError)
     {
-        var url = $"{m_BaseUrl}/sessions/{SessionId}/state";
+        var url = $"{BaseUrl}/sessions/{SessionId}/state";
         // Always include sinceVersion to enable server-side optimization
         int versionToSend = sinceVersion ?? m_LastReceivedVersion;
         url += $"?sinceVersion={versionToSend}";
@@ -835,7 +862,7 @@ public class NetClient : MonoBehaviour
 
     private UnityWebRequest BuildPost(string path, string payload)
     {
-        var req = new UnityWebRequest($"{m_BaseUrl}{path}", UnityWebRequest.kHttpVerbPOST);
+        var req = new UnityWebRequest($"{BaseUrl}{path}", UnityWebRequest.kHttpVerbPOST);
         byte[] bodyRaw = Encoding.UTF8.GetBytes(payload);
         req.uploadHandler = new UploadHandlerRaw(bodyRaw);
         req.downloadHandler = new DownloadHandlerBuffer();
@@ -1227,7 +1254,7 @@ public class NetClient : MonoBehaviour
             yield break;
         }
 
-        string url = $"{m_BaseUrl}/skills/{PlayerId}";
+        string url = $"{BaseUrl}/skills/{PlayerId}";
         using var req = UnityWebRequest.Get(url);
         req.SetRequestHeader("Authorization", $"Bearer {Token}");
         yield return req.SendWebRequest();

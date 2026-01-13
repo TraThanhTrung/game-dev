@@ -16,11 +16,13 @@ public class CheckpointExporter : EditorWindow
 {
     #region Constants
     private const string c_LogPrefix = "[CheckpointExporter]";
-    private const string c_DefaultServerUrl = "http://localhost:5220";
     private const string c_DefaultExportPath = "Assets/ExportedCheckpoints";
+    private const string c_DefaultServerUrl = "http://localhost:5220";
     #endregion
 
     #region Private Fields
+    private UnityEngine.Object m_ServerConfig; // Use Object to avoid compile-time dependency
+    private bool m_UseServerConfig = true;
     private string m_ServerUrl = c_DefaultServerUrl;
     private string m_ExportPath = c_DefaultExportPath;
     private bool m_ExportToServer = true;
@@ -29,13 +31,13 @@ public class CheckpointExporter : EditorWindow
     private string m_AuthToken = "";
     private Vector2 m_ScrollPosition;
     private List<CheckpointMarker> m_FoundCheckpoints = new List<CheckpointMarker>();
-    
+
     // Export progress
     private bool m_IsExporting = false;
     private int m_ExportedCount = 0;
     private int m_TotalCount = 0;
     private string m_ExportStatus = "";
-    
+
     // Duplicate handling
     private enum DuplicateMode { CreateNew, UpdateExisting, Skip }
     private DuplicateMode m_DuplicateMode = DuplicateMode.UpdateExisting;
@@ -59,7 +61,35 @@ public class CheckpointExporter : EditorWindow
 
         // Server Settings
         EditorGUILayout.LabelField("Server Settings", EditorStyles.boldLabel);
-        m_ServerUrl = EditorGUILayout.TextField("Server URL", m_ServerUrl);
+        m_UseServerConfig = EditorGUILayout.Toggle("Use ServerConfig", m_UseServerConfig);
+        if (m_UseServerConfig)
+        {
+            // Use typeof to avoid compile errors if ServerConfig isn't compiled yet
+            System.Type serverConfigType = System.Type.GetType("ServerConfig, Assembly-CSharp");
+            if (serverConfigType != null)
+            {
+                m_ServerConfig = EditorGUILayout.ObjectField("Server Config", m_ServerConfig, serverConfigType, false);
+                if (m_ServerConfig != null)
+                {
+                    EditorGUILayout.HelpBox($"Using URL from ServerConfig: {GetServerUrl()}", MessageType.Info);
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox("No ServerConfig assigned. Will use manual URL below.", MessageType.Warning);
+                    m_ServerUrl = EditorGUILayout.TextField("Server URL (Fallback)", m_ServerUrl);
+                }
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("ServerConfig class not found. Please ensure ServerConfig.cs is compiled.", MessageType.Warning);
+                m_UseServerConfig = false;
+                m_ServerUrl = EditorGUILayout.TextField("Server URL", m_ServerUrl);
+            }
+        }
+        else
+        {
+            m_ServerUrl = EditorGUILayout.TextField("Server URL", m_ServerUrl);
+        }
         m_RequireAuth = EditorGUILayout.Toggle("Require Authentication", m_RequireAuth);
         if (m_RequireAuth)
         {
@@ -76,7 +106,7 @@ public class CheckpointExporter : EditorWindow
             m_ExportPath = EditorGUILayout.TextField("Export Path", m_ExportPath);
         }
         EditorGUILayout.Space();
-        
+
         // Duplicate Handling
         EditorGUILayout.LabelField("Duplicate Handling", EditorStyles.boldLabel);
         m_DuplicateMode = (DuplicateMode)EditorGUILayout.EnumPopup("If Checkpoint Exists:", m_DuplicateMode);
@@ -239,7 +269,8 @@ public class CheckpointExporter : EditorWindow
 
     private void ExportToServer(List<CheckpointMarker> checkpoints)
     {
-        if (string.IsNullOrEmpty(m_ServerUrl))
+        string serverUrl = GetServerUrl();
+        if (string.IsNullOrEmpty(serverUrl))
         {
             EditorUtility.DisplayDialog("Error", "Server URL is required for server export.", "OK");
             return;
@@ -306,7 +337,7 @@ public class CheckpointExporter : EditorWindow
         m_ExportStatus = "Loading existing checkpoints...";
         Repaint();
 
-        var url = $"{m_ServerUrl.TrimEnd('/')}/api/checkpoints";
+        var url = $"{GetServerUrl().TrimEnd('/')}/api/checkpoints";
         m_LoadRequest = UnityWebRequest.Get(url);
         m_LoadRequest.SetRequestHeader("Content-Type", "application/json");
 
@@ -430,13 +461,13 @@ public class CheckpointExporter : EditorWindow
             {
                 // Update existing checkpoint
                 int checkpointId = m_CheckpointNameToId[marker.checkpointName];
-                url = $"{m_ServerUrl.TrimEnd('/')}/api/checkpoints/{checkpointId}";
+                url = $"{GetServerUrl().TrimEnd('/')}/api/checkpoints/{checkpointId}";
                 method = "PUT";
             }
             else
             {
                 // Create new checkpoint
-                url = $"{m_ServerUrl.TrimEnd('/')}/api/checkpoints";
+                url = $"{GetServerUrl().TrimEnd('/')}/api/checkpoints";
                 method = "POST";
             }
 
@@ -505,8 +536,8 @@ public class CheckpointExporter : EditorWindow
             {
                 message += $"\nSkipped: {m_SkippedCount}";
             }
-            message += $"\n\nServer: {m_ServerUrl}";
-            
+            message += $"\n\nServer: {GetServerUrl()}";
+
             EditorUtility.DisplayDialog("Success", message, "OK");
             Debug.Log($"{c_LogPrefix} Successfully exported {m_SuccessCount} checkpoints to server (skipped: {m_SkippedCount})");
         }
@@ -598,6 +629,24 @@ public class CheckpointExporter : EditorWindow
     private class CheckpointListResponse
     {
         public CheckpointResponse[] checkpoints;
+    }
+
+    /// <summary>
+    /// Lấy server URL từ ServerConfig hoặc manual input.
+    /// </summary>
+    private string GetServerUrl()
+    {
+        if (m_UseServerConfig && m_ServerConfig != null)
+        {
+            // Use reflection to avoid compile-time dependency on ServerConfig
+            var getBaseUrlMethod = m_ServerConfig.GetType().GetMethod("GetBaseUrl");
+            if (getBaseUrlMethod != null)
+            {
+                var result = getBaseUrlMethod.Invoke(m_ServerConfig, null);
+                return result != null ? result.ToString() : m_ServerUrl;
+            }
+        }
+        return m_ServerUrl;
     }
 
     [System.Serializable]

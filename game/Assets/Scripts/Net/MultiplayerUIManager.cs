@@ -10,9 +10,8 @@ public class MultiplayerUIManager : MonoBehaviour
 {
     #region Constants
     private const string c_PrefKeyName = "mp_player_name";
-    private const string c_DefaultUrl = "http://localhost:5220";
     private const string c_DefaultName = "Player";
-    
+
     // Status colors
     private static readonly Color c_ColorLoading = new Color(0.5f, 0.5f, 0.5f, 1f); // Gray
     private static readonly Color c_ColorSuccess = new Color(0f, 1f, 0f, 1f); // Green
@@ -154,9 +153,9 @@ public class MultiplayerUIManager : MonoBehaviour
         PlayerPrefs.SetString(c_PrefKeyName, name);
         PlayerPrefs.Save();
 
-        // Clear old session and configure base URL (hardcoded)
+        // Clear old session and configure base URL from NetClient
         NetClient.Instance.ClearSession();
-        NetClient.Instance.ConfigureBaseUrl(c_DefaultUrl);
+        // BaseUrl is already configured via ServerConfig or default
         SetStatus("", StatusType.Loading);
 
         // Login with username and password
@@ -168,11 +167,11 @@ public class MultiplayerUIManager : MonoBehaviour
             // No auto join session - user will create/join room in Home scene
             TryLoadNextScene();
         },
-        err => 
+        err =>
         {
             // Parse error message to show user-friendly message
             var errorMsg = err ?? "Unknown error";
-            
+
             // Handle expected errors gracefully (not as crashes)
             if (errorMsg.Contains("401") || errorMsg.Contains("Unauthorized"))
             {
