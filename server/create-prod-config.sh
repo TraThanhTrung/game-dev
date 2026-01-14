@@ -34,7 +34,7 @@ DB_NAME="GameServerDb"
 DB_USER="sa"
 REDIS_HOST="localhost"
 REDIS_PORT=6379
-
+SQL_SA_PASSWORD="Password@123"
 # Get password from environment or prompt
 if [ -z "$SQL_SA_PASSWORD" ]; then
     log_error "SQL_SA_PASSWORD environment variable is not set"
