@@ -1128,6 +1128,10 @@ show_status() {
     systemctl status "$APP_NAME" --no-pager || true
     
     echo ""
+    log_step "Recent Game Server Logs:"
+    journalctl -u "$APP_NAME" -n 20 --no-pager || true
+    
+    echo ""
     log_step ".NET SDK Status:"
     check_dotnet_version || true
     
@@ -1260,6 +1264,8 @@ case "${1:-}" in
         echo "  check-dotnet  - Check .NET SDK version and compatibility"
         echo "  stop-updates  - Stop unattended-upgrades (if blocking installation)"
         echo "  create-service - Create systemd service file manually"
+        echo "  logs          - Show recent game server logs"
+        echo "  logs-follow   - Follow game server logs in real-time"
         echo ""
         echo "Environment Variables:"
         echo "  GITHUB_REPO_URL  - GitHub repository URL (required)"

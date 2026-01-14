@@ -308,10 +308,53 @@ chmod +x optimize-for-1gb.sh
 ```bash
 # Kiểm tra logs
 sudo journalctl -u game-server -n 50
+# Hoặc dùng command mới
+sudo ./deploy.sh logs
 
 # Kiểm tra permissions
 sudo ls -la /opt/game-server-published
 sudo ls -la /opt/game-server/shared
+```
+
+### SQL Server failed (Game server không kết nối được database)
+
+**Lỗi:** `A network-related or instance-specific error occurred while establishing a connection`
+
+**Nguyên nhân:** SQL Server không chạy hoặc chưa được setup đúng
+
+**Giải pháp:**
+
+```bash
+# Sử dụng script fix SQL Server
+chmod +x fix-sqlserver.sh
+
+# Check status
+sudo ./fix-sqlserver.sh check
+
+# Fix tự động (cần set SQL_SA_PASSWORD)
+export SQL_SA_PASSWORD='YourStrong@Password123'
+sudo ./fix-sqlserver.sh fix
+
+# Hoặc restart thủ công
+sudo ./fix-sqlserver.sh restart
+```
+
+**Nếu server chỉ có 1GB RAM:**
+
+```bash
+# Chạy optimize script trước
+sudo ./optimize-for-1gb.sh optimize
+
+# Sau đó fix SQL Server
+export SQL_SA_PASSWORD='YourStrong@Password123'
+sudo ./fix-sqlserver.sh fix
+```
+
+**Check SQL Server logs:**
+
+```bash
+sudo journalctl -u mssql-server -n 50
+sudo cat /var/opt/mssql/log/errorlog | tail -50
 ```
 
 ### Database connection failed
