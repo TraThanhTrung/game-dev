@@ -49,7 +49,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <h4 class="card-title mb-2">@Model.Match.PlayerCount Players</h4>
+                        <h4 class="card-title mb-2">@(Model.Match.Players?.Count ?? 0) Players</h4>
                         <p class="text-muted mb-0">
                             @if (Model.Match.EndTime.HasValue)
                             {
@@ -205,7 +205,7 @@
                     </div>
                     <div class="col-7">
                         <p class="mb-0 font-weight-medium">
-                            <span class="badge badge-primary badge-pill">@Model.Match.PlayerCount</span>
+                            <span class="badge badge-primary badge-pill">@(Model.Match.Players?.Count ?? 0)</span>
                         </p>
                     </div>
                 </div>
@@ -270,6 +270,24 @@
                             <tbody>
                                 @foreach (var player in Model.Match.Players)
                                 {
+                                    // Calculate Play Duration
+                                    TimeSpan playDuration;
+                                    if (player.LeaveTime.HasValue)
+                                    {
+                                        // Player has left, calculate from JoinTime to LeaveTime
+                                        playDuration = player.LeaveTime.Value - player.JoinTime;
+                                    }
+                                    else if (Model.Match.EndTime.HasValue)
+                                    {
+                                        // Session ended but player didn't leave, use session EndTime
+                                        playDuration = Model.Match.EndTime.Value - player.JoinTime;
+                                    }
+                                    else
+                                    {
+                                        // Session still active, calculate from JoinTime to now
+                                        playDuration = DateTime.UtcNow - player.JoinTime;
+                                    }
+
                                     <tr>
                                         <td style="vertical-align: middle;">
                                             <code class="text-primary">@player.PlayerId.ToString("N")[..8]...</code>
@@ -292,16 +310,20 @@
                                             }
                                         </td>
                                         <td style="vertical-align: middle;">
-                                            @if (player.PlayDuration.HasValue)
+                                            @if (playDuration.TotalSeconds > 0)
                                             {
+                                                var hours = (int)playDuration.TotalHours;
+                                                var minutes = playDuration.Minutes;
+                                                var seconds = playDuration.Seconds;
+                                                var durationString = $"{hours:D2}:{minutes:D2}:{seconds:D2}";
                                                 <span class="badge badge-success">
                                                     <i class="mdi mdi-timer mr-1"></i>
-                                                    @player.PlayDuration.Value.ToString(@"hh\:mm\:ss")
+                                                    @durationString
                                                 </span>
                                             }
                                             else
                                             {
-                                                <span class="text-muted">N/A</span>
+                                                <span class="text-muted">-</span>
                                             }
                                         </td>
                                     </tr>

@@ -883,6 +883,17 @@ create_systemd_service() {
         DOTNET_ROOT_PATH="/usr/share/dotnet"
         DOTNET_PATH="/usr/share/dotnet/dotnet"
         log_info "Found .NET SDK installed via apt at $DOTNET_PATH"
+    elif [ -f "/usr/bin/dotnet" ] && [ -x "/usr/bin/dotnet" ]; then
+        # Some installations put dotnet in /usr/bin
+        DOTNET_PATH="/usr/bin/dotnet"
+        # Try to find DOTNET_ROOT
+        if [ -d "/usr/share/dotnet" ]; then
+            DOTNET_ROOT_PATH="/usr/share/dotnet"
+        else
+            # Get from dotnet --info or use default
+            DOTNET_ROOT_PATH=$(dotnet --info 2>/dev/null | grep "Base Path" | awk '{print $3}' || echo "/usr/share/dotnet")
+        fi
+        log_info "Found .NET SDK at $DOTNET_PATH (DOTNET_ROOT: $DOTNET_ROOT_PATH)"
     else
         # Check snap packages (fallback)
         if snap list dotnet-sdk-100 2>/dev/null | grep -q dotnet-sdk-100; then
@@ -912,12 +923,20 @@ create_systemd_service() {
         log_error "Please ensure .NET SDK is installed:"
         log_error "  Ubuntu: sudo add-apt-repository ppa:dotnet/backports && sudo apt-get install -y dotnet-sdk-10.0"
         log_error "  Snap: sudo snap install dotnet-sdk-100 --classic"
+        log_error "Current PATH: $PATH"
+        log_error "Checking for dotnet:"
+        which dotnet || log_error "  which dotnet: not found"
+        ls -la /usr/share/dotnet/dotnet 2>/dev/null || log_error "  /usr/share/dotnet/dotnet: not found"
+        ls -la /usr/local/bin/dotnet 2>/dev/null || log_error "  /usr/local/bin/dotnet: not found"
+        snap list | grep dotnet || log_error "  snap dotnet packages: not found"
         exit 1
     fi
     
     log_info "Using dotnet at: $DOTNET_PATH"
     log_info "DOTNET_ROOT: $DOTNET_ROOT_PATH"
     
+    # Create service file
+    log_info "Creating systemd service file at $SERVICE_FILE..."
     cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Game Server ASP.NET Core Application
@@ -953,10 +972,25 @@ PrivateTmp=true
 WantedBy=multi-user.target
 EOF
     
+    # Verify service file was created
+    if [ ! -f "$SERVICE_FILE" ]; then
+        log_error "Failed to create systemd service file at $SERVICE_FILE"
+        exit 1
+    fi
+    
     # Reload systemd
+    log_info "Reloading systemd daemon..."
     systemctl daemon-reload
     
-    log_info "Systemd service created at $SERVICE_FILE"
+    # Verify service is recognized
+    if ! systemctl list-unit-files | grep -q "$APP_NAME.service"; then
+        log_error "Service file created but not recognized by systemd"
+        log_error "Service file content:"
+        cat "$SERVICE_FILE"
+        exit 1
+    fi
+    
+    log_info "Systemd service created successfully at $SERVICE_FILE"
 }
 
 ###############################################################################
@@ -1138,6 +1172,13 @@ full_install() {
     configure_appsettings
     build_application
     create_systemd_service
+    
+    # Verify service file exists before starting
+    if [ ! -f "$SERVICE_FILE" ]; then
+        log_error "Systemd service file was not created. Cannot start service."
+        exit 1
+    fi
+    
     configure_nginx
     configure_firewall
     start_service
@@ -1216,8 +1257,9 @@ case "${1:-}" in
         echo "  stop         - Stop the service"
         echo "  restart      - Restart the service"
         echo "  status       - Show service status"
-        echo "  check-dotnet - Check .NET SDK version and compatibility"
-        echo "  stop-updates - Stop unattended-upgrades (if blocking installation)"
+        echo "  check-dotnet  - Check .NET SDK version and compatibility"
+        echo "  stop-updates  - Stop unattended-upgrades (if blocking installation)"
+        echo "  create-service - Create systemd service file manually"
         echo ""
         echo "Environment Variables:"
         echo "  GITHUB_REPO_URL  - GitHub repository URL (required)"

@@ -25,21 +25,21 @@
                 <div class="card-body text-center">
                     <div class="mb-4">
                         @{
-                            var avatarUrl = !string.IsNullOrEmpty(Model.Profile.AvatarPath) 
-                                ? Model.Profile.AvatarPath 
-                                : "/avatars/default.svg";
+                            var avatarUrl = !string.IsNullOrEmpty(Model.Profile.AvatarPath)
+                            ? Model.Profile.AvatarPath
+                            : "/avatars/default.svg";
                         }
-                        <img src="@avatarUrl" alt="Avatar" class="rounded-circle" 
-                             style="width: 200px; height: 200px; object-fit: cover; border: 4px solid var(--gaming-primary); box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); transition: all 0.3s ease;" 
-                             onerror="this.src='/avatars/default.svg'"
-                             onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 0 30px rgba(0, 212, 255, 0.8)';"
-                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 0 20px rgba(0, 212, 255, 0.5)';">
+                        <img src="@avatarUrl" alt="Avatar" class="rounded-circle"
+                            style="width: 200px; height: 200px; object-fit: cover; border: 4px solid var(--gaming-primary); box-shadow: 0 0 20px rgba(0, 212, 255, 0.5); transition: all 0.3s ease;"
+                            onerror="this.src='/avatars/default.svg'"
+                            onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 0 30px rgba(0, 212, 255, 0.8)';"
+                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 0 20px rgba(0, 212, 255, 0.5)';">
                     </div>
                     <form method="post" asp-page-handler="UploadAvatar" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <div class="mb-3">
-                            <input type="file" class="form-control" name="avatarFile" 
-                                   accept="image/jpeg,image/png,image/gif,image/webp" required>
+                            <input type="file" class="form-control" name="avatarFile"
+                                accept="image/jpeg,image/png,image/gif,image/webp" required>
                             <small class="text-muted">
                                 <i class="fas fa-info-circle me-1"></i>Max size: 5MB (JPG, PNG, GIF, WEBP)
                             </small>
@@ -62,7 +62,8 @@
                         <tr>
                             <td style="width: 200px;">
                                 <strong>
-                                    <i class="fas fa-user-circle me-2" style="color: var(--gaming-primary);"></i>Player Name:
+                                    <i class="fas fa-user-circle me-2" style="color: var(--gaming-primary);"></i>Player
+                                    Name:
                                 </strong>
                             </td>
                             <td><span class="player-name">@Model.Profile.Name</span></td>
@@ -74,9 +75,10 @@
                                 </strong>
                             </td>
                             <td>
-                                <code style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
-                                    @Model.Profile.PlayerId
-                                </code>
+                                <code
+                                    style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                                        @Model.Profile.PlayerId
+                                    </code>
                             </td>
                         </tr>
                         <tr>
@@ -105,15 +107,12 @@
                                 </div>
                                 <div class="progress">
                                     @{
-                                        var expPercent = Model.Profile.ExpToLevel > 0 
-                                            ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100) 
-                                            : 0;
+                                        var expPercent = Model.Profile.ExpToLevel > 0
+                                        ? (int)((double)Model.Profile.Exp / Model.Profile.ExpToLevel * 100)
+                                        : 0;
                                     }
-                                    <div class="progress-bar" role="progressbar" 
-                                         style="width: @expPercent%" 
-                                         aria-valuenow="@expPercent" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100">
+                                    <div class="progress-bar" role="progressbar" style="width: @expPercent%"
+                                        aria-valuenow="@expPercent" aria-valuemin="0" aria-valuemax="100">
                                         <strong>@expPercent%</strong>
                                     </div>
                                 </div>
@@ -163,7 +162,8 @@
                         <tr>
                             <td>
                                 <strong>
-                                    <i class="fas fa-user-tag me-2" style="color: var(--gaming-text-muted);"></i>Account Type:
+                                    <i class="fas fa-user-tag me-2" style="color: var(--gaming-text-muted);"></i>Account
+                                    Type:
                                 </strong>
                             </td>
                             <td>
@@ -184,7 +184,8 @@
                         <tr>
                             <td>
                                 <strong>
-                                    <i class="fas fa-calendar me-2" style="color: var(--gaming-text-muted);"></i>Account Created:
+                                    <i class="fas fa-calendar me-2" style="color: var(--gaming-text-muted);"></i>Account
+                                    Created:
                                 </strong>
                             </td>
                             <td>@Model.Profile.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</td>
@@ -224,9 +225,10 @@
                                 <label for="newEmail" class="form-label">
                                     <i class="fas fa-envelope me-1"></i>Email Address
                                 </label>
-                                <input type="email" class="form-control" id="newEmail" name="newEmail" 
-                                       required placeholder="your.email@example.com">
-                                <small class="text-muted">Add an email address to your account. You can verify it via Google OAuth after adding.</small>
+                                <input type="email" class="form-control" id="newEmail" name="newEmail" required
+                                    placeholder="your.email@example.com">
+                                <small class="text-muted">Add an email address to your account. You can verify it via Google
+                                    OAuth after adding.</small>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-1"></i>Save Email
@@ -238,8 +240,8 @@
                         <div class="mb-3">
                             <label class="form-label"><strong>Current Email:</strong></label>
                             <div class="input-group">
-                                <input type="text" class="form-control" value="@Model.Profile.Email" 
-                                       @(Model.Profile.EmailVerified ? "readonly" : "")>
+                                <input type="text" class="form-control" value="@Model.Profile.Email"
+                                    @(Model.Profile.EmailVerified ? "readonly" : "")>
                                 @if (Model.Profile.EmailVerified)
                                 {
                                     <span class="input-group-text bg-success text-white">
@@ -274,8 +276,8 @@
                             <form method="post" asp-page-handler="UpdateEmail">
                                 @Html.AntiForgeryToken()
                                 <div class="input-group mb-3">
-                                    <input type="email" class="form-control" name="newEmail" 
-                                           placeholder="New email address" value="@Model.Profile.Email" required>
+                                    <input type="email" class="form-control" name="newEmail" placeholder="New email address"
+                                        value="@Model.Profile.Email" required>
                                     <button type="submit" class="btn btn-outline-primary">
                                         <i class="fas fa-edit me-1"></i>Update Email
                                     </button>
@@ -328,7 +330,8 @@
                         <tr>
                             <td>
                                 <strong>
-                                    <i class="fas fa-hand-rock me-2" style="color: var(--gaming-accent);"></i>Knockback Force:
+                                    <i class="fas fa-hand-rock me-2" style="color: var(--gaming-accent);"></i>Knockback
+                                    Force:
                                 </strong>
                             </td>
                             <td>
@@ -358,7 +361,8 @@
                         <tr>
                             <td>
                                 <strong>
-                                    <i class="fas fa-heartbeat me-2" style="color: var(--gaming-secondary);"></i>Current Health:
+                                    <i class="fas fa-heartbeat me-2" style="color: var(--gaming-secondary);"></i>Current
+                                    Health:
                                 </strong>
                             </td>
                             <td>
@@ -373,34 +377,6 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-box me-2"></i>Inventory
-                </div>
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <i class="fas fa-box-open fa-4x mb-3" style="color: var(--gaming-primary); opacity: 1;"></i>
-                    </div>
-                    <h3 class="mb-2" style="color: var(--gaming-primary);">@Model.Profile.InventoryItemCount</h3>
-                    <p class="text-muted mb-0">Items</p>
-                </div>
-            </div>
 
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-magic me-2"></i>Skills
-                </div>
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <i class="fas fa-star fa-4x mb-3" style="color: var(--gaming-accent); opacity: 1;"></i>
-                    </div>
-                    <h3 class="mb-2" style="color: var(--gaming-accent);">@Model.Profile.SkillCount</h3>
-                    <p class="text-muted mb-0">Skills Unlocked</p>
-                </div>
-            </div>
-        </div>
     </div>
 }
-
-

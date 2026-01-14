@@ -293,59 +293,8 @@
     </div>
 </div>
 
-<!-- Skills Section -->
-<div class="row">
-    <div class="col-12 grid-margin stretch-card">
-        <div class="card">
-            <div class="card-body">
-                <h4 class="card-title mb-4">
-                    <i class="mdi mdi-star-circle"></i>
-                    Unlocked Skills
-                    <span class="badge badge-info badge-pill ms-2">@Model.PlayerProfile.Skills.Count</span>
-                </h4>
-                @if (Model.PlayerProfile.Skills.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>
-                                        <i class="mdi mdi-identifier"></i>
-                                        Skill ID
-                                    </th>
-                                    <th>
-                                        <i class="mdi mdi-star"></i>
-                                        Level
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var skill in Model.PlayerProfile.Skills)
-                                {
-                                    <tr>
-                                        <td>
-                                            <code class="text-primary">@skill.SkillId</code>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-success badge-pill">Level @skill.Level</span>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="alert alert-warning">
-                        <i class="mdi mdi-alert"></i>
-                        No skills unlocked yet.
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
+
+
 
 <!-- Action Buttons -->
 <div class="row mt-3">

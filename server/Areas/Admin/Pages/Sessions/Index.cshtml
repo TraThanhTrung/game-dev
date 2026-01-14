@@ -40,11 +40,12 @@
                                 @foreach (var session in Model.ActiveSessions)
                                 {
                                     var duration = (DateTime.UtcNow - session.StartTime).ToString(@"hh\:mm\:ss");
+                                    var actualPlayerCount = session.Players?.Count ?? 0;
 
                                     <tr>
                                         <td>@session.SessionId.ToString("N")[..8]...</td>
                                         <td>@session.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                        <td>@session.PlayerCount</td>
+                                        <td>@actualPlayerCount</td>
                                         <td>@duration</td>
                                         <td>
                                             <span class="badge badge-warning">@session.Status</span>

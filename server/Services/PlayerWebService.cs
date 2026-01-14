@@ -118,6 +118,7 @@ public class PlayerWebService
 
         return await _db.SessionPlayers
             .Include(sp => sp.Session)
+                .ThenInclude(s => s.Players)
             .Where(sp => sp.PlayerId == playerId)
             .OrderByDescending(sp => sp.JoinTime)
             .Skip(skip)

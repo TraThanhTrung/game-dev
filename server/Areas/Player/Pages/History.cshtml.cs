@@ -52,7 +52,7 @@ public class HistoryModel : BasePlayerPageModel
             SessionId = sp.SessionId,
             StartTime = sp.Session?.StartTime ?? sp.JoinTime,
             EndTime = sp.Session?.EndTime,
-            PlayerCount = sp.Session?.PlayerCount ?? 0,
+            PlayerCount = sp.Session?.Players?.Count ?? 0,
             Status = sp.Session?.Status ?? "Unknown",
             PlayDuration = sp.PlayDuration,
             JoinTime = sp.JoinTime,

@@ -63,12 +63,13 @@
                                 var duration = match.EndTime.HasValue
                                 ? (match.EndTime.Value - match.StartTime).ToString(@"hh\:mm\:ss")
                                 : "Ongoing";
+                                var actualPlayerCount = match.Players?.Count ?? 0;
 
                                 <tr>
                                     <td>@match.SessionId.ToString("N")[..8]...</td>
                                     <td>@match.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                    <td>@(match.EndTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A")</td>
-                                    <td>@match.PlayerCount</td>
+                                    <td>@(match.EndTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-")</td>
+                                    <td>@actualPlayerCount</td>
                                     <td>
                                         @if (match.Status == "Active")
                                         {

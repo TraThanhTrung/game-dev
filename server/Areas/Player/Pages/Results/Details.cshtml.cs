@@ -79,21 +79,21 @@ public class DetailsModel : BasePlayerPageModel
                 return Page();
             }
 
+            // Load players with their profiles
+            var sessionPlayers = await _db.SessionPlayers
+                .Where(sp => sp.SessionId == sessionId)
+                .Include(sp => sp.Session)
+                .ToListAsync();
+
             // Build MatchResultDto
             var result = new MatchResultDto
             {
                 SessionId = gameSession.SessionId,
                 StartTime = gameSession.StartTime,
                 EndTime = gameSession.EndTime,
-                PlayerCount = gameSession.PlayerCount,
+                PlayerCount = sessionPlayers.Count,
                 Status = gameSession.Status
             };
-
-            // Load players with their profiles
-            var sessionPlayers = await _db.SessionPlayers
-                .Where(sp => sp.SessionId == sessionId)
-                .Include(sp => sp.Session)
-                .ToListAsync();
 
             var playerIds = sessionPlayers.Select(sp => sp.PlayerId).ToList();
             var playerProfiles = await _db.PlayerProfiles
