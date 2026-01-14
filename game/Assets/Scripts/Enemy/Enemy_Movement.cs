@@ -82,8 +82,9 @@ public class Enemy_Movement : MonoBehaviour
 
     private void Update()
     {
-        // Check if multiplayer is active
-        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsConnected;
+        // Check if multiplayer is active (2+ players)
+        // If only 1 player, use local AI even if connected to server
+        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsMultiplayerMode();
 
         if (isMultiplayer)
         {

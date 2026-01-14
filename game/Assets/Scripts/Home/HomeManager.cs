@@ -34,6 +34,15 @@ public class HomeManager : MonoBehaviour
             var go = new GameObject("NetClient");
             go.AddComponent<NetClient>();
         }
+
+        // Ensure InputBlocker exists and is unblocked when entering Home scene
+        // (InputBlocker may have been cleaned up when entering Result scene)
+        InputBlocker.EnsureExists();
+        if (InputBlocker.Instance != null)
+        {
+            InputBlocker.Instance.UnblockInput();
+            Debug.Log("[HomeManager] InputBlocker ensured and unblocked");
+        }
     }
 
     private void Start()

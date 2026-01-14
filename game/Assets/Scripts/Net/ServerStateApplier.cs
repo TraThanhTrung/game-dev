@@ -318,7 +318,8 @@ public class ServerStateApplier : MonoBehaviour
             remotePlayerManager.UpdateFromSnapshot(playerSnapshots, state.serverTime, state.sequence);
         }
 
-        // Sync enemies via EnemySpawner
+        // Sync enemies via EnemySpawner (always - server is authoritative for spawn/despawn/HP)
+        // Movement control is handled separately in Enemy_Movement based on player count
         if (enemySpawner != null)
         {
             // Convert SignalR state to legacy StateResponse for EnemySpawner
@@ -749,7 +750,8 @@ public class ServerStateApplier : MonoBehaviour
             remotePlayerManager.UpdateFromSnapshot(playerSnapshots, serverTime, state.version);
         }
 
-        // Sync enemies via EnemySpawner
+        // Sync enemies via EnemySpawner (always - server is authoritative for spawn/despawn/HP)
+        // Movement control is handled separately in Enemy_Movement based on player count
         if (enemySpawner != null)
         {
             enemySpawner.OnStateReceived(state);

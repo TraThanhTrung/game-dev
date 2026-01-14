@@ -23,7 +23,7 @@ public class GameDbContextFactory : IDesignTimeDbContextFactory<GameDbContext>
         var connectionString = config.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
 
         var optionsBuilder = new DbContextOptionsBuilder<GameDbContext>();
-        optionsBuilder.UseSqlite(connectionString);
+        optionsBuilder.UseSqlServer(connectionString);
 
         return new GameDbContext(optionsBuilder.Options);
     }

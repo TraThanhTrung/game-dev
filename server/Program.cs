@@ -84,7 +84,7 @@ builder.Services.AddAuthentication()
 
 // Database Context - Combined Game and Identity
 var connectionString = builder.Configuration.GetConnectionString("GameDb") ?? "Data Source=gameserver.db";
-builder.Services.AddDbContext<GameDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddDbContext<GameDbContext>(options => options.UseSqlServer(connectionString));
 
 // ASP.NET Core Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -182,24 +182,6 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // Migrate enemies from config.json to database
-    try
-    {
-        var configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "shared", "game-config.json");
-        if (!File.Exists(configPath))
-        {
-            configPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "shared", "game-config.json");
-        }
-
-        if (File.Exists(configPath))
-        {
-            await GameServer.Scripts.MigrateEnemiesFromConfig.RunAsync(db, app.Logger, configPath);
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogWarning(ex, "Failed to migrate enemies from config.json");
-    }
 }
 
 // Log startup info

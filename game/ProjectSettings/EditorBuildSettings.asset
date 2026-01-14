@@ -15,6 +15,9 @@ EditorBuildSettings:
     path: Assets/Scenes/RPG.unity
     guid: 5b70725ad994d47f7b2806ce21b9a396
   - enabled: 1
+    path: Assets/Scenes/Result.unity
+    guid: a15af177124c7434495378fc9946c299
+  - enabled: 1
     path: Assets/Scenes/RPG2.unity
     guid: a844cd01b0c1f4b0bb96c7e749a0f90b
   m_configObjects: {}

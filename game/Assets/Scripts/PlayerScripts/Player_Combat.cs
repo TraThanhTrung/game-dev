@@ -81,8 +81,29 @@ public class Player_Combat : MonoBehaviour
                                 if (enemyHealth != null && enemyHealth.currentHealth > 0)
                                 {
                                     Debug.Log($"[Player_Combat] Immediately killing enemy {capturedEnemyId} (server confirmed dead)");
-                                    // ChangeHealth expects a delta, so pass negative current health to kill
-                                    enemyHealth.ChangeHealth(-enemyHealth.currentHealth);
+                                    
+                                    // Set HP to 0 and destroy immediately (bypass ChangeHealth to avoid double destroy)
+                                    enemyHealth.currentHealth = 0;
+                                    
+                                    // Trigger defeat event before destroying
+                                    enemyHealth.TriggerDefeatEvent();
+                                    
+                                    // Destroy immediately
+                                    Destroy(capturedEnemyObject);
+                                }
+                            }
+                            else if (res != null && capturedEnemyObject != null)
+                            {
+                                // Update HP immediately for responsive feedback (server will sync later)
+                                var enemyHealth = capturedEnemyObject.GetComponent<Enemy_Health>();
+                                if (enemyHealth != null)
+                                {
+                                    // Only update if different to avoid unnecessary changes
+                                    if (enemyHealth.currentHealth != res.currentHp)
+                                    {
+                                        enemyHealth.currentHealth = res.currentHp;
+                                        enemyHealth.maxHealth = res.maxHp;
+                                    }
                                 }
                             }
                         }

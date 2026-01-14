@@ -3,13 +3,13 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Handles game completion flow: shows completion status on loading screen and returns to Home scene.
+/// Handles game completion flow: shows completion status on loading screen and returns to Result scene.
 /// </summary>
 public class GameCompletionHandler : MonoBehaviour
 {
     #region Constants
     private const string c_LogPrefix = "[GameCompletion]";
-    private const string c_HomeSceneName = "Home";
+    private const string c_ResultSceneName = "Result";
     private const float c_CompletionDisplayTime = 3f; // Show completion message for 3 seconds
     #endregion
 
@@ -109,16 +109,23 @@ public class GameCompletionHandler : MonoBehaviour
         // Update status to indicate returning
         if (LoadingScreenManager.Instance != null)
         {
-            LoadingScreenManager.Instance.SetStatus("Returning to profile...");
+            LoadingScreenManager.Instance.SetStatus("Loading results...");
             LoadingScreenManager.Instance.SetProgress(1.0f);
         }
 
         // Wait a bit before loading scene
         yield return new WaitForSeconds(1f);
 
-        // Load Home scene
-        Debug.Log($"{c_LogPrefix} Loading Home scene...");
-        SceneManager.LoadScene(c_HomeSceneName);
+        // Ensure SceneTransitionManager exists
+        if (SceneTransitionManager.Instance == null)
+        {
+            GameObject transitionManagerObj = new GameObject("SceneTransitionManager");
+            transitionManagerObj.AddComponent<SceneTransitionManager>();
+        }
+
+        // Load Result scene with proper cleanup
+        Debug.Log($"{c_LogPrefix} Loading Result scene...");
+        SceneTransitionManager.Instance.LoadSceneSingle(c_ResultSceneName);
 
         // Reset flag after scene load
         yield return new WaitForSeconds(0.5f);
@@ -156,9 +163,26 @@ public class GameCompletionHandler : MonoBehaviour
         // Wait for failure message display
         yield return new WaitForSeconds(c_CompletionDisplayTime);
 
-        // Load Home scene
-        Debug.Log($"{c_LogPrefix} Loading Home scene...");
-        SceneManager.LoadScene(c_HomeSceneName);
+        // Update status to indicate loading results
+        if (LoadingScreenManager.Instance != null)
+        {
+            LoadingScreenManager.Instance.SetStatus("Loading results...");
+            LoadingScreenManager.Instance.SetProgress(1.0f);
+        }
+
+        // Wait a bit before loading scene
+        yield return new WaitForSeconds(1f);
+
+        // Ensure SceneTransitionManager exists
+        if (SceneTransitionManager.Instance == null)
+        {
+            GameObject transitionManagerObj = new GameObject("SceneTransitionManager");
+            transitionManagerObj.AddComponent<SceneTransitionManager>();
+        }
+
+        // Load Result scene with proper cleanup
+        Debug.Log($"{c_LogPrefix} Loading Result scene...");
+        SceneTransitionManager.Instance.LoadSceneSingle(c_ResultSceneName);
 
         // Reset flag after scene load
         yield return new WaitForSeconds(0.5f);

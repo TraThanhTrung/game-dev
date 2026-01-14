@@ -80,6 +80,17 @@ public class Enemy_Combat : MonoBehaviour
         if (hits.Length > 0)
         {
             var playerGO = hits[0].gameObject;
+            var playerTransform = playerGO.transform;
+            
+            // Client-side validation: Check actual distance to prevent damage from far away
+            float actualDistance = Vector2.Distance(m_AttackPoint.position, playerTransform.position);
+            if (actualDistance > m_WeaponRange)
+            {
+                // Player is outside weapon range, don't deal damage
+                return;
+            }
+
+            // Apply damage (will be validated by server)
             hits[0].GetComponent<PlayerHealth>().ChangeHealth(-m_Damage);
 
             // Only apply knockback if player is still active (not dead)

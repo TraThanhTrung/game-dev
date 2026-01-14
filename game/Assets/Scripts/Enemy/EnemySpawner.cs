@@ -65,6 +65,11 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
+        // Note: Always sync enemies from server (spawn/despawn/HP updates)
+        // Movement control is handled separately in Enemy_Movement based on player count
+        // Single-player: Server spawns enemies, client uses local AI for movement
+        // Multiplayer: Server spawns and controls enemies
+
         // Log enemy count from server (only occasionally to avoid spam)
         if (m_EnableLogging && Time.frameCount % 300 == 0)
         {
@@ -248,7 +253,7 @@ public class EnemySpawner : MonoBehaviour
         m_TargetPositions[enemyId] = position;
 
         // Add StateInterpolator component for smooth position sync in multiplayer
-        if (NetClient.Instance != null && NetClient.Instance.IsConnected)
+        if (NetClient.Instance != null && NetClient.Instance.IsMultiplayerMode())
         {
             var interpolator = enemyObject.GetComponent<StateInterpolator>();
             if (interpolator == null)
@@ -277,8 +282,8 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        // Check if multiplayer mode is active
-        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsConnected;
+        // Check if multiplayer mode is active (2+ players)
+        bool isMultiplayer = NetClient.Instance != null && NetClient.Instance.IsMultiplayerMode();
 
         // Update position from server in multiplayer mode (server-authoritative)
         if (isMultiplayer)

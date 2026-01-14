@@ -40,13 +40,33 @@ public class PlayerHealth : MonoBehaviour
             // Report damage to server for authoritative HP management
             if (NetClient.Instance != null && NetClient.Instance.IsConnected)
             {
+                // Store predicted HP for reconciliation
+                int predictedHp = StatsManager.Instance.currentHealth + finalAmount;
+                
                 StartCoroutine(NetClient.Instance.ReportDamage(reducedDamage,
                     res =>
                     {
                         if (res != null && res.accepted)
                         {
-                            // Server HP is authoritative - will be synced via state polling
-                            // Don't update local HP here to avoid conflicts
+                            // Reconcile with server HP if different (server is authoritative)
+                            if (StatsManager.Instance.currentHealth != res.currentHp)
+                            {
+                                // Small difference: just update (network delay)
+                                if (Mathf.Abs(StatsManager.Instance.currentHealth - res.currentHp) <= 5)
+                                {
+                                    StatsManager.Instance.currentHealth = res.currentHp;
+                                    StatsManager.Instance.maxHealth = res.maxHp;
+                                    UpdateHealthUI();
+                                }
+                                // Large difference: server corrected us (likely validation failed)
+                                else
+                                {
+                                    StatsManager.Instance.currentHealth = res.currentHp;
+                                    StatsManager.Instance.maxHealth = res.maxHp;
+                                    UpdateHealthUI();
+                                    Debug.LogWarning($"[PlayerHealth] HP reconciled: predicted={predictedHp}, server={res.currentHp}");
+                                }
+                            }
                         }
                     },
                     err => Debug.LogWarning($"Damage report failed: {err}")));

@@ -149,6 +149,13 @@ public class GameSceneInitializer : MonoBehaviour
                 Debug.LogError($"{c_LogPrefix} Loading failed: {loadingError}");
                 yield break;
             }
+
+            // Ensure input is unblocked after loading (fallback in case LoadingScreenManager.Hide() wasn't called)
+            if (InputBlocker.Instance != null && InputBlocker.Instance.IsInputBlocked)
+            {
+                Debug.LogWarning($"{c_LogPrefix} Input still blocked after loading, unblocking now...");
+                InputBlocker.Instance.UnblockInput();
+            }
         }
         else
         {
@@ -157,6 +164,13 @@ public class GameSceneInitializer : MonoBehaviour
         }
 
         m_IsInitialized = true;
+
+        // Final check: ensure input is unblocked
+        if (InputBlocker.Instance != null && InputBlocker.Instance.IsInputBlocked)
+        {
+            Debug.LogWarning($"{c_LogPrefix} Input still blocked after initialization, unblocking now...");
+            InputBlocker.Instance.UnblockInput();
+        }
 
         if (m_EnableLogging)
         {

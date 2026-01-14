@@ -267,13 +267,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_LerpSpeed: 10
-  m_PollInterval: 0.2
+  m_PollInterval: 0.1
   m_EnableLogging: 0
   m_AutoPoll: 1
   m_AutoSave: 1
   m_AutoSaveInterval: 30
   m_DevModeAutoConnect: 0
-  m_DevServerUrl: http://localhost:5220
+  m_ServerConfig: {fileID: 11400000, guid: 20b36de8f33406c4f9f08afae5a531c2, type: 2}
   m_DevPlayerName: DevPlayer
 --- !u!114 &-3745866444650256489
 MonoBehaviour:

@@ -525,7 +525,7 @@ MonoBehaviour:
     description: "C\xE2\u0323n chi\xEA\u0301n \u0111a\u0301nh ma\u0323nh"
     animatorController: {fileID: 9100000, guid: e4cbf85c38401674891e320c7e56ba97, type: 2}
     customScale: 0
-  - name: Spear
+  - name: Lancer
     description: "C\xE2\u0323n chi\xEA\u0301n \u0111a\u0301nh nhanh, dame th\xE2\u0301p"
     animatorController: {fileID: 9100000, guid: f8c0eaf6f2d10d34e8c40fcc5d47f894, type: 2}
     customScale: 0

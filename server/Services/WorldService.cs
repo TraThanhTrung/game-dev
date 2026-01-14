@@ -419,15 +419,13 @@ public class WorldService
                 if (cachedState != null)
                 {
                     // Cache hit - return cached state (avoids rebuilding state for multiple clients)
-                    _logger.LogDebug("Redis cache HIT for session {SessionId} version {Version} ({PlayerCount} players)",
-                        sessionId, session.Version, session.Players.Count);
+                    // Log removed for performance (called in sync loop)
                     return cachedState;
                 }
                 else
                 {
                     // Cache miss - will build new state below
-                    _logger.LogDebug("Redis cache MISS for session {SessionId} version {Version} ({PlayerCount} players)",
-                        sessionId, session.Version, session.Players.Count);
+                    // Log removed for performance (called in sync loop)
                 }
             }
             catch (Exception ex)
@@ -439,7 +437,7 @@ public class WorldService
         else if (session.Players.Count < 2)
         {
             // Single player mode - cache disabled (not needed for optimization)
-            _logger.LogTrace("Single player session {SessionId} - Redis cache disabled (only used for 2+ players)", sessionId);
+            // Log removed for performance (called in sync loop)
         }
 
         // Cache miss or single player - build state
@@ -516,8 +514,7 @@ public class WorldService
                     {
                         var state = BuildStateResponse(session);
                         await _redis.CacheSessionStateAsync(session.SessionId, session.Version, state);
-                        _logger.LogTrace("Cached session state for {SessionId} version {Version} ({PlayerCount} players)",
-                            session.SessionId, session.Version, session.Players.Count);
+                        // Log removed for performance (called in tick loop)
                     }
                     catch (Exception ex)
                     {
@@ -920,13 +917,12 @@ public class WorldService
         {
             killedEnemy.Hp = 0;
             killedEnemy.Status = EnemyStatus.Dead;
-            _logger.LogInformation("ReportKill: Enemy {EnemyId} ({TypeId}) marked as dead by player {PlayerId} (rewards already awarded)",
-                killedEnemy.Id, enemyTypeId, playerId);
+            // Log removed for performance (called in tick loop)
         }
         else
         {
             // Enemy already dead or not found - this is normal since rewards are awarded automatically
-            _logger.LogDebug("ReportKill: Enemy type {TypeId} already dead or not found (rewards already awarded automatically)", enemyTypeId);
+            // Log removed for performance (called in tick loop)
         }
 
         session.Version++;
@@ -966,7 +962,7 @@ public class WorldService
 
         if (enemy.Hp <= 0)
         {
-            _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} is already dead", enemyId);
+            // Log removed for performance (called in tick loop)
             return (enemy.Hp, enemy.MaxHp);
         }
 
@@ -974,8 +970,7 @@ public class WorldService
         enemy.Hp = Math.Max(0, enemy.Hp - damageAmount);
         session.Version++;
 
-        _logger.LogInformation("Applied {Damage} damage from player {PlayerId} to enemy {EnemyId} ({TypeId}). HP: {OldHp} -> {NewHp}/{MaxHp}, oldHp > 0: {OldHpPositive}",
-            damageAmount, playerId, enemyId, enemy.TypeId, oldHp, enemy.Hp, enemy.MaxHp, oldHp > 0);
+        // Log removed for performance (called in tick loop)
 
         // Mark enemy as dead if HP reaches 0 and award kill rewards
         if (enemy.Hp <= 0)
@@ -984,8 +979,7 @@ public class WorldService
             // Reset respawn timer to start counting from 0
             enemy.RespawnTimer = 0f;
 
-            _logger.LogInformation("Enemy {EnemyId} ({TypeId}) defeated by player {PlayerId} (respawn in {Delay}s)",
-                enemyId, enemy.TypeId, playerId, enemy.RespawnDelay);
+            // Log removed for performance (called in tick loop)
 
             // Automatically award kill rewards when enemy dies (server-authoritative)
             // Only award if enemy was alive before this damage
@@ -999,9 +993,7 @@ public class WorldService
 
                     if (enemyCfg != null)
                     {
-                        // Log enemy config values for debugging (use LogInformation to ensure it shows)
-                        _logger.LogInformation("Enemy config for {TypeId}: ExpReward={ExpReward}, GoldReward={GoldReward}, MaxHealth={MaxHealth}",
-                            enemy.TypeId, enemyCfg.ExpReward, enemyCfg.GoldReward, enemyCfg.MaxHealth);
+                        // Log removed for performance (called in tick loop)
 
                         // Check if rewards are valid
                         if (enemyCfg.ExpReward <= 0 && enemyCfg.GoldReward <= 0)
@@ -1018,11 +1010,7 @@ public class WorldService
 
                             AwardKillRewards(player, enemyCfg);
 
-                            _logger.LogInformation("Awarded kill rewards to player {PlayerId} for killing {EnemyTypeId}: Exp={OldExp}+{ExpReward}={NewExp}, Gold={OldGold}+{GoldReward}={NewGold}, Level={OldLevel}->{NewLevel}",
-                                playerId, enemy.TypeId,
-                                oldExp, enemyCfg.ExpReward, player.Exp,
-                                oldGold, enemyCfg.GoldReward, player.Gold,
-                                oldLevel, player.Level);
+                            // Log removed for performance (called in tick loop)
                         }
                         else
                         {
@@ -1032,7 +1020,7 @@ public class WorldService
                     else
                     {
                         // Config not yet cached - will be loaded asynchronously for next kill
-                        _logger.LogDebug("ApplyDamageToEnemy: Enemy config for {TypeId} not yet cached, loading asynchronously. Rewards will be awarded on next kill.", enemy.TypeId);
+                        // Log removed for performance (called in tick loop)
                     }
                 }
                 catch (Exception ex)
@@ -1043,7 +1031,7 @@ public class WorldService
             }
             else
             {
-                _logger.LogDebug("ApplyDamageToEnemy: Enemy {EnemyId} was already dead (oldHp={OldHp}), skipping reward award", enemyId, oldHp);
+                // Log removed for performance (called in tick loop)
             }
         }
 
@@ -1077,8 +1065,7 @@ public class WorldService
         player.Hp = Math.Max(0, player.Hp - damageAmount);
         session.Version++;
 
-        _logger.LogDebug("Applied {Damage} damage to {Player}. HP: {Hp}/{MaxHp}",
-            damageAmount, player.Name, player.Hp, player.MaxHp);
+        // Log removed for performance (called in tick loop)
 
         return (player.Hp, player.MaxHp);
     }
@@ -1996,12 +1983,11 @@ public class WorldService
 
             // Remove boss outside lock (ConcurrentDictionary operation is thread-safe)
             session.Enemies.TryRemove(bossIdToRemove, out _);
-            _logger.LogInformation("Boss {BossId} ({TypeId}) defeated in session {SessionId}", bossIdToRemove, boss.TypeId, session.SessionId);
+            // Log removed for performance (called in tick loop)
 
             if (sectionIdToComplete.HasValue)
             {
-                _logger.LogInformation("Section {SectionId} marked as completed in session {SessionId}",
-                    sectionIdToComplete.Value, session.SessionId);
+                // Log removed for performance (called in tick loop)
             }
 
             // Check next section immediately (async, non-blocking)
@@ -2017,8 +2003,7 @@ public class WorldService
                         if (nextSection != null)
                         {
                             // Initialize next section
-                            _logger.LogInformation("Advancing to next section {SectionId} ({SectionName}) in session {SessionId}",
-                                nextSection.SectionId, nextSection.Name, session.SessionId);
+                            // Log removed for performance (called in tick loop)
 
                             // Clear old enemies and update CurrentSectionId BEFORE initializing (so clients see section change immediately)
                             lock (_sessionLock)

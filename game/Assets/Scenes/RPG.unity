@@ -234,16 +234,6 @@ Tilemap:
       m_TileObjectToInstantiateIndex: 65535
       dummyAlignment: 0
       m_AllTileFlags: 1073741825
-  - first: {x: 0, y: 0, z: 0}
-    second:
-      serializedVersion: 2
-      m_TileIndex: 9
-      m_TileSpriteIndex: 9
-      m_TileMatrixIndex: 0
-      m_TileColorIndex: 0
-      m_TileObjectToInstantiateIndex: 65535
-      dummyAlignment: 0
-      m_AllTileFlags: 1073741825
   - first: {x: 1, y: 0, z: 0}
     second:
       serializedVersion: 2
@@ -784,7 +774,7 @@ Tilemap:
     m_Data: {fileID: 11400000, guid: de76100ff5dc64d948610a0a7268640c, type: 2}
   - m_RefCount: 3
     m_Data: {fileID: 11400000, guid: 8d22522ee35844febb81f8bcad5ae6bc, type: 2}
-  - m_RefCount: 3
+  - m_RefCount: 2
     m_Data: {fileID: 11400000, guid: 9ce9b6caee46d4a7b88b89fa51ec4e0e, type: 2}
   - m_RefCount: 3
     m_Data: {fileID: 11400000, guid: ef67175ca9d14487bb10d0d43d74809c, type: 2}
@@ -841,7 +831,7 @@ Tilemap:
     m_Data: {fileID: 952530785, guid: 5323d5bab8cb94e1e9754853b406020a, type: 3}
   - m_RefCount: 3
     m_Data: {fileID: 733724942, guid: 5323d5bab8cb94e1e9754853b406020a, type: 3}
-  - m_RefCount: 3
+  - m_RefCount: 2
     m_Data: {fileID: 57223182, guid: 5323d5bab8cb94e1e9754853b406020a, type: 3}
   - m_RefCount: 3
     m_Data: {fileID: -77366164, guid: 5323d5bab8cb94e1e9754853b406020a, type: 3}
@@ -880,7 +870,7 @@ Tilemap:
   - m_RefCount: 3
     m_Data: {fileID: -126344433, guid: f51c876a0b5e94ac68445fcebaf21fa7, type: 3}
   m_TileMatrixArray:
-  - m_RefCount: 55
+  - m_RefCount: 54
     m_Data:
       e00: 1
       e01: 0
@@ -899,7 +889,7 @@ Tilemap:
       e32: 0
       e33: 1
   m_TileColorArray:
-  - m_RefCount: 55
+  - m_RefCount: 54
     m_Data: {r: 1, g: 1, b: 1, a: 1}
   m_TileObjectToInstantiateArray: []
   m_AnimationFrameRate: 1
@@ -1055,6 +1045,57 @@ BoxCollider2D:
   serializedVersion: 2
   m_Size: {x: 2.8949084, y: 0.17538977}
   m_EdgeRadius: 0
+--- !u!1 &42360636
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 42360637}
+  - component: {fileID: 42360638}
+  m_Layer: 0
+  m_Name: c5 (6)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 2147483647
+  m_IsActive: 1
+--- !u!4 &42360637
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 42360636}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -13.37, y: -5.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1266488424}
+  m_RootOrder: 10
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &42360638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 42360636}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14f31c318edcf2741b239cbfdf804ba9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  checkpointName: c5 (6)
+  sectionId: 1
+  enemyPool: '["boss_fish"]'
+  maxEnemies: 1
+  isActive: 1
+  autoNameFromGameObject: 1
+  autoPositionFromTransform: 1
 --- !u!1 &45717206
 GameObject:
   m_ObjectHideFlags: 0
@@ -2554,7 +2595,7 @@ MonoBehaviour:
   m_SpawnPosition: {x: -16, y: 12}
   m_PlayerContainer: {fileID: 352462300}
   m_EnableLogging: 0
-  m_ReplaceExistingPlayer: 1
+  m_ReplaceExistingPlayer: 0
 --- !u!4 &342943369
 Transform:
   m_ObjectHideFlags: 0
@@ -2732,56 +2773,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5208906220298196092, guid: 18d5798a9102a4efa89306449aca039c, type: 3}
   m_PrefabInstance: {fileID: 5208906220616839584}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &352462305
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 352462296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 245fb725da4ad9348b83886e7b7fe05b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SendInterval: 0.1
---- !u!114 &352462306
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 352462296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 72f1e0cd18167d649b5dff4a85c98e9c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_LerpSpeed: 15
-  m_PollInterval: 0.2
-  m_EnableLogging: 0
-  m_AutoPoll: 1
-  m_AutoSave: 1
-  m_AutoSaveInterval: 30
-  m_DevModeAutoConnect: 0
-  m_DevServerUrl: http://localhost:5220
-  m_DevPlayerName: DevPlayer
---- !u!114 &352462307
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 352462296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0c53fceb4072f040a92e000dd551d4b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_CorrectionThreshold: 0.5
-  m_EnableLogging: 0
-  m_SmoothCorrections: 1
-  m_CorrectionSpeed: 15
 --- !u!1 &440555643
 GameObject:
   m_ObjectHideFlags: 0
@@ -27682,7 +27673,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_RemotePlayerLancerPrefab: {fileID: 7237397551424734732, guid: 1d990bbf08e10834a87372b8ffea84e8, type: 3}
   m_RemotePlayerWarriousPrefab: {fileID: 5208906220298196088, guid: cd562a3902d1a2d43adf7966e71384c6, type: 3}
-  m_DefaultRemotePlayerPrefab: {fileID: 5208906220298196088, guid: cd562a3902d1a2d43adf7966e71384c6, type: 3}
+  m_DefaultRemotePlayerPrefab: {fileID: 7237397551424734732, guid: 1d990bbf08e10834a87372b8ffea84e8, type: 3}
   m_RemotePlayerContainer: {fileID: 1001966742}
   m_EnableLogging: 1
 --- !u!4 &1187850473
@@ -29341,6 +29332,7 @@ Transform:
   - {fileID: 473382231}
   - {fileID: 1645916026}
   - {fileID: 1432495605}
+  - {fileID: 42360637}
   m_Father: {fileID: 0}
   m_RootOrder: 17
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -30410,7 +30402,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   checkpointName: c5 (5)
   sectionId: 2
-  enemyPool: '["z"]'
+  enemyPool: '["boss_fish"]'
   maxEnemies: 1
   isActive: 1
   autoNameFromGameObject: 1

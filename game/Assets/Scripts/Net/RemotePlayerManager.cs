@@ -40,6 +40,24 @@ public class RemotePlayerManager : MonoBehaviour
     /// Number of remote players.
     /// </summary>
     public int RemotePlayerCount => m_RemotePlayers.Count;
+
+    /// <summary>
+    /// Get total player count in session (local + remote players).
+    /// Returns 1 if not connected or no data available.
+    /// </summary>
+    public int GetTotalPlayerCount()
+    {
+        // Check if we have local player (connected)
+        bool hasLocalPlayer = NetClient.Instance != null && NetClient.Instance.IsConnected;
+        
+        if (!hasLocalPlayer)
+        {
+            return 0; // Not connected
+        }
+        
+        // Total = local player (1) + remote players
+        return 1 + m_RemotePlayers.Count;
+    }
     #endregion
 
     #region Unity Lifecycle

@@ -88,6 +88,41 @@ public class NetClient : MonoBehaviour
     public GameStateSnapshot LatestGameState => m_LatestGameState;
 
     /// <summary>
+    /// Get total player count in current session (local + remote players).
+    /// Returns 1 if not connected or only local player.
+    /// </summary>
+    public int GetPlayerCount()
+    {
+        if (!IsConnected)
+        {
+            return 0;
+        }
+
+        // Try to get from RemotePlayerManager first
+        if (RemotePlayerManager.Instance != null)
+        {
+            return RemotePlayerManager.Instance.GetTotalPlayerCount();
+        }
+
+        // Fallback: try to get from latest game state
+        if (m_LatestGameState != null && m_LatestGameState.players != null)
+        {
+            return m_LatestGameState.players.Count;
+        }
+
+        // Default: assume only local player
+        return 1;
+    }
+
+    /// <summary>
+    /// Check if session has 2+ players (multiplayer mode).
+    /// </summary>
+    public bool IsMultiplayerMode()
+    {
+        return GetPlayerCount() >= 2;
+    }
+
+    /// <summary>
     /// Base URL của server. Lấy từ ServerConfig nếu có, fallback về default.
     /// </summary>
     public string BaseUrl
@@ -684,7 +719,7 @@ public class NetClient : MonoBehaviour
                 {
                     id = p.id,
                     name = p.name,
-                    characterType = "lancer", // Default, server should provide
+                    characterType = p.characterType ?? "lancer", // Use characterType from server, fallback to default
                     x = p.x,
                     y = p.y,
                     hp = p.hp,
@@ -1319,6 +1354,65 @@ public class NetClient : MonoBehaviour
         catch (Exception ex)
         {
             onError?.Invoke($"Invalid skills response: {ex.Message}");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
+    /// Get match result data for a session.
+    /// </summary>
+    public void GetMatchResult(string sessionId, Action<GameResult.MatchResultData> onSuccess, Action<string> onError)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            onError?.Invoke("Session ID is required");
+            return;
+        }
+
+        StartCoroutine(GetMatchResultCoroutine(sessionId, onSuccess, onError));
+    }
+
+    private IEnumerator GetMatchResultCoroutine(string sessionId, Action<GameResult.MatchResultData> onSuccess, Action<string> onError)
+    {
+        string url = $"{BaseUrl}/api/game/match-result/{sessionId}";
+        using var req = UnityWebRequest.Get(url);
+
+        if (IsConnected)
+        {
+            req.SetRequestHeader("Authorization", $"Bearer {Token}");
+        }
+
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(req.downloadHandler.text))
+        {
+            onError?.Invoke("Empty response");
+            yield break;
+        }
+
+        GameResult.MatchResultData result = null;
+        try
+        {
+            result = JsonUtility.FromJson<GameResult.MatchResultData>(req.downloadHandler.text);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[NetClient] Failed to parse match result JSON: {ex.Message}");
+            onError?.Invoke($"Invalid match result response JSON: {ex.Message}");
+            yield break;
+        }
+
+        if (result == null)
+        {
+            onError?.Invoke("Null match result response");
             yield break;
         }
 
