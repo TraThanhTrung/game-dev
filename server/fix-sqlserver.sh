@@ -138,12 +138,24 @@ setup_sqlserver() {
         return 1
     fi
     
-    # Check if already configured
-    if /opt/mssql/bin/mssql-conf get-sa-password 2>/dev/null | grep -q "Password"; then
-        log_info "SQL Server is already configured"
+    # Check if EULA is accepted and SQL Server is configured
+    # If SQL Server fails with EULA error, it means it's not configured
+    log_info "Configuring SQL Server (accepting EULA and setting SA password)..."
+    
+    # Stop SQL Server if it's trying to start
+    systemctl stop mssql-server 2>/dev/null || true
+    sleep 2
+    
+    # Setup SQL Server with EULA acceptance
+    log_info "Running SQL Server setup..."
+    ACCEPT_EULA=Y MSSQL_SA_PASSWORD="$SQL_SA_PASSWORD" /opt/mssql/bin/mssql-conf setup accept-eula
+    
+    if [ $? -eq 0 ]; then
+        log_info "SQL Server configured successfully"
+        return 0
     else
-        log_info "Configuring SQL Server with SA password..."
-        ACCEPT_EULA=Y MSSQL_SA_PASSWORD="$SQL_SA_PASSWORD" /opt/mssql/bin/mssql-conf setup accept-eula
+        log_error "Failed to configure SQL Server"
+        return 1
     fi
 }
 
@@ -174,9 +186,18 @@ main() {
         fix_sqlserver_memory
     fi
     
-    # Setup if needed
+    # Setup SQL Server (required if EULA not accepted)
     if [ -n "$SQL_SA_PASSWORD" ]; then
-        setup_sqlserver
+        log_info "SQL Server needs to be configured (EULA not accepted)"
+        if ! setup_sqlserver; then
+            log_error "Failed to setup SQL Server"
+            exit 1
+        fi
+    else
+        log_error "SQL_SA_PASSWORD not set. Cannot setup SQL Server."
+        log_error "Please set: export SQL_SA_PASSWORD='YourStrong@Password123'"
+        log_error "Then run: sudo ./fix-sqlserver.sh fix"
+        exit 1
     fi
     
     # Restart

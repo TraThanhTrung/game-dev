@@ -128,14 +128,46 @@ Nếu gặp lỗi `./deploy.sh: Command not found` hoặc `bad interpreter`, có
 
 ## Các lệnh có sẵn
 
+### Quản lý Service
+
+```bash
+sudo ./deploy.sh start        # Khởi động game-server service
+sudo ./deploy.sh stop         # Dừng game-server service
+sudo ./deploy.sh restart      # Khởi động lại game-server service
+sudo ./deploy.sh status       # Xem trạng thái tất cả services (game-server, nginx, sql, redis)
+```
+
+### Xem Logs
+
+```bash
+sudo ./deploy.sh logs         # Xem logs gần nhất (50 dòng)
+sudo ./deploy.sh logs-follow  # Theo dõi logs real-time (Ctrl+C để thoát)
+
+# Hoặc dùng journalctl trực tiếp
+sudo journalctl -u game-server -n 50      # 50 dòng gần nhất
+sudo journalctl -u game-server -f         # Follow real-time
+sudo journalctl -u game-server --since "10 minutes ago"  # Logs 10 phút gần đây
+```
+
+### Cài đặt và Cập nhật
+
 ```bash
 sudo ./deploy.sh install      # Cài đặt đầy đủ (chạy lần đầu)
 sudo ./deploy.sh update       # Update code và rebuild
-sudo ./deploy.sh start        # Khởi động service
-sudo ./deploy.sh stop         # Dừng service
-sudo ./deploy.sh restart      # Khởi động lại service
-sudo ./deploy.sh status       # Xem trạng thái các services
+sudo ./deploy.sh create-service  # Tạo systemd service file thủ công
+```
+
+### Kiểm tra
+
+```bash
 ./deploy.sh check-dotnet      # Kiểm tra .NET SDK version (không cần sudo)
+./deploy.sh status           # Kiểm tra trạng thái (không cần sudo cho status)
+```
+
+### Tiện ích
+
+```bash
+sudo ./deploy.sh stop-updates  # Dừng unattended-upgrades (nếu đang block)
 ```
 
 **Lưu ý:** Script sẽ tự động check .NET version trước khi build. Bạn có thể chạy `check-dotnet` riêng để kiểm tra.

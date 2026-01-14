@@ -1102,11 +1102,29 @@ create_log_directory() {
 
 start_service() {
     log_step "Starting $APP_NAME service..."
+    
+    # Check if service file exists
+    if [ ! -f "$SERVICE_FILE" ]; then
+        log_error "Service file not found at $SERVICE_FILE"
+        log_error "Please create it first: sudo ./deploy.sh create-service"
+        exit 1
+    fi
+    
     systemctl enable "$APP_NAME"
     systemctl start "$APP_NAME"
-    sleep 3
-    systemctl status "$APP_NAME" --no-pager || true
-    log_info "Service started"
+    sleep 5  # Wait longer for startup
+    
+    # Check if service started successfully
+    if systemctl is-active --quiet "$APP_NAME"; then
+        log_info "Service started successfully"
+        systemctl status "$APP_NAME" --no-pager || true
+    else
+        log_error "Service failed to start"
+        log_error "Checking logs..."
+        journalctl -u "$APP_NAME" -n 30 --no-pager || true
+        log_error "Please check logs for details: sudo ./deploy.sh logs"
+        exit 1
+    fi
 }
 
 stop_service() {
@@ -1251,8 +1269,22 @@ case "${1:-}" in
         stop_unattended_upgrades
         log_info "unattended-upgrades stopped. You can now run install/update commands."
         ;;
+    logs)
+        log_step "Game Server Logs (last 50 lines):"
+        journalctl -u "$APP_NAME" -n 50 --no-pager || true
+        ;;
+    logs-follow)
+        log_info "Following game server logs (Ctrl+C to exit)..."
+        journalctl -u "$APP_NAME" -f
+        ;;
+    create-service)
+        check_root
+        create_systemd_service
+        systemctl daemon-reload
+        log_info "Service file created. You can now start it with: sudo ./deploy.sh start"
+        ;;
     *)
-        echo "Usage: $0 {install|update|start|stop|restart|status|check-dotnet|stop-updates}"
+        echo "Usage: $0 {install|update|start|stop|restart|status|check-dotnet|stop-updates|logs|logs-follow|create-service}"
         echo ""
         echo "Commands:"
         echo "  install      - Full installation (run this first)"
