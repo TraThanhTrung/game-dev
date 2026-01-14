@@ -93,7 +93,8 @@ check_dotnet_version() {
     
     if ! check_command dotnet; then
         log_error ".NET SDK is not installed!"
-        log_error "Please install .NET SDK first: snap install dotnet-sdk --classic"
+        log_error "Please install .NET SDK first: sudo snap install dotnet-sdk-100 --classic"
+        log_error "Or for latest: sudo snap install dotnet-sdk --classic"
         return 1
     fi
     
@@ -112,13 +113,14 @@ check_dotnet_version() {
     if [ "$MAJOR_VERSION" -lt 8 ]; then
         log_error ".NET SDK version $DOTNET_VERSION is too old!"
         log_error "Project requires .NET 8.0 or higher"
-        log_error "Please update: snap refresh dotnet-sdk"
+        log_error "Please install: sudo snap install dotnet-sdk-100 --classic"
+        log_error "Or update: sudo snap refresh dotnet-sdk"
         return 1
     elif [ "$MAJOR_VERSION" -lt 10 ]; then
         log_warn ".NET SDK version $DOTNET_VERSION is installed"
         log_warn "Project targets net10.0, but .NET $MAJOR_VERSION is installed"
         log_warn "This may cause build errors. Consider:"
-        log_warn "  1. Update to .NET 10: snap refresh dotnet-sdk --channel=10.0/stable"
+        log_warn "  1. Install .NET 10: sudo snap install dotnet-sdk-100 --classic"
         log_warn "  2. Or update GameServer.csproj TargetFramework to net${MAJOR_VERSION}.0"
         log_warn "Continuing anyway..."
     else
@@ -165,36 +167,44 @@ install_dotnet() {
     # Install .NET SDK via snap
     log_info "Installing .NET SDK via snap..."
     
-    # Try to install .NET 10 SDK first (if available)
-    if snap info dotnet-sdk --channel=10.0/stable 2>/dev/null | grep -q "tracking"; then
-        snap install dotnet-sdk --channel=10.0/stable --classic
-        log_info ".NET SDK 10.0 installed via snap"
+    # Try to install .NET 10 SDK first (dotnet-sdk-100)
+    log_info "Attempting to install .NET SDK 10.0..."
+    if snap install dotnet-sdk-100 --classic 2>/dev/null; then
+        log_info ".NET SDK 10.0 installed via snap (dotnet-sdk-100)"
     else
-        # Install latest/stable version
-        log_info ".NET 10 SDK not available in snap, installing latest stable..."
-        snap install dotnet-sdk --classic
-        
-        # Check installed version
-        DOTNET_VER=$(dotnet --version 2>/dev/null || echo "unknown")
-        MAJOR_VERSION=$(echo $DOTNET_VER | cut -d'.' -f1)
-        
-        if [ "$MAJOR_VERSION" -lt 10 ]; then
-            log_warn "Installed .NET $DOTNET_VER (less than 10.0)"
-            log_warn "Your project targets net10.0"
-            log_warn "You may need to:"
-            log_warn "  1. Update TargetFramework in GameServer.csproj to net8.0 or net9.0"
-            log_warn "  2. Or wait for .NET 10 release and update snap package"
+        # Fallback: Try latest stable dotnet-sdk
+        log_warn ".NET SDK 10.0 (dotnet-sdk-100) not available, trying latest stable..."
+        if snap install dotnet-sdk --classic 2>/dev/null; then
+            # Check installed version
+            sleep 2  # Wait for installation to complete
+            DOTNET_VER=$(dotnet --version 2>/dev/null || echo "unknown")
+            MAJOR_VERSION=$(echo $DOTNET_VER | cut -d'.' -f1)
+            
+            if [ "$MAJOR_VERSION" -lt 10 ]; then
+                log_warn "Installed .NET $DOTNET_VER (less than 10.0)"
+                log_warn "Your project targets net10.0"
+                log_warn "You may need to:"
+                log_warn "  1. Update TargetFramework in GameServer.csproj to net${MAJOR_VERSION}.0"
+                log_warn "  2. Or wait for .NET 10 release: snap install dotnet-sdk-100 --classic"
+            else
+                log_info ".NET SDK $DOTNET_VER installed"
+            fi
+        else
+            log_error "Failed to install .NET SDK via snap"
+            log_error "Please install manually: sudo snap install dotnet-sdk-100 --classic"
+            exit 1
         fi
     fi
     
     # Verify installation
+    sleep 2  # Wait for snap installation to complete
     if check_command dotnet; then
         DOTNET_VER=$(dotnet --version)
         log_info ".NET SDK installed successfully: $DOTNET_VER"
         log_info "Installation method: Snap"
     else
         log_error "Failed to install .NET SDK via snap"
-        log_error "Please install manually: snap install dotnet-sdk --classic"
+        log_error "Please install manually: sudo snap install dotnet-sdk-100 --classic"
         exit 1
     fi
 }

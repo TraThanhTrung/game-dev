@@ -55,6 +55,18 @@ curl http://YOUR_SERVER_IP
 
 **Lưu ý:** Script sử dụng Snap để cài .NET SDK (dễ dàng và được Canonical maintain). Snap sẽ được tự động cài đặt nếu chưa có.
 
+**Lệnh cài .NET SDK 10.0:**
+
+```bash
+sudo snap install dotnet-sdk-100 --classic
+```
+
+Hoặc cài latest stable:
+
+```bash
+sudo snap install dotnet-sdk --classic
+```
+
 ## Cấu hình trước khi chạy
 
 ### 1. Set Environment Variables
@@ -74,9 +86,45 @@ cd server
 # Make script executable (nếu chưa có)
 chmod +x deploy.sh
 
+# Nếu gặp lỗi "Command not found" hoặc "bad interpreter", fix line endings:
+dos2unix deploy.sh  # Nếu có dos2unix
+# Hoặc
+sed -i 's/\r$//' deploy.sh  # Xóa CR characters
+
 # Chạy installation
 sudo ./deploy.sh install
 ```
+
+**Troubleshooting "Command not found":**
+
+Nếu gặp lỗi `./deploy.sh: Command not found` hoặc `bad interpreter`, có thể do:
+
+1. **Line endings (CRLF vs LF)**: File được tạo trên Windows có CRLF, Linux cần LF
+
+   ```bash
+   # Fix line endings
+   dos2unix deploy.sh
+   # Hoặc nếu không có dos2unix:
+   sed -i 's/\r$//' deploy.sh
+   ```
+
+2. **Quyền thực thi**: Đảm bảo file có quyền execute
+
+   ```bash
+   chmod +x deploy.sh
+   ls -l deploy.sh  # Kiểm tra: phải có 'x' trong permissions
+   ```
+
+3. **Shebang**: Kiểm tra dòng đầu file là `#!/bin/bash`
+
+   ```bash
+   head -1 deploy.sh  # Phải hiển thị: #!/bin/bash
+   ```
+
+4. **Chạy trực tiếp với bash**:
+   ```bash
+   sudo bash deploy.sh install
+   ```
 
 ## Các lệnh có sẵn
 
@@ -193,6 +241,31 @@ Mặc định Nginx listen trên port 80. Để thay đổi, sửa biến `NGINX
 Mặc định ứng dụng chạy trên port 5220 (internal). Để thay đổi, sửa biến `APP_PORT` trong `deploy.sh` và update Nginx config tương ứng.
 
 ## Troubleshooting
+
+### Script không chạy được (Command not found)
+
+**Lỗi:** `./deploy.sh: Command not found` hoặc `bad interpreter: No such file or directory`
+
+**Nguyên nhân:** File có line endings Windows (CRLF) thay vì Unix (LF)
+
+**Giải pháp:**
+
+```bash
+# Cách 1: Dùng dos2unix (cài: apt-get install dos2unix)
+dos2unix deploy.sh
+dos2unix optimize-for-1gb.sh
+
+# Cách 2: Dùng sed
+sed -i 's/\r$//' deploy.sh
+sed -i 's/\r$//' optimize-for-1gb.sh
+
+# Cách 3: Chạy trực tiếp với bash
+sudo bash deploy.sh install
+
+# Sau khi fix, đảm bảo có quyền thực thi
+chmod +x deploy.sh
+chmod +x optimize-for-1gb.sh
+```
 
 ### Service không start
 
