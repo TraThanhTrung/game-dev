@@ -272,6 +272,66 @@ Mặc định Nginx listen trên port 80. Để thay đổi, sửa biến `NGINX
 
 Mặc định ứng dụng chạy trên port 5220 (internal). Để thay đổi, sửa biến `APP_PORT` trong `deploy.sh` và update Nginx config tương ứng.
 
+## Chạy SQL Scripts
+
+### Cài đặt SQL Server Command-Line Tools
+
+```bash
+# Install sqlcmd
+sudo apt-get update
+sudo apt-get install -y mssql-tools18 unixodbc-dev
+
+# Add to PATH
+echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Sử dụng script run-sql-script.sh
+
+```bash
+# Make executable
+chmod +x run-sql-script.sh
+
+# Set password
+export SQL_SA_PASSWORD='YourPassword123'
+
+# Chạy một script cụ thể
+./run-sql-script.sh Scripts/Insert_Enemies.sql
+
+# Hoặc chỉ tên file (sẽ tìm trong Scripts/)
+./run-sql-script.sh Insert_Enemies.sql
+
+# Chạy tất cả scripts trong thư mục Scripts
+./run-sql-script.sh --all
+
+# Xem danh sách scripts có sẵn
+./run-sql-script.sh --list
+
+# Chạy SQL command trực tiếp
+./run-sql-script.sh --command "SELECT COUNT(*) FROM Enemies"
+```
+
+### Chạy SQL script thủ công với sqlcmd
+
+```bash
+# Set password
+export SQL_SA_PASSWORD='YourPassword123'
+
+# Chạy script
+sqlcmd -S localhost -U sa -P "$SQL_SA_PASSWORD" \
+    -d GameServerDb -C -i Scripts/Insert_Enemies.sql
+
+# Chạy SQL command
+sqlcmd -S localhost -U sa -P "$SQL_SA_PASSWORD" \
+    -d GameServerDb -C -Q "SELECT * FROM Enemies"
+```
+
+### Lưu ý
+
+- Script sẽ tự động tạo database nếu chưa tồn tại
+- Đảm bảo SQL Server đang chạy: `sudo systemctl status mssql-server`
+- Password phải match với password đã setup trong SQL Server
+
 ## Troubleshooting
 
 ### Lỗi dpkg lock (unattended-upgrades đang chạy)
