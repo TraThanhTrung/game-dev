@@ -53,6 +53,8 @@ curl http://YOUR_SERVER_IP
 - Quyền root/sudo
 - Kết nối Internet để download dependencies và clone repository
 
+**Lưu ý:** Script sử dụng Snap để cài .NET SDK (dễ dàng và được Canonical maintain). Snap sẽ được tự động cài đặt nếu chưa có.
+
 ## Cấu hình trước khi chạy
 
 ### 1. Set Environment Variables
@@ -79,13 +81,16 @@ sudo ./deploy.sh install
 ## Các lệnh có sẵn
 
 ```bash
-sudo ./deploy.sh install    # Cài đặt đầy đủ (chạy lần đầu)
-sudo ./deploy.sh update     # Update code và rebuild
-sudo ./deploy.sh start      # Khởi động service
-sudo ./deploy.sh stop       # Dừng service
-sudo ./deploy.sh restart    # Khởi động lại service
-sudo ./deploy.sh status     # Xem trạng thái các services
+sudo ./deploy.sh install      # Cài đặt đầy đủ (chạy lần đầu)
+sudo ./deploy.sh update       # Update code và rebuild
+sudo ./deploy.sh start        # Khởi động service
+sudo ./deploy.sh stop         # Dừng service
+sudo ./deploy.sh restart      # Khởi động lại service
+sudo ./deploy.sh status       # Xem trạng thái các services
+./deploy.sh check-dotnet      # Kiểm tra .NET SDK version (không cần sudo)
 ```
+
+**Lưu ý:** Script sẽ tự động check .NET version trước khi build. Bạn có thể chạy `check-dotnet` riêng để kiểm tra.
 
 ## Cấu trúc sau khi cài đặt
 
@@ -140,6 +145,7 @@ sudo ./optimize-for-1gb.sh optimize
 ```
 
 Script này sẽ:
+
 - Tạo 2GB swap file
 - Giới hạn SQL Server memory = 512MB
 - Giới hạn Redis memory = 128MB
@@ -147,6 +153,7 @@ Script này sẽ:
 - Giới hạn journal logs = 100MB
 
 Xem status:
+
 ```bash
 sudo ./optimize-for-1gb.sh status
 ```
@@ -247,6 +254,7 @@ sudo ./deploy.sh update
 ```
 
 Script sẽ:
+
 1. Pull latest code từ GitHub
 2. Rebuild application
 3. Restart service
@@ -272,4 +280,3 @@ sudo rm -f /etc/nginx/sites-enabled/game-server
 sudo systemctl daemon-reload
 sudo systemctl reload nginx
 ```
-

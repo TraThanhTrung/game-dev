@@ -88,29 +88,115 @@ check_command() {
 # Installation Functions
 ###############################################################################
 
-install_dotnet() {
-    log_step "Installing .NET 10 SDK..."
+check_dotnet_version() {
+    log_step "Checking .NET SDK version..."
     
+    if ! check_command dotnet; then
+        log_error ".NET SDK is not installed!"
+        log_error "Please install .NET SDK first: snap install dotnet-sdk --classic"
+        return 1
+    fi
+    
+    DOTNET_VERSION=$(dotnet --version 2>/dev/null)
+    if [ -z "$DOTNET_VERSION" ]; then
+        log_error "Failed to get .NET SDK version"
+        return 1
+    fi
+    
+    log_info ".NET SDK version: $DOTNET_VERSION"
+    
+    # Check major version
+    MAJOR_VERSION=$(echo $DOTNET_VERSION | cut -d'.' -f1)
+    
+    # Project targets net10.0, but can work with .NET 8+ (with warnings)
+    if [ "$MAJOR_VERSION" -lt 8 ]; then
+        log_error ".NET SDK version $DOTNET_VERSION is too old!"
+        log_error "Project requires .NET 8.0 or higher"
+        log_error "Please update: snap refresh dotnet-sdk"
+        return 1
+    elif [ "$MAJOR_VERSION" -lt 10 ]; then
+        log_warn ".NET SDK version $DOTNET_VERSION is installed"
+        log_warn "Project targets net10.0, but .NET $MAJOR_VERSION is installed"
+        log_warn "This may cause build errors. Consider:"
+        log_warn "  1. Update to .NET 10: snap refresh dotnet-sdk --channel=10.0/stable"
+        log_warn "  2. Or update GameServer.csproj TargetFramework to net${MAJOR_VERSION}.0"
+        log_warn "Continuing anyway..."
+    else
+        log_info ".NET SDK version is compatible (>= 10.0)"
+    fi
+    
+    # Show dotnet path
+    DOTNET_PATH=$(which dotnet)
+    log_info "Dotnet path: $DOTNET_PATH"
+    
+    # Verify dotnet can run
+    if ! dotnet --info > /dev/null 2>&1; then
+        log_error ".NET SDK is installed but not working properly"
+        return 1
+    fi
+    
+    return 0
+}
+
+install_dotnet() {
+    log_step "Installing .NET SDK via Snap..."
+    
+    # Check if dotnet is already installed
     if check_command dotnet; then
-        DOTNET_VERSION=$(dotnet --version | cut -d'.' -f1)
-        if [ "$DOTNET_VERSION" -ge 10 ]; then
+        DOTNET_VERSION=$(dotnet --version 2>/dev/null | cut -d'.' -f1)
+        if [ -n "$DOTNET_VERSION" ] && [ "$DOTNET_VERSION" -ge 10 ]; then
             log_info ".NET 10+ already installed: $(dotnet --version)"
             return 0
         fi
     fi
     
-    # Add Microsoft package repository
-    wget https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb -O /tmp/packages-microsoft-prod.deb
-    dpkg -i /tmp/packages-microsoft-prod.deb
-    rm /tmp/packages-microsoft-prod.deb
+    # Install snapd if not installed
+    if ! check_command snap; then
+        log_info "Installing snapd..."
+        apt-get update
+        apt-get install -y snapd
+        systemctl enable snapd
+        systemctl start snapd
+        
+        # Wait for snapd to be ready
+        sleep 5
+    fi
     
-    # Update package list
-    apt-get update
+    # Install .NET SDK via snap
+    log_info "Installing .NET SDK via snap..."
     
-    # Install .NET 10 SDK
-    apt-get install -y dotnet-sdk-10.0
+    # Try to install .NET 10 SDK first (if available)
+    if snap info dotnet-sdk --channel=10.0/stable 2>/dev/null | grep -q "tracking"; then
+        snap install dotnet-sdk --channel=10.0/stable --classic
+        log_info ".NET SDK 10.0 installed via snap"
+    else
+        # Install latest/stable version
+        log_info ".NET 10 SDK not available in snap, installing latest stable..."
+        snap install dotnet-sdk --classic
+        
+        # Check installed version
+        DOTNET_VER=$(dotnet --version 2>/dev/null || echo "unknown")
+        MAJOR_VERSION=$(echo $DOTNET_VER | cut -d'.' -f1)
+        
+        if [ "$MAJOR_VERSION" -lt 10 ]; then
+            log_warn "Installed .NET $DOTNET_VER (less than 10.0)"
+            log_warn "Your project targets net10.0"
+            log_warn "You may need to:"
+            log_warn "  1. Update TargetFramework in GameServer.csproj to net8.0 or net9.0"
+            log_warn "  2. Or wait for .NET 10 release and update snap package"
+        fi
+    fi
     
-    log_info ".NET SDK installed: $(dotnet --version)"
+    # Verify installation
+    if check_command dotnet; then
+        DOTNET_VER=$(dotnet --version)
+        log_info ".NET SDK installed successfully: $DOTNET_VER"
+        log_info "Installation method: Snap"
+    else
+        log_error "Failed to install .NET SDK via snap"
+        log_error "Please install manually: snap install dotnet-sdk --classic"
+        exit 1
+    fi
 }
 
 install_sqlserver() {
@@ -395,15 +481,29 @@ build_application() {
     
     cd "$INSTALL_DIR/server"
     
+    # Check dotnet version before building
+    if ! check_dotnet_version; then
+        log_error "Cannot proceed with build. .NET SDK check failed."
+        exit 1
+    fi
+    
     # Restore packages
     log_info "Restoring NuGet packages..."
-    dotnet restore
+    if ! dotnet restore; then
+        log_error "Failed to restore NuGet packages"
+        exit 1
+    fi
     
     # Publish application
     log_info "Publishing application..."
-    dotnet publish -c Release -o "$PUBLISH_DIR" \
+    if ! dotnet publish -c Release -o "$PUBLISH_DIR" \
         -p:PublishSingleFile=false \
-        -p:IncludeNativeLibrariesForSelfExtract=true
+        -p:IncludeNativeLibrariesForSelfExtract=true; then
+        log_error "Failed to publish application"
+        exit 1
+    fi
+    
+    log_info "Application published successfully to $PUBLISH_DIR"
     
     # Set permissions
     chown -R "$APP_USER:$APP_USER" "$PUBLISH_DIR"
@@ -430,17 +530,29 @@ create_systemd_service() {
     # Get server IP address
     SERVER_IP=$(hostname -I | awk '{print $1}')
     
+    # Determine dotnet path (snap installs to /snap/bin)
+    DOTNET_PATH=$(which dotnet || echo "/snap/bin/dotnet")
+    
+    # Verify dotnet path exists
+    if [ ! -f "$DOTNET_PATH" ]; then
+        log_error "dotnet not found at $DOTNET_PATH"
+        log_error "Please ensure .NET SDK is installed: snap install dotnet-sdk --classic"
+        exit 1
+    fi
+    
+    log_info "Using dotnet at: $DOTNET_PATH"
+    
     cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Game Server ASP.NET Core Application
-After=network.target mssql-server.service redis-server.service
+After=network.target mssql-server.service redis-server.service snapd.service
 
 [Service]
 Type=notify
 User=$APP_USER
 Group=$APP_USER
 WorkingDirectory=$PUBLISH_DIR
-ExecStart=/usr/bin/dotnet $PUBLISH_DIR/GameServer.dll
+ExecStart=$DOTNET_PATH $PUBLISH_DIR/GameServer.dll
 Restart=always
 RestartSec=10
 KillSignal=SIGINT
@@ -450,6 +562,7 @@ SyslogIdentifier=$APP_NAME
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:$APP_PORT
 Environment=GAME_CONFIG_PATH=$INSTALL_DIR/shared/game-config.json
+Environment=PATH=/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Logging
 StandardOutput=journal
@@ -604,6 +717,10 @@ show_status() {
     systemctl status "$APP_NAME" --no-pager || true
     
     echo ""
+    log_step ".NET SDK Status:"
+    check_dotnet_version || true
+    
+    echo ""
     log_step "Nginx Status:"
     systemctl status nginx --no-pager || true
     
@@ -630,6 +747,13 @@ full_install() {
     check_root
     
     install_dependencies
+    
+    # Check dotnet after installation
+    if ! check_dotnet_version; then
+        log_error "Installation failed: .NET SDK check failed"
+        exit 1
+    fi
+    
     clone_repository
     create_app_user
     create_log_directory
@@ -656,6 +780,12 @@ update_application() {
     log_info "Updating application..."
     
     check_root
+    
+    # Check dotnet version before update
+    if ! check_dotnet_version; then
+        log_error "Cannot proceed with update. .NET SDK check failed."
+        exit 1
+    fi
     
     stop_service
     clone_repository
@@ -691,16 +821,20 @@ case "${1:-}" in
     status)
         show_status
         ;;
+    check-dotnet)
+        check_dotnet_version
+        ;;
     *)
-        echo "Usage: $0 {install|update|start|stop|restart|status}"
+        echo "Usage: $0 {install|update|start|stop|restart|status|check-dotnet}"
         echo ""
         echo "Commands:"
-        echo "  install  - Full installation (run this first)"
-        echo "  update   - Update code and rebuild application"
-        echo "  start    - Start the service"
-        echo "  stop     - Stop the service"
-        echo "  restart  - Restart the service"
-        echo "  status   - Show service status"
+        echo "  install      - Full installation (run this first)"
+        echo "  update       - Update code and rebuild application"
+        echo "  start        - Start the service"
+        echo "  stop         - Stop the service"
+        echo "  restart      - Restart the service"
+        echo "  status       - Show service status"
+        echo "  check-dotnet - Check .NET SDK version and compatibility"
         echo ""
         echo "Environment Variables:"
         echo "  GITHUB_REPO_URL  - GitHub repository URL (required)"
@@ -711,6 +845,9 @@ case "${1:-}" in
         echo "  export GITHUB_REPO_URL='https://github.com/user/repo.git'"
         echo "  export SQL_SA_PASSWORD='YourStrong@Password123'"
         echo "  sudo ./deploy.sh install"
+        echo ""
+        echo "  # Check .NET version"
+        echo "  ./deploy.sh check-dotnet"
         exit 1
         ;;
 esac
