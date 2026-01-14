@@ -43,13 +43,87 @@ fi
 
 DB_PASSWORD="$SQL_SA_PASSWORD"
 
+# Function to install sqlcmd
+install_sqlcmd() {
+    log_step "Installing SQL Server command-line tools..."
+    
+    if [ "$EUID" -ne 0 ]; then
+        log_error "This script must be run as root or with sudo to install sqlcmd"
+        log_error "Please run: sudo ./run-sql-script.sh <script>"
+        return 1
+    fi
+    
+    # Install ODBC driver and tools
+    UBUNTU_VERSION=$(lsb_release -rs 2>/dev/null || echo "22.04")
+    
+    log_info "Installing mssql-tools18 and unixodbc-dev..."
+    apt-get update
+    apt-get install -y mssql-tools18 unixodbc-dev msodbcsql18 2>/dev/null || {
+        log_warn "Failed to install from Microsoft repo, trying alternative..."
+        # Try alternative installation
+        apt-get install -y curl apt-transport-https
+        
+        # Add Microsoft repository if not exists
+        if [ ! -f /etc/apt/sources.list.d/mssql-release.list ]; then
+            curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+            curl https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/prod.list > /etc/apt/sources.list.d/mssql-release.list
+            apt-get update
+        fi
+        
+        ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev msodbcsql18
+    }
+    
+    # Add to PATH
+    if [ -d "/opt/mssql-tools18/bin" ]; then
+        export PATH="$PATH:/opt/mssql-tools18/bin"
+        
+        # Add to system PATH
+        if ! grep -q "/opt/mssql-tools18/bin" /etc/profile; then
+            echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/profile
+        fi
+        
+        log_info "sqlcmd installed successfully"
+        log_info "Added to PATH: /opt/mssql-tools18/bin"
+        return 0
+    else
+        log_error "Failed to install sqlcmd"
+        return 1
+    fi
+}
+
 # Check if sqlcmd is installed
 if ! command -v sqlcmd &> /dev/null; then
-    log_error "sqlcmd is not installed"
-    log_error "Please install SQL Server command-line tools:"
-    log_error "  sudo apt-get install -y mssql-tools18 unixodbc-dev"
-    log_error "  echo 'export PATH=\"\$PATH:/opt/mssql-tools18/bin\"' >> ~/.bashrc"
-    exit 1
+    log_warn "sqlcmd is not installed"
+    
+    # Try to find it in common locations
+    if [ -f "/opt/mssql-tools18/bin/sqlcmd" ]; then
+        export PATH="$PATH:/opt/mssql-tools18/bin"
+        log_info "Found sqlcmd at /opt/mssql-tools18/bin/sqlcmd"
+    elif [ -f "/opt/mssql-tools/bin/sqlcmd" ]; then
+        export PATH="$PATH:/opt/mssql-tools/bin"
+        log_info "Found sqlcmd at /opt/mssql-tools/bin/sqlcmd"
+    else
+        log_error "sqlcmd not found"
+        log_info "Attempting to install sqlcmd..."
+        
+        if [ "$EUID" -eq 0 ]; then
+            if install_sqlcmd; then
+                log_info "sqlcmd installed successfully"
+            else
+                log_error "Failed to install sqlcmd automatically"
+                log_error "Please install manually:"
+                log_error "  sudo apt-get install -y mssql-tools18 unixodbc-dev"
+                exit 1
+            fi
+        else
+            log_error "Cannot install sqlcmd without root privileges"
+            log_error "Please run: sudo ./run-sql-script.sh <script>"
+            log_error "Or install manually:"
+            log_error "  sudo apt-get install -y mssql-tools18 unixodbc-dev"
+            log_error "  echo 'export PATH=\"\$PATH:/opt/mssql-tools18/bin\"' >> ~/.bashrc"
+            exit 1
+        fi
+    fi
 fi
 
 # Check if SQL Server is running
