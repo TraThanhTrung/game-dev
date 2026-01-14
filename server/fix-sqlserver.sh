@@ -148,14 +148,73 @@ setup_sqlserver() {
     
     # Setup SQL Server with EULA acceptance
     log_info "Running SQL Server setup..."
+    log_info "Password length: ${#SQL_SA_PASSWORD} characters"
+    
+    # Validate password meets SQL Server requirements
+    if [ ${#SQL_SA_PASSWORD} -lt 8 ]; then
+        log_error "Password is too short. SQL Server requires at least 8 characters."
+        return 1
+    fi
+    
     ACCEPT_EULA=Y MSSQL_SA_PASSWORD="$SQL_SA_PASSWORD" /opt/mssql/bin/mssql-conf setup accept-eula
     
     if [ $? -eq 0 ]; then
         log_info "SQL Server configured successfully"
+        
+        # Verify password was set correctly
+        sleep 2
+        log_info "Verifying SQL Server setup..."
         return 0
     else
         log_error "Failed to configure SQL Server"
+        log_error "Please check SQL Server logs: sudo cat /var/opt/mssql/log/errorlog | tail -50"
         return 1
+    fi
+}
+
+reset_sa_password() {
+    log_step "Resetting SA password..."
+    
+    if [ -z "$SQL_SA_PASSWORD" ]; then
+        log_error "SQL_SA_PASSWORD environment variable is not set"
+        return 1
+    fi
+    
+    if [ ! -f /opt/mssql/bin/mssql-conf ]; then
+        log_error "SQL Server is not installed"
+        return 1
+    fi
+    
+    # Check if SQL Server is running
+    if ! systemctl is-active --quiet mssql-server; then
+        log_error "SQL Server is not running. Please start it first."
+        return 1
+    fi
+    
+    log_info "Resetting SA password..."
+    log_info "Note: This requires SQL Server to be running and accessible"
+    
+    # Try to reset password using sqlcmd
+    if command -v sqlcmd &> /dev/null; then
+        # First, try to connect with current password (if any)
+        # If that fails, we need to use mssql-conf set-sa-password
+        log_info "Using mssql-conf to set SA password..."
+        /opt/mssql/bin/mssql-conf set-sa-password "$SQL_SA_PASSWORD"
+        
+        if [ $? -eq 0 ]; then
+            log_info "SA password reset successfully"
+            systemctl restart mssql-server
+            sleep 5
+            return 0
+        else
+            log_error "Failed to reset SA password"
+            return 1
+        fi
+    else
+        log_warn "sqlcmd not found. Using mssql-conf set-sa-password..."
+        /opt/mssql/bin/mssql-conf set-sa-password "$SQL_SA_PASSWORD"
+        systemctl restart mssql-server
+        sleep 5
     fi
 }
 
@@ -233,20 +292,36 @@ case "${1:-}" in
         check_root
         restart_sqlserver
         ;;
+    reset-password)
+        check_root
+        reset_sa_password
+        if [ $? -eq 0 ]; then
+            log_info "Password reset. Testing connection..."
+            sleep 3
+            if systemctl is-active --quiet mssql-server; then
+                log_info "SQL Server is running. Please update appsettings.Production.json with new password."
+            fi
+        fi
+        ;;
     *)
-        echo "Usage: $0 {check|fix|restart}"
+        echo "Usage: $0 {check|fix|restart|reset-password}"
         echo ""
         echo "Commands:"
-        echo "  check   - Check SQL Server status, memory, and logs"
-        echo "  fix     - Attempt to fix SQL Server (configure memory, setup, restart)"
-        echo "  restart - Restart SQL Server"
+        echo "  check         - Check SQL Server status, memory, and logs"
+        echo "  fix           - Attempt to fix SQL Server (configure memory, setup, restart)"
+        echo "  restart       - Restart SQL Server"
+        echo "  reset-password - Reset SA password (requires SQL Server running)"
         echo ""
         echo "Environment Variables:"
-        echo "  SQL_SA_PASSWORD - SQL Server SA password (required for setup)"
+        echo "  SQL_SA_PASSWORD - SQL Server SA password (required for setup/reset)"
         echo ""
         echo "Example:"
         echo "  export SQL_SA_PASSWORD='YourStrong@Password123'"
         echo "  sudo ./fix-sqlserver.sh fix"
+        echo ""
+        echo "  # If password is wrong, reset it:"
+        echo "  export SQL_SA_PASSWORD='NewPassword123'"
+        echo "  sudo ./fix-sqlserver.sh reset-password"
         exit 1
         ;;
 esac

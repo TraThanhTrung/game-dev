@@ -743,9 +743,79 @@ configure_appsettings() {
     local APP_SETTINGS="$INSTALL_DIR/server/appsettings.json"
     local PROD_SETTINGS="$INSTALL_DIR/server/appsettings.Production.json"
     
-    # Create production settings if it doesn't exist
-    if [ ! -f "$PROD_SETTINGS" ]; then
-        log_info "Creating appsettings.Production.json..."
+    # Check if SQL_SA_PASSWORD is set
+    if [ -z "$DB_PASSWORD" ]; then
+        log_warn "SQL_SA_PASSWORD not set. Cannot configure database connection string."
+        log_warn "Please set it: export SQL_SA_PASSWORD='YourStrong@Password123'"
+        log_warn "Then update appsettings.Production.json manually or re-run deploy.sh"
+        
+        # If file exists, keep it; otherwise create with placeholder
+        if [ ! -f "$PROD_SETTINGS" ]; then
+            log_info "Creating appsettings.Production.json with placeholder (update password later)..."
+            cat > "$PROD_SETTINGS" <<EOF
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Hosting.Diagnostics": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "GameDb": "Server=localhost;Database=$DB_NAME;User Id=$DB_USER;Password=CHANGE_ME;TrustServerCertificate=True;",
+    "Redis": "$REDIS_HOST:$REDIS_PORT"
+  },
+  "Authentication": {
+    "Google": {
+      "ClientId": "391831042184-duafgo6inqp4r13gv546g3doh28rjo1o.apps.googleusercontent.com",
+      "ClientSecret": "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"
+    }
+  },
+  "AllowedHosts": "*"
+}
+EOF
+            log_warn "Created appsettings.Production.json with placeholder password. Please update it."
+        fi
+        return 0
+    fi
+    
+    # Create or update production settings with correct password
+    log_info "Creating/updating appsettings.Production.json with connection string..."
+    
+    # Escape password for JSON (handle special characters)
+    # Use Python if available for proper JSON escaping, otherwise use sed
+    if command -v python3 &> /dev/null; then
+        python3 <<PYEOF
+import json
+import os
+
+config = {
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "Microsoft.AspNetCore": "Warning",
+            "Microsoft.AspNetCore.Hosting.Diagnostics": "Warning"
+        }
+    },
+    "ConnectionStrings": {
+        "GameDb": f"Server=localhost;Database=$DB_NAME;User Id=$DB_USER;Password={os.environ.get('DB_PASSWORD', '$DB_PASSWORD')};TrustServerCertificate=True;",
+        "Redis": "$REDIS_HOST:$REDIS_PORT"
+    },
+    "Authentication": {
+        "Google": {
+            "ClientId": "391831042184-duafgo6inqp4r13gv546g3doh28rjo1o.apps.googleusercontent.com",
+            "ClientSecret": "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"
+        }
+    },
+    "AllowedHosts": "*"
+}
+
+with open('$PROD_SETTINGS', 'w') as f:
+    json.dump(config, f, indent=2)
+PYEOF
+    else
+        # Fallback: use heredoc with escaped password
+        # Note: This may have issues with special characters in password
         cat > "$PROD_SETTINGS" <<EOF
 {
   "Logging": {
@@ -768,10 +838,20 @@ configure_appsettings() {
   "AllowedHosts": "*"
 }
 EOF
-        log_info "Production settings created"
-    else
-        log_info "Production settings already exists"
     fi
+    
+    log_info "Production settings created/updated at $PROD_SETTINGS"
+    log_info "Connection string configured: Server=localhost;Database=$DB_NAME;User Id=$DB_USER;Password=***"
+    
+    # Verify file was created
+    if [ ! -f "$PROD_SETTINGS" ]; then
+        log_error "Failed to create appsettings.Production.json"
+        return 1
+    fi
+    
+    # Show connection string (hide password)
+    log_info "Connection string preview:"
+    grep -o "GameDb\": \"[^\"]*" "$PROD_SETTINGS" | sed 's/Password=[^;]*/Password=***/' || true
 }
 
 ###############################################################################
@@ -1229,6 +1309,16 @@ update_application() {
     
     stop_service
     clone_repository
+    
+    # Update appsettings.Production.json if SQL_SA_PASSWORD is set
+    if [ -n "$DB_PASSWORD" ]; then
+        log_info "Updating appsettings.Production.json with current password..."
+        configure_appsettings
+    else
+        log_warn "SQL_SA_PASSWORD not set. Using existing appsettings.Production.json (if exists)."
+        log_warn "If connection fails, set SQL_SA_PASSWORD and run: sudo ./create-prod-config.sh"
+    fi
+    
     build_application
     start_service
     
