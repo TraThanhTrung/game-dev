@@ -242,6 +242,42 @@ Mặc định ứng dụng chạy trên port 5220 (internal). Để thay đổi,
 
 ## Troubleshooting
 
+### Lỗi dpkg lock (unattended-upgrades đang chạy)
+
+**Lỗi:** `E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process XXXX (unattended-upgr)`
+
+**Nguyên nhân:** `unattended-upgrades` hoặc process apt/dpkg khác đang chạy và giữ lock
+
+**Giải pháp:**
+
+Script sẽ tự động đợi lock được giải phóng (tối đa 5 phút). Nếu vẫn lỗi:
+
+```bash
+# Cách 1: Đợi unattended-upgrades hoàn thành (khuyến nghị)
+# Chỉ cần đợi vài phút, sau đó chạy lại script
+
+# Cách 2: Kiểm tra process đang chạy
+ps aux | grep -E '(apt|dpkg|unattended)'
+
+# Cách 3: Tạm thời dừng unattended-upgrades (nếu cần gấp)
+sudo systemctl stop unattended-upgrades
+sudo ./deploy.sh install
+sudo systemctl start unattended-upgrades
+
+# Cách 4: Disable unattended-upgrades (không khuyến nghị cho production)
+sudo systemctl disable unattended-upgrades
+```
+
+**Lưu ý:** Script sẽ tự động dừng `unattended-upgrades` nếu phát hiện nó đang chạy. Bạn cũng có thể dừng thủ công:
+
+```bash
+# Dừng unattended-upgrades
+sudo ./deploy.sh stop-updates
+
+# Hoặc thủ công
+sudo systemctl stop unattended-upgrades
+```
+
 ### Script không chạy được (Command not found)
 
 **Lỗi:** `./deploy.sh: Command not found` hoặc `bad interpreter: No such file or directory`

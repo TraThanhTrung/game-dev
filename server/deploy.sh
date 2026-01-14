@@ -12,8 +12,8 @@ set -e  # Exit on error
 ###############################################################################
 
 # GitHub Repository (user must set this)
-GITHUB_REPO_URL="${GITHUB_REPO_URL:-}"
-GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_REPO_URL="https://github.com/TraThanhTrung/game-dev.git"
+GITHUB_BRANCH="main"
 
 # Installation paths
 INSTALL_DIR="/opt/game-server"
@@ -88,19 +88,150 @@ check_command() {
 # Installation Functions
 ###############################################################################
 
+stop_unattended_upgrades() {
+    log_step "Stopping unattended-upgrades..."
+    
+    if systemctl is-active --quiet unattended-upgrades 2>/dev/null; then
+        log_info "Stopping unattended-upgrades service..."
+        systemctl stop unattended-upgrades
+        log_info "unattended-upgrades stopped"
+        return 0
+    fi
+    
+    # Check if process is running even if service is stopped
+    if pgrep -f unattended-upgrade > /dev/null; then
+        log_info "Killing unattended-upgrade process..."
+        pkill -f unattended-upgrade || true
+        sleep 2
+        log_info "unattended-upgrade process killed"
+        return 0
+    fi
+    
+    log_info "unattended-upgrades is not running"
+    return 0
+}
+
+wait_for_dpkg_lock() {
+    log_step "Checking for dpkg lock..."
+    
+    MAX_WAIT=60  # 1 minute max wait (reduced since we can stop unattended-upgrades)
+    WAIT_TIME=0
+    SLEEP_INTERVAL=3
+    
+    # First, try to stop unattended-upgrades if it's running
+    if pgrep -f unattended-upgrade > /dev/null || systemctl is-active --quiet unattended-upgrades 2>/dev/null; then
+        log_info "unattended-upgrades detected, stopping it..."
+        stop_unattended_upgrades
+        sleep 2  # Wait a bit for it to fully stop
+    fi
+    
+    while [ $WAIT_TIME -lt $MAX_WAIT ]; do
+        # Check if lock exists
+        if [ -f /var/lib/dpkg/lock-frontend ] || [ -f /var/lib/dpkg/lock ]; then
+            # Check if unattended-upgrades is running again
+            if pgrep -f unattended-upgrade > /dev/null; then
+                log_info "unattended-upgrades restarted, stopping again..."
+                stop_unattended_upgrades
+                sleep 2
+                WAIT_TIME=$((WAIT_TIME + 2))
+                continue
+            fi
+            
+            # Check if apt/dpkg is running
+            if pgrep -x apt-get > /dev/null || pgrep -x apt > /dev/null || pgrep -x dpkg > /dev/null; then
+                log_info "apt/dpkg is running, waiting... (${WAIT_TIME}s/${MAX_WAIT}s)"
+                sleep $SLEEP_INTERVAL
+                WAIT_TIME=$((WAIT_TIME + SLEEP_INTERVAL))
+                continue
+            fi
+            
+            # Lock exists but no process, might be stale - try to remove it
+            log_warn "Lock file exists but no process found. Attempting to remove stale lock..."
+            # Only remove if we're sure no process is using it
+            if ! lsof /var/lib/dpkg/lock-frontend > /dev/null 2>&1 && ! lsof /var/lib/dpkg/lock > /dev/null 2>&1; then
+                rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock 2>/dev/null || true
+                log_info "Stale lock files removed"
+                sleep 1
+            else
+                log_warn "Lock is in use, waiting a bit more..."
+                sleep $SLEEP_INTERVAL
+                WAIT_TIME=$((WAIT_TIME + SLEEP_INTERVAL))
+            fi
+            continue
+        fi
+        
+        # No lock, we're good
+        return 0
+    done
+    
+    # Timeout reached
+    log_error "Timeout waiting for dpkg lock. Another process may be using apt/dpkg."
+    log_error "Please wait for unattended-upgrades or other apt processes to finish."
+    log_error "Check with: ps aux | grep -E '(apt|dpkg|unattended)'"
+    log_error "Or manually stop: sudo systemctl stop unattended-upgrades"
+    return 1
+}
+
 check_dotnet_version() {
     log_step "Checking .NET SDK version..."
     
-    if ! check_command dotnet; then
+    # Determine DOTNET_ROOT - check apt installation first (Ubuntu package manager)
+    DOTNET_ROOT_PATH=""
+    if [ -d "/usr/share/dotnet" ] && [ -f "/usr/share/dotnet/dotnet" ]; then
+        DOTNET_ROOT_PATH="/usr/share/dotnet"
+        log_info "Found .NET SDK installed via apt at $DOTNET_ROOT_PATH"
+    # Check snap packages (fallback)
+    elif snap list dotnet-sdk-100 2>/dev/null | grep -q dotnet-sdk-100; then
+        DOTNET_ROOT_PATH="/snap/dotnet-sdk-100/current"
+    elif snap list dotnet-sdk-90 2>/dev/null | grep -q dotnet-sdk-90; then
+        DOTNET_ROOT_PATH="/snap/dotnet-sdk-90/current"
+    elif snap list dotnet-sdk 2>/dev/null | grep -q dotnet-sdk; then
+        DOTNET_ROOT_PATH="/snap/dotnet-sdk/current"
+    fi
+    
+    # Set DOTNET_ROOT environment variable (per Microsoft docs)
+    if [ -n "$DOTNET_ROOT_PATH" ]; then
+        export DOTNET_ROOT="$DOTNET_ROOT_PATH"
+    fi
+    
+    # Ensure PATH includes dotnet locations
+    if [ "$DOTNET_ROOT_PATH" = "/usr/share/dotnet" ]; then
+        export PATH="/usr/share/dotnet:$PATH"
+    else
+        export PATH="/snap/bin:/usr/local/bin:$PATH"
+    fi
+    
+    # Try to find dotnet command
+    DOTNET_CMD=""
+    # For apt installation
+    if [ "$DOTNET_ROOT_PATH" = "/usr/share/dotnet" ]; then
+        DOTNET_CMD="/usr/share/dotnet/dotnet"
+    else
+        # For snap installation - check symlink first
+        for path in /usr/local/bin/dotnet /snap/bin/dotnet "$DOTNET_ROOT_PATH/dotnet"; do
+            if [ -f "$path" ] && [ -x "$path" ]; then
+                DOTNET_CMD="$path"
+                break
+            fi
+        done
+    fi
+    
+    # If not found, try which
+    if [ -z "$DOTNET_CMD" ]; then
+        DOTNET_CMD=$(which dotnet 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$DOTNET_CMD" ]; then
         log_error ".NET SDK is not installed!"
-        log_error "Please install .NET SDK first: sudo snap install dotnet-sdk-100 --classic"
-        log_error "Or for latest: sudo snap install dotnet-sdk --classic"
+        log_error "Please install .NET SDK:"
+        log_error "  Ubuntu: sudo add-apt-repository ppa:dotnet/backports && sudo apt-get install -y dotnet-sdk-10.0"
+        log_error "  Snap: sudo snap install dotnet-sdk-100 --classic"
         return 1
     fi
     
-    DOTNET_VERSION=$(dotnet --version 2>/dev/null)
+    DOTNET_VERSION=$($DOTNET_CMD --version 2>/dev/null)
     if [ -z "$DOTNET_VERSION" ]; then
-        log_error "Failed to get .NET SDK version"
+        log_error "Failed to get .NET SDK version from $DOTNET_CMD"
         return 1
     fi
     
@@ -128,11 +259,10 @@ check_dotnet_version() {
     fi
     
     # Show dotnet path
-    DOTNET_PATH=$(which dotnet)
-    log_info "Dotnet path: $DOTNET_PATH"
+    log_info "Dotnet path: $DOTNET_CMD"
     
     # Verify dotnet can run
-    if ! dotnet --info > /dev/null 2>&1; then
+    if ! $DOTNET_CMD --info > /dev/null 2>&1; then
         log_error ".NET SDK is installed but not working properly"
         return 1
     fi
@@ -141,7 +271,7 @@ check_dotnet_version() {
 }
 
 install_dotnet() {
-    log_step "Installing .NET SDK via Snap..."
+    log_step "Installing .NET SDK..."
     
     # Check if dotnet is already installed
     if check_command dotnet; then
@@ -152,9 +282,72 @@ install_dotnet() {
         fi
     fi
     
+    # Method 1: Try Ubuntu package manager (recommended by Microsoft for Ubuntu)
+    log_info "Attempting to install .NET SDK via Ubuntu package manager..."
+    
+    # Check if Ubuntu backports repository is added
+    if ! grep -q "ppa:dotnet/backports" /etc/apt/sources.list.d/*.list 2>/dev/null; then
+        log_info "Adding Ubuntu .NET backports repository..."
+        wait_for_dpkg_lock || {
+            log_error "Cannot add repository: dpkg lock is held"
+            return 1
+        }
+        
+        # Install prerequisites
+        apt-get update
+        apt-get install -y software-properties-common
+        
+        # Add .NET backports repository (per Microsoft docs)
+        add-apt-repository -y ppa:dotnet/backports
+        apt-get update
+    fi
+    
+    # Try to install .NET 10 SDK via apt (per Microsoft docs for Ubuntu)
+    wait_for_dpkg_lock || {
+        log_error "Cannot install .NET SDK: dpkg lock is held"
+        return 1
+    }
+    
+    # Check if package is available
+    apt-get update
+    if apt-cache search dotnet-sdk-10.0 2>/dev/null | grep -q dotnet-sdk-10.0; then
+        log_info "Installing .NET SDK 10.0 via Ubuntu package manager..."
+        if apt-get install -y dotnet-sdk-10.0; then
+            log_info ".NET SDK 10.0 installed via Ubuntu package manager"
+            export DOTNET_ROOT="/usr/share/dotnet"
+            export PATH="/usr/share/dotnet:$PATH"
+            
+            # Verify installation
+            sleep 2  # Wait for installation to complete
+            if check_command dotnet; then
+                DOTNET_VER=$(dotnet --version)
+                log_info ".NET SDK installed successfully: $DOTNET_VER"
+                log_info "Installation method: Ubuntu package manager (apt)"
+                log_info "DOTNET_ROOT: /usr/share/dotnet"
+                return 0
+            else
+                log_warn "dotnet command not found after apt install, trying Snap..."
+            fi
+        else
+            log_warn "Failed to install via apt, trying Snap..."
+        fi
+    else
+        log_warn ".NET SDK 10.0 not available in Ubuntu repository, trying Snap..."
+    fi
+    
+    # Method 2: Fallback to Snap (if apt method failed or not available)
+    log_info "Installing .NET SDK via Snap (fallback method)..."
+    
     # Install snapd if not installed
     if ! check_command snap; then
         log_info "Installing snapd..."
+        
+        # Wait for dpkg lock
+        wait_for_dpkg_lock || {
+            log_error "Cannot install snapd: dpkg lock is held"
+            return 1
+        }
+        
         apt-get update
         apt-get install -y snapd
         systemctl enable snapd
@@ -167,44 +360,113 @@ install_dotnet() {
     # Install .NET SDK via snap
     log_info "Installing .NET SDK via snap..."
     
-    # Try to install .NET 10 SDK first (dotnet-sdk-100)
+    # Try to install .NET 10 SDK first (dotnet-sdk-100) - version-specific package for .NET 9+
     log_info "Attempting to install .NET SDK 10.0..."
+    INSTALL_SUCCESS=0
+    DOTNET_PACKAGE=""
+    DOTNET_ROOT_PATH=""
+    
     if snap install dotnet-sdk-100 --classic 2>/dev/null; then
         log_info ".NET SDK 10.0 installed via snap (dotnet-sdk-100)"
+        INSTALL_SUCCESS=1
+        DOTNET_PACKAGE="dotnet-sdk-100"
+        DOTNET_ROOT_PATH="/snap/dotnet-sdk-100/current"
+    elif snap list dotnet-sdk-100 2>/dev/null | grep -q dotnet-sdk-100; then
+        log_info ".NET SDK 10.0 already installed (dotnet-sdk-100)"
+        INSTALL_SUCCESS=1
+        DOTNET_PACKAGE="dotnet-sdk-100"
+        DOTNET_ROOT_PATH="/snap/dotnet-sdk-100/current"
     else
-        # Fallback: Try latest stable dotnet-sdk
-        log_warn ".NET SDK 10.0 (dotnet-sdk-100) not available, trying latest stable..."
-        if snap install dotnet-sdk --classic 2>/dev/null; then
-            # Check installed version
-            sleep 2  # Wait for installation to complete
-            DOTNET_VER=$(dotnet --version 2>/dev/null || echo "unknown")
-            MAJOR_VERSION=$(echo $DOTNET_VER | cut -d'.' -f1)
-            
-            if [ "$MAJOR_VERSION" -lt 10 ]; then
-                log_warn "Installed .NET $DOTNET_VER (less than 10.0)"
-                log_warn "Your project targets net10.0"
-                log_warn "You may need to:"
-                log_warn "  1. Update TargetFramework in GameServer.csproj to net${MAJOR_VERSION}.0"
-                log_warn "  2. Or wait for .NET 10 release: snap install dotnet-sdk-100 --classic"
-            else
-                log_info ".NET SDK $DOTNET_VER installed"
-            fi
+        # Fallback: Try .NET 9 (dotnet-sdk-90)
+        log_warn ".NET SDK 10.0 (dotnet-sdk-100) not available, trying .NET 9..."
+        if snap install dotnet-sdk-90 --classic 2>/dev/null; then
+            INSTALL_SUCCESS=1
+            DOTNET_PACKAGE="dotnet-sdk-90"
+            DOTNET_ROOT_PATH="/snap/dotnet-sdk-90/current"
+        elif snap list dotnet-sdk-90 2>/dev/null | grep -q dotnet-sdk-90; then
+            log_info ".NET SDK 9.0 already installed (dotnet-sdk-90)"
+            INSTALL_SUCCESS=1
+            DOTNET_PACKAGE="dotnet-sdk-90"
+            DOTNET_ROOT_PATH="/snap/dotnet-sdk-90/current"
         else
-            log_error "Failed to install .NET SDK via snap"
-            log_error "Please install manually: sudo snap install dotnet-sdk-100 --classic"
-            exit 1
+            # Fallback: Try .NET 8 (dotnet-sdk with channel)
+            log_warn ".NET SDK 9.0 not available, trying .NET 8..."
+            if snap install dotnet-sdk --classic --channel 8.0/stable 2>/dev/null; then
+                INSTALL_SUCCESS=1
+                DOTNET_PACKAGE="dotnet-sdk"
+                DOTNET_ROOT_PATH="/snap/dotnet-sdk/current"
+            elif snap list dotnet-sdk 2>/dev/null | grep -q dotnet-sdk; then
+                log_info ".NET SDK already installed (dotnet-sdk)"
+                INSTALL_SUCCESS=1
+                DOTNET_PACKAGE="dotnet-sdk"
+                DOTNET_ROOT_PATH="/snap/dotnet-sdk/current"
+            fi
         fi
     fi
     
-    # Verify installation
-    sleep 2  # Wait for snap installation to complete
-    if check_command dotnet; then
-        DOTNET_VER=$(dotnet --version)
-        log_info ".NET SDK installed successfully: $DOTNET_VER"
-        log_info "Installation method: Snap"
-    else
+    if [ $INSTALL_SUCCESS -eq 0 ]; then
         log_error "Failed to install .NET SDK via snap"
         log_error "Please install manually: sudo snap install dotnet-sdk-100 --classic"
+        exit 1
+    fi
+    
+    # Wait for snap to link binaries
+    log_info "Waiting for snap to link binaries..."
+    sleep 3
+    
+    # Create snap alias if it doesn't exist (per Microsoft docs)
+    log_info "Setting up snap alias for dotnet command..."
+    if ! snap aliases | grep -q "dotnet.*${DOTNET_PACKAGE}.dotnet"; then
+        snap alias "${DOTNET_PACKAGE}.dotnet" dotnet 2>/dev/null || {
+            log_warn "Failed to create snap alias, will use symlink instead"
+        }
+    fi
+    
+    # Create symlink to /usr/local/bin/dotnet (per Microsoft docs troubleshooting)
+    log_info "Creating symlink for dotnet command..."
+    mkdir -p /usr/local/bin
+    if [ ! -f /usr/local/bin/dotnet ] && [ ! -L /usr/local/bin/dotnet ]; then
+        ln -s "${DOTNET_ROOT_PATH}/dotnet" /usr/local/bin/dotnet
+        log_info "Symlink created: /usr/local/bin/dotnet -> ${DOTNET_ROOT_PATH}/dotnet"
+    else
+        log_info "Symlink already exists or file exists at /usr/local/bin/dotnet"
+    fi
+    
+    # Set DOTNET_ROOT environment variable (per Microsoft docs)
+    export DOTNET_ROOT="$DOTNET_ROOT_PATH"
+    export PATH="/snap/bin:/usr/local/bin:$PATH"
+    
+    # Verify installation
+    DOTNET_CMD=""
+    for path in /usr/local/bin/dotnet /snap/bin/dotnet "${DOTNET_ROOT_PATH}/dotnet"; do
+        if [ -f "$path" ] && [ -x "$path" ]; then
+            DOTNET_CMD="$path"
+            break
+        fi
+    done
+    
+    if [ -z "$DOTNET_CMD" ]; then
+        DOTNET_CMD=$(which dotnet 2>/dev/null || echo "")
+    fi
+    
+    if [ -n "$DOTNET_CMD" ] && $DOTNET_CMD --version > /dev/null 2>&1; then
+        DOTNET_VER=$($DOTNET_CMD --version)
+        log_info ".NET SDK installed successfully: $DOTNET_VER"
+        log_info "Installation method: Snap (${DOTNET_PACKAGE})"
+        log_info "DOTNET_ROOT: $DOTNET_ROOT_PATH"
+        log_info "Dotnet path: $DOTNET_CMD"
+        
+        # Check version compatibility
+        MAJOR_VERSION=$(echo $DOTNET_VER | cut -d'.' -f1)
+        if [ "$MAJOR_VERSION" -lt 10 ]; then
+            log_warn "Installed .NET $DOTNET_VER (less than 10.0)"
+            log_warn "Your project targets net10.0"
+            log_warn "You may need to update TargetFramework in GameServer.csproj to net${MAJOR_VERSION}.0"
+        fi
+    else
+        log_error "Failed to verify .NET SDK installation"
+        log_error "Please check: snap list | grep dotnet"
+        log_error "Try manually: sudo snap alias ${DOTNET_PACKAGE}.dotnet dotnet"
         exit 1
     fi
 }
@@ -237,6 +499,12 @@ install_sqlserver() {
         log_warn "Official repo not available for Ubuntu ${UBUNTU_VERSION}, trying alternative method"
         echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/mssql-server-2022.gpg] https://packages.microsoft.com/ubuntu/${UBUNTU_VERSION}/prod $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/mssql-server-2022.list
     fi
+    
+    # Wait for dpkg lock before apt operations
+    wait_for_dpkg_lock || {
+        log_error "Cannot install SQL Server: dpkg lock is held"
+        return 1
+    }
     
     apt-get update
     
@@ -271,6 +539,12 @@ install_redis() {
         return 0
     fi
     
+    # Wait for dpkg lock
+    wait_for_dpkg_lock || {
+        log_error "Cannot install Redis: dpkg lock is held"
+        return 1
+    }
+    
     apt-get update
     apt-get install -y redis-server
     
@@ -293,6 +567,12 @@ install_nginx() {
         return 0
     fi
     
+    # Wait for dpkg lock
+    wait_for_dpkg_lock || {
+        log_error "Cannot install Nginx: dpkg lock is held"
+        return 1
+    }
+    
     apt-get update
     apt-get install -y nginx
     
@@ -311,6 +591,12 @@ install_git() {
         return 0
     fi
     
+    # Wait for dpkg lock
+    wait_for_dpkg_lock || {
+        log_error "Cannot install Git: dpkg lock is held"
+        return 1
+    }
+    
     apt-get update
     apt-get install -y git
     
@@ -319,6 +605,12 @@ install_git() {
 
 install_dependencies() {
     log_step "Installing all dependencies..."
+    
+    # Wait for dpkg lock to be released
+    if ! wait_for_dpkg_lock; then
+        log_error "Cannot proceed: dpkg lock is held by another process"
+        exit 1
+    fi
     
     # Update package list
     apt-get update
@@ -491,22 +783,64 @@ build_application() {
     
     cd "$INSTALL_DIR/server"
     
+    # Ensure snap bin is in PATH
+    export PATH="/snap/bin:$PATH"
+    
     # Check dotnet version before building
     if ! check_dotnet_version; then
         log_error "Cannot proceed with build. .NET SDK check failed."
         exit 1
     fi
     
+    # Find dotnet command - check apt installation first, then snap
+    DOTNET_CMD=""
+    
+    # Check apt installation first (Ubuntu package manager)
+    if [ -f "/usr/share/dotnet/dotnet" ] && [ -x "/usr/share/dotnet/dotnet" ]; then
+        DOTNET_CMD="/usr/share/dotnet/dotnet"
+        export DOTNET_ROOT="/usr/share/dotnet"
+        export PATH="/usr/share/dotnet:$PATH"
+    else
+        # Check snap installation
+        for path in /usr/local/bin/dotnet /snap/bin/dotnet; do
+            if [ -f "$path" ] && [ -x "$path" ]; then
+                DOTNET_CMD="$path"
+                break
+            fi
+        done
+        
+        if [ -z "$DOTNET_CMD" ]; then
+            DOTNET_CMD=$(which dotnet 2>/dev/null || echo "")
+        fi
+        
+        if [ -z "$DOTNET_CMD" ]; then
+            if snap list dotnet-sdk-100 2>/dev/null | grep -q dotnet-sdk-100; then
+                DOTNET_CMD="snap run dotnet-sdk-100.dotnet"
+                export DOTNET_ROOT="/snap/dotnet-sdk-100/current"
+            elif snap list dotnet-sdk 2>/dev/null | grep -q dotnet-sdk; then
+                DOTNET_CMD="snap run dotnet-sdk.dotnet"
+                export DOTNET_ROOT="/snap/dotnet-sdk/current"
+            fi
+        fi
+    fi
+    
+    if [ -z "$DOTNET_CMD" ]; then
+        log_error "dotnet command not found"
+        exit 1
+    fi
+    
+    log_info "Using dotnet: $DOTNET_CMD"
+    
     # Restore packages
     log_info "Restoring NuGet packages..."
-    if ! dotnet restore; then
+    if ! $DOTNET_CMD restore; then
         log_error "Failed to restore NuGet packages"
         exit 1
     fi
     
     # Publish application
     log_info "Publishing application..."
-    if ! dotnet publish -c Release -o "$PUBLISH_DIR" \
+    if ! $DOTNET_CMD publish -c Release -o "$PUBLISH_DIR" \
         -p:PublishSingleFile=false \
         -p:IncludeNativeLibrariesForSelfExtract=true; then
         log_error "Failed to publish application"
@@ -540,17 +874,49 @@ create_systemd_service() {
     # Get server IP address
     SERVER_IP=$(hostname -I | awk '{print $1}')
     
-    # Determine dotnet path (snap installs to /snap/bin)
-    DOTNET_PATH=$(which dotnet || echo "/snap/bin/dotnet")
+    # Determine DOTNET_ROOT and dotnet path - check apt first, then snap
+    DOTNET_ROOT_PATH=""
+    DOTNET_PATH=""
+    
+    # Check apt installation first (Ubuntu package manager - recommended)
+    if [ -f "/usr/share/dotnet/dotnet" ] && [ -x "/usr/share/dotnet/dotnet" ]; then
+        DOTNET_ROOT_PATH="/usr/share/dotnet"
+        DOTNET_PATH="/usr/share/dotnet/dotnet"
+        log_info "Found .NET SDK installed via apt at $DOTNET_PATH"
+    else
+        # Check snap packages (fallback)
+        if snap list dotnet-sdk-100 2>/dev/null | grep -q dotnet-sdk-100; then
+            DOTNET_ROOT_PATH="/snap/dotnet-sdk-100/current"
+        elif snap list dotnet-sdk-90 2>/dev/null | grep -q dotnet-sdk-90; then
+            DOTNET_ROOT_PATH="/snap/dotnet-sdk-90/current"
+        elif snap list dotnet-sdk 2>/dev/null | grep -q dotnet-sdk; then
+            DOTNET_ROOT_PATH="/snap/dotnet-sdk/current"
+        fi
+        
+        if [ -n "$DOTNET_ROOT_PATH" ]; then
+            # Use symlink at /usr/local/bin/dotnet (per Microsoft docs)
+            DOTNET_PATH="/usr/local/bin/dotnet"
+            
+            # Create symlink if it doesn't exist
+            if [ ! -f "$DOTNET_PATH" ] && [ ! -L "$DOTNET_PATH" ]; then
+                mkdir -p /usr/local/bin
+                ln -s "${DOTNET_ROOT_PATH}/dotnet" "$DOTNET_PATH"
+                log_info "Created symlink: $DOTNET_PATH -> ${DOTNET_ROOT_PATH}/dotnet"
+            fi
+        fi
+    fi
     
     # Verify dotnet path exists
-    if [ ! -f "$DOTNET_PATH" ]; then
-        log_error "dotnet not found at $DOTNET_PATH"
-        log_error "Please ensure .NET SDK is installed: snap install dotnet-sdk --classic"
+    if [ -z "$DOTNET_PATH" ] || ([ ! -f "$DOTNET_PATH" ] && [ ! -L "$DOTNET_PATH" ]); then
+        log_error "dotnet not found"
+        log_error "Please ensure .NET SDK is installed:"
+        log_error "  Ubuntu: sudo add-apt-repository ppa:dotnet/backports && sudo apt-get install -y dotnet-sdk-10.0"
+        log_error "  Snap: sudo snap install dotnet-sdk-100 --classic"
         exit 1
     fi
     
     log_info "Using dotnet at: $DOTNET_PATH"
+    log_info "DOTNET_ROOT: $DOTNET_ROOT_PATH"
     
     cat > "$SERVICE_FILE" <<EOF
 [Unit]
@@ -572,7 +938,8 @@ SyslogIdentifier=$APP_NAME
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://localhost:$APP_PORT
 Environment=GAME_CONFIG_PATH=$INSTALL_DIR/shared/game-config.json
-Environment=PATH=/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=DOTNET_ROOT=$DOTNET_ROOT_PATH
+Environment=PATH=$DOTNET_ROOT_PATH:/snap/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Logging
 StandardOutput=journal
@@ -834,8 +1201,13 @@ case "${1:-}" in
     check-dotnet)
         check_dotnet_version
         ;;
+    stop-updates)
+        check_root
+        stop_unattended_upgrades
+        log_info "unattended-upgrades stopped. You can now run install/update commands."
+        ;;
     *)
-        echo "Usage: $0 {install|update|start|stop|restart|status|check-dotnet}"
+        echo "Usage: $0 {install|update|start|stop|restart|status|check-dotnet|stop-updates}"
         echo ""
         echo "Commands:"
         echo "  install      - Full installation (run this first)"
@@ -845,6 +1217,7 @@ case "${1:-}" in
         echo "  restart      - Restart the service"
         echo "  status       - Show service status"
         echo "  check-dotnet - Check .NET SDK version and compatibility"
+        echo "  stop-updates - Stop unattended-upgrades (if blocking installation)"
         echo ""
         echo "Environment Variables:"
         echo "  GITHUB_REPO_URL  - GitHub repository URL (required)"
@@ -854,6 +1227,10 @@ case "${1:-}" in
         echo "Example:"
         echo "  export GITHUB_REPO_URL='https://github.com/user/repo.git'"
         echo "  export SQL_SA_PASSWORD='YourStrong@Password123'"
+        echo "  sudo ./deploy.sh install"
+        echo ""
+        echo "  # If blocked by unattended-upgrades:"
+        echo "  sudo ./deploy.sh stop-updates"
         echo "  sudo ./deploy.sh install"
         echo ""
         echo "  # Check .NET version"
