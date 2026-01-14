@@ -1,0 +1,239 @@
+@page "{sessionId}"
+@model GameServer.Areas.Player.Pages.Results.DetailsModel
+@{
+    ViewData["Title"] = "Game Result Details";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-trophy me-2"></i>Game Result Details
+        </h1>
+        <p class="text-muted mb-0">Detailed information about this game session</p>
+    </div>
+    <div>
+        <a asp-page="/Results/Index" class="btn btn-outline-light">
+            <i class="fas fa-arrow-left me-1"></i>Back to Results
+        </a>
+    </div>
+</div>
+
+@if (Model.ViewModel.HasError)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-exclamation-triangle fa-4x mb-4" style="color: var(--gaming-secondary); opacity: 1;"></i>
+            <h3 class="mb-3" style="color: var(--gaming-text);">Error</h3>
+            <p class="text-muted mb-4">@Model.ViewModel.ErrorMessage</p>
+            <a asp-page="/Results/Index" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Results
+            </a>
+        </div>
+    </div>
+}
+else if (Model.ViewModel.MatchResult != null)
+{
+    var result = Model.ViewModel.MatchResult;
+    var duration = result.EndTime.HasValue ? result.EndTime.Value - result.StartTime : TimeSpan.Zero;
+
+    <!-- Section 1: GameSession Info Card -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-2"></i>Session Information
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card info">
+                        <div class="stat-label">
+                            <i class="fas fa-hashtag me-2"></i>Session ID
+                        </div>
+                        <div class="stat-value" style="font-size: 1rem; word-break: break-all;">
+                            <code style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                                @result.SessionId.ToString()
+                            </code>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card info">
+                        <div class="stat-label">
+                            <i class="fas fa-play me-2"></i>Start Time
+                        </div>
+                        <div class="stat-value" style="font-size: 1.2rem;">
+                            @result.StartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card info">
+                        <div class="stat-label">
+                            <i class="fas fa-stop me-2"></i>End Time
+                        </div>
+                        <div class="stat-value" style="font-size: 1.2rem;">
+                            @if (result.EndTime.HasValue)
+                            {
+                                <text>@result.EndTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</text>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card success">
+                        <div class="stat-label">
+                            <i class="fas fa-hourglass-half me-2"></i>Duration
+                        </div>
+                        <div class="stat-value" style="font-size: 1.2rem;">
+                            @((int)duration.TotalMinutes)m @duration.Seconds s
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-6 mb-3">
+                    <div class="stat-card warning">
+                        <div class="stat-label">
+                            <i class="fas fa-users me-2"></i>Player Count
+                        </div>
+                        <div class="stat-value">
+                            @result.PlayerCount
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="stat-card success">
+                        <div class="stat-label">
+                            <i class="fas fa-info-circle me-2"></i>Status
+                        </div>
+                        <div class="stat-value" style="font-size: 1.5rem;">
+                            <span class="badge bg-success" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                <i class="fas fa-check-circle me-1"></i>@result.Status
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Enemy Types List -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-skull me-2"></i>Enemy Types
+        </div>
+        <div class="card-body">
+            @if (result.Enemies.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-skull me-2"></i>Enemy Name</th>
+                                <th><i class="fas fa-map me-2"></i>Section</th>
+                                <th><i class="fas fa-flag me-2"></i>Checkpoint</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var enemy in result.Enemies.OrderBy(e => e.SectionName).ThenBy(e => e.Name))
+                            {
+                                <tr>
+                                    <td>
+                                        <strong style="color: var(--gaming-primary);">@enemy.Name</strong>
+                                        <br>
+                                        <small class="text-muted">@enemy.EnemyTypeId</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">@enemy.SectionName</span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(enemy.CheckpointName))
+                                        {
+                                            <span class="badge bg-secondary">@enemy.CheckpointName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-skull fa-3x mb-3" style="color: var(--gaming-text-muted); opacity: 0.5;"></i>
+                    <p class="text-muted">No enemy types found for this session</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Section 3: Players List -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users me-2"></i>Players
+        </div>
+        <div class="card-body">
+            @if (result.Players.Any())
+            {
+                <div class="row">
+                    @foreach (var player in result.Players)
+                    {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card" style="background: rgba(15, 22, 41, 0.8); border: 1px solid var(--gaming-border);">
+                                <div class="card-body text-center">
+                                    <img src="@(!string.IsNullOrEmpty(player.AvatarPath) ? player.AvatarPath : "/avatars/default.svg")" 
+                                         alt="@player.Name" 
+                                         class="rounded-circle mb-3" 
+                                         style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--gaming-primary); box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);"
+                                         onerror="this.src='/avatars/default.svg'">
+                                    <h5 class="player-name mb-2">@player.Name</h5>
+                                    <div class="d-flex justify-content-center gap-3 mb-2">
+                                        <span class="badge bg-primary" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+                                            <i class="fas fa-level-up-alt me-1"></i>Level @player.Level
+                                        </span>
+                                        <span class="badge bg-warning" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+                                            <i class="fas fa-coins me-1"></i>@player.Gold Gold
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x mb-3" style="color: var(--gaming-text-muted); opacity: 0.5;"></i>
+                    <p class="text-muted">No players found for this session</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center mb-4">
+        <a asp-page="/Results/Index" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Results List
+        </a>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-4x mb-4" style="color: var(--gaming-primary); opacity: 1;"></i>
+            <h3 class="mb-3" style="color: var(--gaming-text);">Loading...</h3>
+            <p class="text-muted">Please wait while we load the match result</p>
+        </div>
+    </div>
+}
+

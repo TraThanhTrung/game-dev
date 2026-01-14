@@ -1,0 +1,165 @@
+@page
+@model GameServer.Areas.Player.Pages.Results.IndexModel
+@{
+    ViewData["Title"] = "Game Results";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
+    <div>
+        <h1 class="mb-0">
+            <i class="fas fa-trophy me-2"></i>Game Results
+        </h1>
+        <p class="text-muted mb-0">Your completed game sessions</p>
+    </div>
+    <div>
+        <span class="badge bg-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">
+            Total: <strong>@Model.TotalSessions</strong> completed sessions
+        </span>
+    </div>
+</div>
+
+@if (Model.CompletedSessions.Any())
+{
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>Completed Sessions
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hashtag me-2"></i>Session ID</th>
+                            <th><i class="fas fa-play me-2"></i>Start Time</th>
+                            <th><i class="fas fa-stop me-2"></i>End Time</th>
+                            <th><i class="fas fa-hourglass-half me-2"></i>Duration</th>
+                            <th><i class="fas fa-users me-2"></i>Players</th>
+                            <th><i class="fas fa-info-circle me-2"></i>Status</th>
+                            <th><i class="fas fa-eye me-2"></i>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var session in Model.CompletedSessions)
+                        {
+                            <tr>
+                                <td>
+                                    <code style="background: rgba(0, 212, 255, 0.1); color: var(--gaming-primary); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                                        @session.SessionId.ToString().Substring(0, 8)...
+                                    </code>
+                                </td>
+                                <td>@session.StartTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td>
+                                    @if (session.EndTime.HasValue)
+                                    {
+                                        <text>@session.EndTime.Value.ToString("yyyy-MM-dd HH:mm:ss")</text>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (session.EndTime.HasValue)
+                                    {
+                                        var duration = session.EndTime.Value - session.StartTime;
+                                        <span class="badge bg-info">
+                                            @((int)duration.TotalMinutes)m @duration.Seconds s
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">@session.PlayerCount <i class="fas fa-users ms-1"></i></span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle me-1"></i>@session.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    <a asp-page="/Results/Details" asp-route-sessionId="@session.SessionId" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i>View Details
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <nav aria-label="Results pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        @if (Model.CurrentPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-page="/Results/Index" asp-route-page="@(Model.CurrentPage - 1)" style="background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link" style="background: rgba(15, 22, 41, 0.4); border-color: var(--gaming-border); color: var(--gaming-text-muted);">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous
+                                </span>
+                            </li>
+                        }
+
+                        @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" 
+                                   asp-page="/Results/Index" 
+                                   asp-route-page="@i"
+                                   style="@(i == Model.CurrentPage ? "background: var(--gaming-primary); border-color: var(--gaming-primary); color: var(--gaming-dark);" : "background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);")">
+                                    @i
+                                </a>
+                            </li>
+                        }
+
+                        @if (Model.CurrentPage < Model.TotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" asp-page="/Results/Index" asp-route-page="@(Model.CurrentPage + 1)" style="background: rgba(15, 22, 41, 0.8); border-color: var(--gaming-border); color: var(--gaming-text);">
+                                    Next<i class="fas fa-chevron-right ms-1"></i>
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link" style="background: rgba(15, 22, 41, 0.4); border-color: var(--gaming-border); color: var(--gaming-text-muted);">
+                                    Next<i class="fas fa-chevron-right ms-1"></i>
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-trophy fa-4x mb-4" style="color: var(--gaming-primary); opacity: 1;"></i>
+            <h3 class="mb-3" style="color: var(--gaming-text);">No Completed Sessions</h3>
+            <p class="text-muted mb-4">Complete a game session to see results here!</p>
+            <a asp-page="/Index" class="btn btn-primary me-2">
+                <i class="fas fa-home me-1"></i>Go to Dashboard
+            </a>
+            <a asp-page="/History" class="btn btn-success">
+                <i class="fas fa-history me-1"></i>View Match History
+            </a>
+        </div>
+    </div>
+}
+

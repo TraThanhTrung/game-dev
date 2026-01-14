@@ -1,0 +1,21 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.AspNetCore.Hosting.Diagnostics": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "GameDb": "Server=localhost;Database=GameServerDb;User Id=sa;Password=YOUR_SA_PASSWORD;TrustServerCertificate=True;",
+    "Redis": "localhost:6379"
+  },
+  "Authentication": {
+    "Google": {
+      "ClientId": "391831042184-duafgo6inqp4r13gv546g3doh28rjo1o.apps.googleusercontent.com",
+      "ClientSecret": "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"
+    }
+  },
+  "AllowedHosts": "*"
+}
+

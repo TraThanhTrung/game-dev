@@ -15,3 +15,8 @@ VALUES
     (3, 'boss_fish', 'fish', 10, 20, 10, 2, 3.0, 7.0, 2.0, 1.0, 2.0, 2.0, 1.0, 999999, 1, '2026-01-12 17:40:04.112308', '2026-01-12 18:50:51.4982802');
 GO
 
+USE GameServerDb;
+GO
+
+UPDATE PlayerStats
+SET Speed = 2.0;
