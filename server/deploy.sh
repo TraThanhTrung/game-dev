@@ -929,6 +929,46 @@ build_application() {
     
     log_info "Application published successfully to $PUBLISH_DIR"
     
+    # Copy appsettings.Production.json to published directory if it exists
+    PROD_SETTINGS="$INSTALL_DIR/server/appsettings.Production.json"
+    if [ -f "$PROD_SETTINGS" ]; then
+        log_info "Copying appsettings.Production.json to published directory..."
+        cp "$PROD_SETTINGS" "$PUBLISH_DIR/appsettings.Production.json"
+        log_info "appsettings.Production.json copied to published directory"
+        
+        # Verify connection string doesn't have Trusted_Connection
+        if grep -q "Trusted_Connection=True" "$PUBLISH_DIR/appsettings.Production.json"; then
+            log_error "ERROR: appsettings.Production.json contains Trusted_Connection=True!"
+            log_error "This will not work on Linux. Please fix the connection string."
+            log_error "File location: $PROD_SETTINGS"
+            exit 1
+        fi
+        
+        # Verify connection string has User Id and Password
+        if ! grep -q "User Id=" "$PUBLISH_DIR/appsettings.Production.json" || ! grep -q "Password=" "$PUBLISH_DIR/appsettings.Production.json"; then
+            log_error "ERROR: appsettings.Production.json missing User Id or Password!"
+            log_error "Connection string must have: User Id=sa;Password=...;"
+            log_error "File location: $PROD_SETTINGS"
+            exit 1
+        fi
+        
+        log_info "Connection string verified (User Id + Password, no Trusted_Connection)"
+    else
+        log_warn "appsettings.Production.json not found at $PROD_SETTINGS"
+        log_warn "Application will use appsettings.json which has Trusted_Connection=True"
+        log_warn "This will FAIL on Linux! Please create appsettings.Production.json:"
+        log_warn "  export SQL_SA_PASSWORD='YourPassword'"
+        log_warn "  sudo ./create-prod-config.sh"
+        log_warn "  sudo ./deploy.sh update"
+        
+        # Check if appsettings.json has Trusted_Connection
+        if grep -q "Trusted_Connection=True" "$PUBLISH_DIR/appsettings.json"; then
+            log_error "ERROR: Published app will use Trusted_Connection=True which doesn't work on Linux!"
+            log_error "Please create appsettings.Production.json before publishing."
+            exit 1
+        fi
+    fi
+    
     # Set permissions
     chown -R "$APP_USER:$APP_USER" "$PUBLISH_DIR"
     
