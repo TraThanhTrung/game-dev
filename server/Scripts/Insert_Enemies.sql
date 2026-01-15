@@ -20,3 +20,4 @@ GO
 
 UPDATE PlayerStats
 SET Speed = 2.0;
+

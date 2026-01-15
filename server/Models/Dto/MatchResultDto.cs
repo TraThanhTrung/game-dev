@@ -11,3 +11,5 @@ public class MatchResultDto
     public List<PlayerInfoDto> Players { get; set; } = new List<PlayerInfoDto>();
 }
 
+
+

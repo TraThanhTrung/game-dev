@@ -37,6 +37,12 @@ public class Player_Combat : MonoBehaviour
 
     public void DealDamage()
     {
+        // Play combat hit sound effect
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayCombatHit();
+        }
+
         Collider2D[] enemies = Physics2D.OverlapCircleAll(attackPoint.position, StatsManager.Instance.weaponRange, enemyLayer);
 
         if (enemies.Length > 0)

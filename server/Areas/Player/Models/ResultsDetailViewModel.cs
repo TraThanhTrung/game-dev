@@ -12,3 +12,5 @@ public class ResultsDetailViewModel
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 }
 
+
+

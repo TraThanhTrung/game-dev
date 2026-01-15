@@ -12,3 +12,5 @@ public class ResultsListViewModel
     public string Status { get; set; } = string.Empty;
 }
 
+
+

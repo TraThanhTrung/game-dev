@@ -48,6 +48,12 @@ public class InventorySlot : MonoBehaviour, IPointerClickHandler
     {
         if (quantity > 0)
         {
+            // Play UI click sound effect
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayUIClick();
+            }
+
             if (eventData.button == PointerEventData.InputButton.Left)
             {
                 if (activeShop != null)

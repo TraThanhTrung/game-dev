@@ -89,3 +89,5 @@ else
     log_warn "Service may have issues. Check logs: sudo ./deploy.sh logs"
 fi
 
+
+

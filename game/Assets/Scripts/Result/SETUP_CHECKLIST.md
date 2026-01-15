@@ -75,3 +75,5 @@
 3. **Layout broken**: Kiểm tra Layout Group và Content Size Fitter components
 4. **Missing references**: Re-assign trong Inspector
 
+
+

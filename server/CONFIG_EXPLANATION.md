@@ -164,3 +164,5 @@ sudo ./fix-sqlserver.sh fix
 # 3. Check connection string
 cat /opt/game-server/server/appsettings.Production.json
 ```
+
+

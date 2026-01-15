@@ -34,6 +34,12 @@ public class ShopKeeper : MonoBehaviour
             {
                 if (!isShopOpen)
                 {
+                    // Play shop open sound effect
+                    if (AudioManager.Instance != null)
+                    {
+                        AudioManager.Instance.PlayShopOpen();
+                    }
+
                     Time.timeScale = 0;
                     isShopOpen = true;
                     OnShopStateChanged?.Invoke(shopManager, true);

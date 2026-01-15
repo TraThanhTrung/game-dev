@@ -7,6 +7,12 @@ public class ShopButtonToggles : MonoBehaviour
 
     public void OpenItemShop()
     {
+        // Play UI click sound effect
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayUIClick();
+        }
+
         if(ShopKeeper.currentShopKeeper != null)
         {
             ShopKeeper.currentShopKeeper.OpenItemShop();
@@ -15,6 +21,12 @@ public class ShopButtonToggles : MonoBehaviour
 
     public void OpenWeaponsShop()
     {
+        // Play UI click sound effect
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayUIClick();
+        }
+
         if (ShopKeeper.currentShopKeeper != null)
         {
             ShopKeeper.currentShopKeeper.OpenWeaponShop();
@@ -24,6 +36,12 @@ public class ShopButtonToggles : MonoBehaviour
 
     public void OpenArmourShop()
     {
+        // Play UI click sound effect
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayUIClick();
+        }
+
         if (ShopKeeper.currentShopKeeper != null)
         {
             ShopKeeper.currentShopKeeper.OpenArmourShop();

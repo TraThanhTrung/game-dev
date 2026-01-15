@@ -32,6 +32,12 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
     public void OnBuyButtonClicked()
     {
+        // Play UI click sound effect
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayUIClick();
+        }
+
         shopManager.TryBuyItem(itemSO, price);
     }
 

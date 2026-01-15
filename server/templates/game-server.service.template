@@ -15,7 +15,7 @@ SyslogIdentifier=game-server
 
 # Environment variables
 Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://localhost:5000
+Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
 Environment=GAME_CONFIG_PATH=/opt/game-server/shared/game-config.json
 
 # Logging

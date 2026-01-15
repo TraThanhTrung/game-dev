@@ -9,3 +9,5 @@ public class PlayerInfoDto
     public int Gold { get; set; }
 }
 
+
+

@@ -19,3 +19,7 @@ MonoBehaviour:
     sprite: {fileID: 146462253, guid: 9c3e72c5ac3e14712a08220aaaa502f7, type: 3}
   - typeId: gnome
     sprite: {fileID: 235756171, guid: 91d5798d509116f4982ec7e54ffb2408, type: 3}
+  - typeId: gnoll
+    sprite: {fileID: 2071405886, guid: 0e827075638474a439aeb1cf57b38d60, type: 3}
+  - typeId: bear
+    sprite: {fileID: -363594105, guid: b7e387714e23d864083a769a110ce9be, type: 3}

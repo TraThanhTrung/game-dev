@@ -104,3 +104,5 @@ PlayerListItem
 3. **Reset RectTransform:**
    - Right-click RectTransform → Reset
    - Sau đó set lại Width/Height cụ thể
+
+
