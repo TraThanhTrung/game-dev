@@ -23,13 +23,13 @@ LOG_DIR="/var/log/game-server"
 # Application settings
 APP_NAME="game-server"
 APP_USER="gameserver"
-APP_PORT=5220
+APP_PORT=5000
 NGINX_PORT=80
 
 # Database settings
 DB_NAME="GameServerDb"
 DB_USER="sa"
-DB_PASSWORD="${SQL_SA_PASSWORD:-}"
+DB_PASSWORD="Password@123"
 
 # Redis settings
 REDIS_HOST="localhost"
