@@ -1361,6 +1361,52 @@ public class NetClient : MonoBehaviour
     }
 
     /// <summary>
+    /// Use an item and apply temporary buffs to server (stores in Redis).
+    /// </summary>
+    public IEnumerator UseItem(string itemId, string itemName, int currentHealthBonus, int speedBonus, int damageBonus, float durationSeconds,
+        Action<UseItemResponse> onSuccess = null, Action<string> onError = null)
+    {
+        if (!IsConnected)
+        {
+            onError?.Invoke("Not connected");
+            yield break;
+        }
+
+        var payload = JsonUtility.ToJson(new
+        {
+            playerId = PlayerId.ToString(),
+            itemId = itemId,
+            itemName = itemName,
+            currentHealthBonus = currentHealthBonus,
+            speedBonus = speedBonus,
+            damageBonus = damageBonus,
+            durationSeconds = durationSeconds
+        });
+
+        using var req = BuildPost("/items/use", payload);
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            onError?.Invoke($"{req.responseCode} {req.error}");
+            yield break;
+        }
+
+        UseItemResponse result = null;
+        try
+        {
+            result = JsonUtility.FromJson<UseItemResponse>(req.downloadHandler.text);
+        }
+        catch
+        {
+            onError?.Invoke("Invalid use item response");
+            yield break;
+        }
+
+        onSuccess?.Invoke(result);
+    }
+
+    /// <summary>
     /// Get match result data for a session.
     /// </summary>
     public void GetMatchResult(string sessionId, Action<GameResult.MatchResultData> onSuccess, Action<string> onError)
@@ -1691,6 +1737,13 @@ public class SkillInfo
 {
     public string skillId;
     public int level;
+}
+
+[Serializable]
+public class UseItemResponse
+{
+    public bool success;
+    public string message;
 }
 
 #region SignalR DTOs

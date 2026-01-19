@@ -130,10 +130,12 @@ public class WorldService
         var session = _sessions.GetOrAdd("default", sid => CreateDefaultSession(sid));
         bool isFirstPlayerInSession = false;
 
-        // Load temporary skill bonuses from Redis (before lock to avoid blocking)
+        // Load temporary skill bonuses and item buffs from Redis (before lock to avoid blocking)
         using var scope = _serviceProvider.CreateScope();
         var temporarySkillService = scope.ServiceProvider.GetRequiredService<TemporarySkillService>();
+        var temporaryItemService = scope.ServiceProvider.GetRequiredService<TemporaryItemService>();
         var bonuses = await temporarySkillService.GetTemporarySkillBonusesAsync(session.SessionId, profile.Id);
+        var itemBuffs = await temporaryItemService.GetTemporaryItemBuffsAsync(session.SessionId, profile.Id);
 
         // Check if this is the first player in this session (for checkpoint initialization)
         // ConcurrentDictionary operations are thread-safe
@@ -173,8 +175,11 @@ public class WorldService
                 Sequence = 0
             };
 
-            // Apply base stats + temporary bonuses
+            // Apply base stats + temporary skill bonuses
             temporarySkillService.ApplyBonusesToBaseStats(playerState, stats, bonuses);
+            
+            // Apply temporary item buffs (mainly currentHealth boost)
+            temporaryItemService.ApplyBonusesToPlayerState(playerState, itemBuffs);
 
             // Set other stats from base
             playerState.Range = stats.Range;
@@ -450,6 +455,10 @@ public class WorldService
     /// </summary>
     private StateResponse BuildStateResponse(SessionState session)
     {
+        // Apply item buffs to all players before building snapshot
+        // This ensures HP is correctly calculated from active item buffs
+        ApplyItemBuffsToSessionPlayers(session);
+
         var response = new StateResponse
         {
             SessionId = session.SessionId,
@@ -484,6 +493,43 @@ public class WorldService
         };
 
         return response;
+    }
+
+    /// <summary>
+    /// Apply active item buffs to all players in session before state sync.
+    /// Cleans up expired buffs and applies current HP bonuses.
+    /// </summary>
+    private void ApplyItemBuffsToSessionPlayers(SessionState session)
+    {
+        if (session.Players.Count == 0) return;
+
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var temporaryItemService = scope.ServiceProvider.GetRequiredService<TemporaryItemService>();
+
+            foreach (var player in session.Players.Values)
+            {
+                // Get item buffs from Redis
+                var itemBuffs = temporaryItemService.GetTemporaryItemBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
+                
+                if (itemBuffs != null)
+                {
+                    // Clean up expired buffs
+                    temporaryItemService.CleanupExpiredBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
+                    
+                    // Re-get buffs after cleanup
+                    itemBuffs = temporaryItemService.GetTemporaryItemBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
+                }
+
+                // Apply item buffs to player state (mainly HP boost)
+                temporaryItemService.ApplyBonusesToPlayerState(player, itemBuffs);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error applying item buffs to session {SessionId} players", session.SessionId);
+        }
     }
 
     public async Task TickAsync(CancellationToken cancellationToken)

@@ -1,11 +1,11 @@
 {
     "checkpoints": [
         {
-            "checkpointName": "c5 (5)",
-            "sectionId": 2,
-            "x": 15.90999984741211,
-            "y": 6.789999961853027,
-            "enemyPool": "[\"gnome\"]",
+            "checkpointName": "c5 (6)",
+            "sectionId": 1,
+            "x": -13.369999885559082,
+            "y": -5.800000190734863,
+            "enemyPool": "[\"boss_fish\"]",
             "maxEnemies": 1,
             "isActive": true
         },
@@ -51,6 +51,15 @@
             "x": -13.239999771118164,
             "y": 0.7300000190734863,
             "enemyPool": "[\"slime\"]",
+            "maxEnemies": 1,
+            "isActive": true
+        },
+        {
+            "checkpointName": "c5 (5)",
+            "sectionId": 2,
+            "x": 15.90999984741211,
+            "y": 6.789999961853027,
+            "enemyPool": "[\"boss_fish\"]",
             "maxEnemies": 1,
             "isActive": true
         },

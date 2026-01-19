@@ -1,0 +1,25 @@
+// Mảng enemyPool chứa tất cả enemy thường (không bao gồm boss)
+// Format JSON string để đẩy vào web admin
+
+["bear", "elancer", "fish", "gnoll", "gnome", "paddleFish", "panda", "skull", "slime", "snake", "spider", "thief", "turtle"]
+
+
+// Giải thích:
+// - bear: Gấu
+// - elancer: Kẻ cầm giáo/lao
+// - fish: Cá (thường, không phải boss_fish)
+// - gnoll: Gnoll
+// - gnome: Gnome
+// - paddleFish: Cá mái chèo
+// - panda: Gấu trúc
+// - skull: Bộ xương
+// - slime: Chất nhờn
+// - snake: Rắn
+// - spider: Nhện
+// - thief: Kẻ trộm
+// - turtle: Rùa
+
+// Lưu ý: Đã loại bỏ các boss:
+// - boss_minotaur (boss)
+// - boss_troll (boss)
+

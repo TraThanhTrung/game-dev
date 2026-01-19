@@ -1,16 +1,16 @@
 -- ============================================
 -- Auto-generated Checkpoint Export SQL
--- Generated: 2026-01-12 18:37:34
--- Total Checkpoints: 10
+-- Generated: 2026-01-19 01:19:23
+-- Total Checkpoints: 11
 -- ============================================
 
 INSERT INTO Checkpoints (CheckpointName, SectionId, X, Y, EnemyPool, MaxEnemies, IsActive, CreatedAt)
 VALUES (
-    'c5 (5)',
-    2,
-    15.91,
-    6.79,
-    '["gnome"]',
+    'c5 (6)',
+    1,
+    -13.37,
+    -5.80,
+    '["boss_fish"]',
     1,
     1,
     datetime('now')
@@ -78,6 +78,18 @@ VALUES (
 
 INSERT INTO Checkpoints (CheckpointName, SectionId, X, Y, EnemyPool, MaxEnemies, IsActive, CreatedAt)
 VALUES (
+    'c5 (5)',
+    2,
+    15.91,
+    6.79,
+    '["boss_fish"]',
+    1,
+    1,
+    datetime('now')
+);
+
+INSERT INTO Checkpoints (CheckpointName, SectionId, X, Y, EnemyPool, MaxEnemies, IsActive, CreatedAt)
+VALUES (
     'c2',
     1,
     8.00,
@@ -124,5 +136,3 @@ VALUES (
     datetime('now')
 );
 
-
-SELECT * FROM GameSections;

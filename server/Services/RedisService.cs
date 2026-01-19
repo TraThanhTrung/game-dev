@@ -264,6 +264,36 @@ public class RedisService
     }
     #endregion
 
+    #region Public Methods - Temporary Item Buffs
+    /// <summary>
+    /// Get temporary item buffs from Redis for a player in a session.
+    /// </summary>
+    public async Task<Models.Dto.TemporaryItemBuffs?> GetTemporaryItemBuffsAsync(string sessionId, Guid playerId)
+    {
+        var key = $"session:itembuffs:{sessionId}:{playerId}";
+        return await GetAsync<Models.Dto.TemporaryItemBuffs>(key);
+    }
+
+    /// <summary>
+    /// Set temporary item buffs in Redis with TTL (4 hours).
+    /// </summary>
+    public async Task SetTemporaryItemBuffsAsync(string sessionId, Guid playerId, Models.Dto.TemporaryItemBuffs buffs)
+    {
+        var key = $"session:itembuffs:{sessionId}:{playerId}";
+        buffs.LastUpdated = DateTime.UtcNow;
+        await SetAsync(key, buffs, TimeSpan.FromHours(4)); // 4 hour TTL
+    }
+
+    /// <summary>
+    /// Delete temporary item buffs from Redis (optional, when session ends).
+    /// </summary>
+    public async Task DeleteTemporaryItemBuffsAsync(string sessionId, Guid playerId)
+    {
+        var key = $"session:itembuffs:{sessionId}:{playerId}";
+        await DeleteAsync(key);
+    }
+    #endregion
+
     #region Public Methods - Session State Cache
     /// <summary>
     /// Cache session state response in Redis.

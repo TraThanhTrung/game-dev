@@ -133,6 +133,7 @@ builder.Services.AddSingleton<RedisService>(); // Singleton because it wraps ICo
 builder.Services.AddSingleton<WorldService>();
 builder.Services.AddScoped<PlayerService>();
 builder.Services.AddScoped<TemporarySkillService>();
+builder.Services.AddScoped<TemporaryItemService>();
 builder.Services.AddScoped<EnemyConfigService>();
 builder.Services.AddSingleton<CheckpointService>();
 builder.Services.AddScoped<AdminService>();

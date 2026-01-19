@@ -17,27 +17,26 @@ public class UseItem : MonoBehaviour
     /// <summary>
     /// Apply all effects from an item to the player's stats.
     /// If item has duration > 0, effects are temporary and will be removed after duration.
+    /// Temporary buffs are sent to server and stored in Redis (like skills).
     /// </summary>
     public void ApplyItemEffects(ItemSO itemSO)
     {
-        // Apply health healing (permanent effect, no duration)
-        if (itemSO.currentHealth > 0)
-        {
-            StatsManager.Instance.UpdateHealth(itemSO.currentHealth);
-        }
-
+        // Apply local effects immediately (client-side prediction)
         // Track buff IDs for this item usage
         List<int> buffIds = new List<int>();
 
-        // Apply max health boost (can be temporary if duration > 0)
-        if (itemSO.maxHealth > 0)
+        // Apply current health boost (temporary if duration > 0)
+        // Item chỉ nâng currentHealth tạm thời, KHÔNG nâng maxHealth
+        if (itemSO.currentHealth > 0)
         {
-            StatsManager.Instance.UpdateMaxHealth(itemSO.maxHealth);
-            
+            // Tăng currentHealth
+            StatsManager.Instance.UpdateHealth(itemSO.currentHealth);
+
+            // Nếu có duration, track để remove sau khi hết thời gian
             if (itemSO.duration > 0)
             {
-                // Track for removal later
-                int buffId = TrackBuff(itemSO, StatType.MaxHealth, itemSO.maxHealth);
+                // Track để giảm máu khi hết buff
+                int buffId = TrackBuff(itemSO, StatType.CurrentHealth, itemSO.currentHealth);
                 buffIds.Add(buffId);
             }
         }
@@ -46,7 +45,7 @@ public class UseItem : MonoBehaviour
         if (itemSO.speed > 0)
         {
             StatsManager.Instance.UpdateSpeed(itemSO.speed);
-            
+
             if (itemSO.duration > 0)
             {
                 int buffId = TrackBuff(itemSO, StatType.Speed, itemSO.speed);
@@ -58,7 +57,7 @@ public class UseItem : MonoBehaviour
         if (itemSO.damage > 0)
         {
             StatsManager.Instance.AddDamage(itemSO.damage);
-            
+
             if (itemSO.duration > 0)
             {
                 int buffId = TrackBuff(itemSO, StatType.Damage, itemSO.damage);
@@ -66,11 +65,46 @@ public class UseItem : MonoBehaviour
             }
         }
 
-        // Start effect timer if item has duration (temporary buff)
+        // Nếu item có duration, gửi buff lên server để lưu vào Redis
         if (itemSO.duration > 0 && buffIds.Count > 0)
         {
+            // Gửi buff lên server (lưu vào Redis)
+            SendItemBuffToServer(itemSO, itemSO.duration);
+
+            // Start effect timer để remove local buff sau khi hết thời gian
+            // Server sẽ tự động remove buff từ Redis khi hết TTL
             StartCoroutine(EffectTimer(itemSO, itemSO.duration, buffIds));
         }
+    }
+
+    /// <summary>
+    /// Send item buff to server to store in Redis (for multiplayer sync).
+    /// </summary>
+    private void SendItemBuffToServer(ItemSO itemSO, float duration)
+    {
+        // Chỉ gửi lên server nếu đang kết nối multiplayer
+        if (NetClient.Instance == null || !NetClient.Instance.IsConnected)
+        {
+            Debug.LogWarning("[UseItem] Not connected to server, item buff only applied locally");
+            return;
+        }
+
+        // Generate unique item ID from item name
+        string itemId = itemSO.itemName.Replace(" ", "_").ToLower();
+
+        // Gửi request lên server
+        StartCoroutine(NetClient.Instance.UseItem(
+            itemId, itemSO.itemName,
+            itemSO.currentHealth, itemSO.speed, itemSO.damage, duration,
+            res =>
+            {
+                if (res != null && res.success)
+                {
+                    Debug.Log($"[UseItem] Item buff sent to server: {itemSO.itemName} (duration: {duration}s)");
+                }
+            },
+            err => Debug.LogWarning($"[UseItem] Failed to send item buff to server: {err}")
+        ));
     }
     #endregion
 
@@ -152,8 +186,9 @@ public class UseItem : MonoBehaviour
     {
         switch (buff.statType)
         {
-            case StatType.MaxHealth:
-                StatsManager.Instance.UpdateMaxHealth(-(int)buff.value);
+            case StatType.CurrentHealth:
+                // Giảm currentHealth về mức ban đầu (trừ đi giá trị đã tăng)
+                StatsManager.Instance.UpdateHealth(-(int)buff.value);
                 break;
 
             case StatType.Speed:
@@ -185,7 +220,7 @@ public class UseItem : MonoBehaviour
     /// </summary>
     private enum StatType
     {
-        MaxHealth,
+        CurrentHealth,
         Speed,
         Damage
     }
