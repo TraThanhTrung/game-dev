@@ -144,26 +144,85 @@ public class TemporaryItemService
     /// <summary>
     /// Apply temporary item bonuses to PlayerState.
     /// Only applies to current HP (temporary health boost).
+    /// This method calculates HP from base HP + bonuses to avoid double-counting.
+    /// Preserves current HP if player has taken damage (HP < baseHp).
     /// </summary>
-    public void ApplyBonusesToPlayerState(PlayerState playerState, TemporaryItemBuffs? buffs)
+    public void ApplyBonusesToPlayerState(PlayerState playerState, TemporaryItemBuffs? buffs, int baseHp)
     {
-        if (buffs == null)
+        if (buffs == null || buffs.ActiveBuffs.Count == 0)
         {
-            return; // No buffs
+            // No buffs, use base HP but preserve if player took damage
+            if (playerState.Hp >= baseHp)
+            {
+                playerState.Hp = Math.Min(baseHp, playerState.MaxHp);
+            }
+            return;
         }
 
         // Clean up expired buffs first
         buffs.ActiveBuffs.RemoveAll(b => b.ExpiresAt < DateTime.UtcNow);
 
+        // If no active buffs after cleanup, use base HP
+        if (buffs.ActiveBuffs.Count == 0)
+        {
+            if (playerState.Hp >= baseHp)
+            {
+                playerState.Hp = Math.Min(baseHp, playerState.MaxHp);
+            }
+            return;
+        }
+
         // Calculate active bonuses
         var bonuses = CalculateActiveBonuses(buffs);
 
-        // Apply bonuses (only currentHealth for items, speed and damage are already in base stats)
-        // Note: CurrentHealthBonus is added to current HP, not max HP
-        playerState.Hp = Math.Min(playerState.Hp + bonuses.CurrentHealthBonus, playerState.MaxHp);
-        
-        // Speed and Damage are already applied via base stats in WorldService
-        // We just track them here for UI display if needed
+        // Calculate HP with buffs
+        int hpWithBonus = baseHp + bonuses.CurrentHealthBonus;
+        int cappedHpWithBonus = Math.Min(hpWithBonus, playerState.MaxHp);
+
+        // Only apply buffs if current HP >= base HP (hasn't taken damage)
+        // If HP < base HP, player has taken damage and we should preserve current HP
+        if (playerState.Hp >= baseHp)
+        {
+            // Player hasn't taken damage, apply item buffs
+            playerState.Hp = cappedHpWithBonus;
+        }
+        else
+        {
+            // Player has taken damage, preserve current HP but ensure it doesn't exceed buffed HP
+            playerState.Hp = Math.Min(playerState.Hp, cappedHpWithBonus);
+        }
+    }
+
+    /// <summary>
+    /// Apply bonuses without base HP parameter.
+    /// Estimates base HP by subtracting current bonuses from current HP.
+    /// This may not be accurate if HP changed due to damage/healing.
+    /// </summary>
+    public void ApplyBonusesToPlayerState(PlayerState playerState, TemporaryItemBuffs? buffs)
+    {
+        if (buffs == null || buffs.ActiveBuffs.Count == 0)
+        {
+            return; // No buffs, HP stays as is
+        }
+
+        // Clean up expired buffs first
+        buffs.ActiveBuffs.RemoveAll(b => b.ExpiresAt < DateTime.UtcNow);
+
+        if (buffs.ActiveBuffs.Count == 0)
+        {
+            return; // No active buffs after cleanup
+        }
+
+        // Calculate active bonuses
+        var bonuses = CalculateActiveBonuses(buffs);
+
+        // Estimate base HP by subtracting current bonuses
+        // This works if HP hasn't changed due to damage/healing since buff was applied
+        int estimatedBaseHp = Math.Max(0, playerState.Hp - bonuses.CurrentHealthBonus);
+
+        // Recalculate HP from base + bonuses
+        int hpWithBonus = estimatedBaseHp + bonuses.CurrentHealthBonus;
+        playerState.Hp = Math.Min(hpWithBonus, playerState.MaxHp);
     }
 }
 

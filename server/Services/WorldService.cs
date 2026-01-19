@@ -177,9 +177,10 @@ public class WorldService
 
             // Apply base stats + temporary skill bonuses
             temporarySkillService.ApplyBonusesToBaseStats(playerState, stats, bonuses);
-            
-            // Apply temporary item buffs (mainly currentHealth boost)
-            temporaryItemService.ApplyBonusesToPlayerState(playerState, itemBuffs);
+
+            // Note: Item buffs are NOT applied when registering player
+            // Item buffs are only applied when player uses an item (via ItemsController)
+            // HP in PlayerState is the source of truth and is preserved across ticks
 
             // Set other stats from base
             playerState.Range = stats.Range;
@@ -455,9 +456,9 @@ public class WorldService
     /// </summary>
     private StateResponse BuildStateResponse(SessionState session)
     {
-        // Apply item buffs to all players before building snapshot
-        // This ensures HP is correctly calculated from active item buffs
-        ApplyItemBuffsToSessionPlayers(session);
+        // Note: Item buffs are NOT applied here to avoid overwriting HP changed by damage/healing in tick
+        // Item buffs are only applied when player registers (RegisterOrLoadPlayerAsync)
+        // HP changes during gameplay (damage/healing) are preserved and synced as-is
 
         var response = new StateResponse
         {
@@ -495,42 +496,8 @@ public class WorldService
         return response;
     }
 
-    /// <summary>
-    /// Apply active item buffs to all players in session before state sync.
-    /// Cleans up expired buffs and applies current HP bonuses.
-    /// </summary>
-    private void ApplyItemBuffsToSessionPlayers(SessionState session)
-    {
-        if (session.Players.Count == 0) return;
-
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var temporaryItemService = scope.ServiceProvider.GetRequiredService<TemporaryItemService>();
-
-            foreach (var player in session.Players.Values)
-            {
-                // Get item buffs from Redis
-                var itemBuffs = temporaryItemService.GetTemporaryItemBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
-                
-                if (itemBuffs != null)
-                {
-                    // Clean up expired buffs
-                    temporaryItemService.CleanupExpiredBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
-                    
-                    // Re-get buffs after cleanup
-                    itemBuffs = temporaryItemService.GetTemporaryItemBuffsAsync(session.SessionId, player.Id).GetAwaiter().GetResult();
-                }
-
-                // Apply item buffs to player state (mainly HP boost)
-                temporaryItemService.ApplyBonusesToPlayerState(player, itemBuffs);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error applying item buffs to session {SessionId} players", session.SessionId);
-        }
-    }
+    // Note: ApplyItemBuffsToSessionPlayers removed - item buffs are only applied when player registers
+    // HP changes during gameplay are preserved and not overwritten by item buffs
 
     public async Task TickAsync(CancellationToken cancellationToken)
     {

@@ -57,10 +57,20 @@ public class ItemsController : ControllerBase
         // Get session ID from WorldService
         string sessionId = _worldService.GetPlayerSessionId(playerId) ?? "default";
 
+        // Apply HP boost immediately to PlayerState (for instant effect)
+        // This ensures player sees HP increase right away, even before Redis is updated
+        if (request.CurrentHealthBonus > 0)
+        {
+            int newHp = Math.Min(playerState.Hp + request.CurrentHealthBonus, playerState.MaxHp);
+            playerState.Hp = newHp;
+            _logger.LogInformation("Applied item HP boost: Player {PlayerId} HP {OldHp} -> {NewHp} (bonus: +{Bonus})",
+                playerId, playerState.Hp - request.CurrentHealthBonus, newHp, request.CurrentHealthBonus);
+        }
+
         // Only apply buff if item has duration (temporary item)
         if (request.DurationSeconds > 0)
         {
-            // Apply temporary buff in Redis
+            // Apply temporary buff in Redis (for tracking and expiration)
             var result = await _temporaryItemService.ApplyItemBuffAsync(
                 sessionId, playerId,
                 request.ItemId, request.ItemName ?? request.ItemId,
@@ -76,8 +86,8 @@ public class ItemsController : ControllerBase
                 });
             }
 
-            // Reload player stats with item buffs
-            await ReloadPlayerStatsWithItemBuffsAsync(playerId, sessionId);
+            // Note: HP has already been applied to PlayerState above
+            // Redis is only for tracking expiration, not for applying HP (HP is in PlayerState)
         }
 
         return Ok(new UseItemResponse
