@@ -275,7 +275,7 @@ Báo cáo này xác minh tính phù hợp giữa yêu cầu trong Chương 2 và
 - `NetClient.LoadSavedSession()`: Load session từ PlayerPrefs
 - Server trả về session metadata với player data
 
----
+---ádasd
 
 ## 4. TỔNG KẾT
 
